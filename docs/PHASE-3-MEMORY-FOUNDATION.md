@@ -1,6 +1,6 @@
-# Phase 3 — Memory Foundation (Implementation Batches 1–2)
+# Phase 3 — Memory, Knowledge and Learning Foundation
 
-**Status:** Domain policy and local encrypted repository implemented; awaiting CI verification and device-level security testing.  
+**Status:** Encrypted memory persistence, privacy-aware retrieval, learning policy and event-driven journal transitions implemented on the draft branch; latest CI verification pending. Durable learning-journal storage, scheduled worker execution and device-level security testing remain outstanding.  
 **Branch:** `docs/phase-1-architecture-foundation`
 
 ## Batch 1: memory domain and access policy
@@ -64,3 +64,14 @@ This is a deterministic lexical baseline, not vector/semantic retrieval. Embeddi
 - Added tests for valid lifecycle, terminal-state restrictions, event validation and scheduled execution eligibility.
 
 This defines the scheduler and audit-journal contracts. It does not yet install a background worker, persist journal events or execute website research automatically. Those require the subsequent scheduler, durable journal repository and reviewed public-web transport.
+
+
+## Batch 5: event-driven learning journal transitions
+
+- Added a pure `LearningJournalPolicy.apply` operation that validates an event and returns an updated immutable journal entry or a typed denial.
+- Event types now map to explicit lifecycle transitions; invalid event/state combinations are rejected.
+- Source and claim references are accumulated on the entry as evidence events are applied.
+- Failure detail is retained as a bounded failure code field; callers must not place secrets or private research content in safe metadata.
+- Added tests for sequential event application, evidence-reference retention, invalid transitions and required claim identifiers.
+
+The policy remains storage-agnostic. It does not yet append events to a durable journal, guarantee event-ID idempotency across process restarts, or run a scheduler. Those remain separate implementation tasks.
