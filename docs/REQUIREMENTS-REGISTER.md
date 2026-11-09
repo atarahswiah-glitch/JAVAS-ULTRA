@@ -26,7 +26,7 @@ This is the top-level traceability register. Detailed acceptance tests will be a
 | COM-02 | Morse/tap codes are not represented as cryptographic protection | 6 | Documentation and UX review | Planned |
 | SEN-01 | Camera, microphone, location and sensors are permission-gated | 6, 7 | Permission denial/grant tests | Planned |
 | SEN-02 | Sensor use and privacy uncertainty are communicated honestly | 6, 7 | Device and UX tests | Planned |
-| AND-01 | First client is a native Android application | 7 | Reproducible Android build and install test | Planned |
+| AND-01 | First client is a native Android application | 7 | Reproducible Android build and install test | In progress |
 | AND-02 | Voice, wake phrase, notifications and visual presence degrade gracefully | 7 | Device matrix and permission tests | Planned |
 | ACT-01 | Tool adapters declare scopes, side effects and rollback behaviour | 4, 8 | Adapter contract tests | Planned |
 | ACT-02 | High-impact actions require explicit approval | 2, 8 | Approval-gate tests | Planned |
