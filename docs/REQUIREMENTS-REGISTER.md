@@ -173,3 +173,14 @@ The journal now has a dedicated encrypted SQLite append-only event store and ver
 - Memory SQLite enables secure-delete mode before database operations. This is a platform SQLite mitigation, not a certified forensic-erasure guarantee.
 - Model routing now checks the request's estimated input units against each provider's declared context capacity, in addition to output capacity, privacy classification, modality and offline restrictions.
 - New tests cover these policy boundaries. The latest branch-tip CI result is still pending.
+
+
+## Verified build evidence — 2026-11-09
+
+- GitHub Actions run #82 (42624847367) on commit 497e213104fceb8adaf9641d1dd90fa0515a6da8 completed successfully.
+- JDK 17, Gradle 8.13, Android SDK setup, clean-checkout wrapper generation and Gradle configuration verification all passed.
+- JVM test report contains 117 tests across 16 test suites: 0 failures, 0 errors and 0 skipped.
+- Debug APK assembly passed. The uploaded JAVAS-ULTRA-debug-and-test-reports artifact contains app/build/outputs/apk/debug/app-debug.apk (11,846,872 bytes) and the test reports.
+- APK archive integrity check passed; Android manifest and DEX bytecode entries are present. SHA-256: 60d7391bb884b8c792ebeb89234d488d92844fed8037f36c375a7fc6869f2187.
+- This is an unsigned debug APK, not a production release. It has not been installed or exercised on a physical Android device.
+- A subsequent research-target validation hardening change is in CI and must pass independently before its code is considered verified.
