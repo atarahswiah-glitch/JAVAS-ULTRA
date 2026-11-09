@@ -30,7 +30,7 @@ class EncryptedMemoryRepository(
     private val encryptor: MemoryEncryptor = AndroidKeystoreMemoryEncryptor()
 ) : SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION), MemoryRepository {
 
-    override fun onCreate(db: SQLiteDatabase) {
+    override fun onConfigure(db: SQLiteDatabase) {\n        super.onConfigure(db)\n        db.execSQL("PRAGMA secure_delete = ON")\n    }\n\n    override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE $TABLE ($COL_ID TEXT PRIMARY KEY NOT NULL, $COL_PAYLOAD BLOB NOT NULL, $COL_CREATED INTEGER NOT NULL)")
     }
 
