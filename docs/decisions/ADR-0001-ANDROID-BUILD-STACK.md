@@ -33,9 +33,9 @@ This is a compatibility candidate, not yet a verified working build. Kotlin's pu
 6. Introduce release signing only after the Creator has approved the release identity and signing-key custody plan.
 7. Keep signing keys and passwords in Codemagic secure variables/secure files, never in Git.
 
-## Why Codemagic is proposed
+## Codemagic integration
 
-The Creator previously expressed interest in Codemagic. For the first build, GitHub Actions was selected because it is directly available from the repository and requires no separate build-service account connection. The committed workflow installs JDK 17, Gradle 8.13 and Android SDK packages, generates the wrapper in the CI workspace, runs tests and assembles an unsigned debug APK. Codemagic remains a possible later alternative, but no Codemagic connection or build is claimed.
+The Creator already has a Codemagic account and wants it used for Android cloud builds. The root `codemagic.yaml` defines the unsigned debug workflow: JDK 17, Gradle 8.13 wrapper generation, JVM unit tests, APK assembly and test-report artifacts. The existing Codemagic app must be connected to `atarahswiah-glitch/JAVAS-ULTRA`, select the architecture branch, and accept the repository YAML. No Codemagic build has yet been confirmed from the account. GitHub Actions remains an independent PR verification path.
 
 ## Consequences
 
