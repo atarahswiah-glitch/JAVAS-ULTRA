@@ -89,3 +89,11 @@ At each meaningful checkpoint report:
 6. Next integrated workstream already determined by this roadmap.
 
 Never report a task as complete merely because its design or code draft exists.
+
+
+## Latest verified delivery checkpoint — 2026-11-09
+
+- The clean-checkout GitHub Actions pipeline now passes JDK 17/Gradle 8.13 setup, wrapper generation and configuration validation, all 117 JVM unit tests, debug APK assembly and artifact upload on commit 497e213104fceb8adaf9641d1dd90fa0515a6da8.
+- The debug artifact was downloaded and inspected: APK ZIP integrity is valid, manifest and DEX entries are present, and test XML reports 117/117 passing.
+- The APK remains unsigned and has not undergone physical-device installation, permission, offline, thermal or battery testing.
+- Public research remains disabled at runtime. The gateway is a preflight contract only; safe transport still needs redirect/DNS/IP validation, bounded HTTP handling, content extraction controls and tests.
