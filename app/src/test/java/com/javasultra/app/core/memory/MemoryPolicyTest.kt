@@ -39,6 +39,30 @@ class MemoryPolicyTest {
 
     @Test fun invalidConfidenceIsRejected() = assertEquals(MemoryAccessDenial.INVALID_RECORD, denied(MemoryAccessPolicy.evaluate(record().copy(confidence = 1.5), request())))
     @Test fun sensitiveKindRequiresHighestClassification() = assertEquals(MemoryAccessDenial.INVALID_RECORD, denied(MemoryAccessPolicy.evaluate(record(MemoryKind.SENSITIVE, MemorySensitivity.CREATOR_PRIVATE), request())))
+    @Test fun highlySensitiveExportRequiresStepUp() {
+        val sensitive = record(MemoryKind.SENSITIVE, MemorySensitivity.HIGHLY_SENSITIVE)
+        assertEquals(
+            MemoryAccessDenial.STEP_UP_REQUIRED,
+            denied(MemoryAccessPolicy.evaluate(sensitive, request(action = MemoryAction.EXPORT)))
+        )
+        assertEquals(
+            MemoryAccessDecision.Allowed,
+            MemoryAccessPolicy.evaluate(sensitive, request(action = MemoryAction.EXPORT, stepUp = true))
+        )
+    }
+
+    @Test fun memoryDeleteRequiresCorrectOwner() {
+        val internal = record(MemoryKind.SEMANTIC, MemorySensitivity.INTERNAL)
+        assertEquals(
+            MemoryAccessDenial.OWNER_MISMATCH,
+            denied(MemoryAccessPolicy.evaluate(internal, request(false, "other", MemoryAction.DELETE)))
+        )
+        assertEquals(
+            MemoryAccessDecision.Allowed,
+            MemoryAccessPolicy.evaluate(internal, request(actor = creatorId, action = MemoryAction.DELETE))
+        )
+    }
+
     @Test fun nonPublicMemoryCannotBeReadByAnotherPrincipal() {
         val internal = record(MemoryKind.SEMANTIC, MemorySensitivity.INTERNAL)
         assertEquals(
