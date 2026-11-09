@@ -14,7 +14,7 @@ class LearningJournalCodecTest {
     )
     private fun event() = LearningJournalEvent(
         "event-1", "entry-1", LearningJournalEventType.SOURCE_RETRIEVED,
-        now.plusSeconds(1), "learning-agent", "source-3", null, "retrieved safely"
+        now.plusSeconds(1), "learning-agent", "source-3", null, "SOURCE_RETRIEVED"
     )
 
     @Test fun roundTripsJournalEntry() {
@@ -31,10 +31,16 @@ class LearningJournalCodecTest {
         assertThrows(IllegalArgumentException::class.java) { LearningJournalCodec.decodeEntry(bytes) }
     }
 
-    @Test fun sanitizesAndBoundsEventDetail() {
+    @Test fun rejectsFreeTextThatCouldContainSecrets() {
         val original = event().copy(safeDetail = "token=secret; timeout!")
         val decoded = LearningJournalCodec.decodeEvent(LearningJournalCodec.encodeEvent(original))
-        assertEquals("tokensecret timeout", decoded.safeDetail)
+        assertEquals(null, decoded.safeDetail)
+    }
+
+    @Test fun preservesOnlyStableAllowListedDetailCodes() {
+        val original = event().copy(safeDetail = "NETWORK_TIMEOUT")
+        val decoded = LearningJournalCodec.decodeEvent(LearningJournalCodec.encodeEvent(original))
+        assertEquals("NETWORK_TIMEOUT", decoded.safeDetail)
     }
 
     @Test fun rejectsTrailingBytes() {
