@@ -1,6 +1,8 @@
 name: Android CI
 
 on:
+  push:
+    branches: [docs/phase-1-architecture-foundation]
   pull_request:
     branches: [main]
   workflow_dispatch:
