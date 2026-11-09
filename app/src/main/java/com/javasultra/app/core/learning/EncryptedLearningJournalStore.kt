@@ -71,20 +71,23 @@ class EncryptedLearningJournalStore(
 
     /** Replaying the same event id and payload is safe; reusing an id for different content is rejected. */
     fun append(event: LearningJournalEvent): LearningJournalStoreResult<LearningJournalEntry> {
-        if (event.id.isBlank() || event.entryId.isBlank() || event.actor.isBlank()) {
+        val normalizedEvent = event.copy(
+            safeDetail = event.safeDetail?.filter { it.isLetterOrDigit() || it in " _-.:/" }?.take(160)
+        )
+        if (normalizedEvent.id.isBlank() || normalizedEvent.entryId.isBlank() || normalizedEvent.actor.isBlank()) {
             return failure(LearningJournalStoreFailure.INVALID_EVENT)
         }
         val db = writableDatabase
         return try {
             db.beginTransaction()
-            val existingEvent = db.query(EVENTS, arrayOf(PAYLOAD), "$EVENT_ID = ?", arrayOf(event.id), null, null, null).use {
+            val existingEvent = db.query(EVENTS, arrayOf(PAYLOAD), "$EVENT_ID = ?", arrayOf(normalizedEvent.id), null, null, null).use {
                 if (!it.moveToFirst()) null else it.getBlob(0)
             }
             if (existingEvent != null) {
-                val prior = LearningJournalCodec.decodeEvent(encryptor.decrypt(existingEvent, aad("event", event.id)))
-                val current = loadEntry(db, event.entryId)
+                val prior = LearningJournalCodec.decodeEvent(encryptor.decrypt(existingEvent, aad("event", normalizedEvent.id)))
+                val current = loadEntry(db, normalizedEvent.entryId)
                     ?: run { db.endTransaction(); return failure(LearningJournalStoreFailure.NOT_FOUND) }
-                if (prior != event) {
+                if (prior != normalizedEvent) {
                     db.endTransaction()
                     return failure(LearningJournalStoreFailure.EVENT_ID_COLLISION)
                 }
@@ -95,7 +98,7 @@ class EncryptedLearningJournalStore(
 
             val current = loadEntry(db, event.entryId)
                 ?: run { db.endTransaction(); return failure(LearningJournalStoreFailure.NOT_FOUND) }
-            val applied = LearningJournalPolicy.apply(current, event)
+            val applied = LearningJournalPolicy.apply(current, normalizedEvent)
             val updated = applied.updatedEntry
                 ?: run {
                     db.endTransaction()
@@ -104,11 +107,11 @@ class EncryptedLearningJournalStore(
                     else LearningJournalStoreFailure.INVALID_TRANSITION)
                 }
 
-            val encryptedEvent = encryptor.encrypt(LearningJournalCodec.encodeEvent(event), aad("event", event.id))
+            val encryptedEvent = encryptor.encrypt(LearningJournalCodec.encodeEvent(normalizedEvent), aad("event", event.id))
             val eventValues = ContentValues().apply {
-                put(EVENT_ID, event.id)
-                put(ENTRY_ID, event.entryId)
-                put(OCCURRED, event.occurredAt.toEpochMilli())
+                put(EVENT_ID, normalizedEvent.id)
+                put(ENTRY_ID, normalizedEvent.entryId)
+                put(OCCURRED, normalizedEvent.occurredAt.toEpochMilli())
                 put(PAYLOAD, encryptedEvent)
             }
             check(db.insertOrThrow(EVENTS, null, eventValues) != -1L)
