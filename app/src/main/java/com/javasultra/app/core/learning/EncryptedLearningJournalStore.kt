@@ -151,7 +151,7 @@ class EncryptedLearningJournalStore(
         }
 
     private fun aad(kind: String, id: String) = "javas-learning-journal-v1:$kind:$id".toByteArray(Charsets.UTF_8)
-    private fun <T> failure(reason: LearningJournalStoreFailure) = LearningJournalStoreResult.Failure(reason)
+    private fun failure(reason: LearningJournalStoreFailure) = LearningJournalStoreResult.Failure(reason)
 
     private companion object {
         const val DATABASE_NAME = "javas_learning_journal.db"
