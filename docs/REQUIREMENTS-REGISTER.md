@@ -4,14 +4,14 @@ This is the top-level traceability register. Detailed acceptance tests will be a
 
 | ID | Requirement | Phase | Minimum acceptance evidence | Initial status |
 |---|---|---:|---|---|
-| ID-01 | Stable JAVAS identity and Creator relationship across sessions | 2, 5, 9 | Identity/session continuity tests | Planned |
+| ID-01 | Stable JAVAS identity and Creator relationship across sessions | 2, 5, 9 | Identity/session continuity tests | In progress |
 | ID-02 | Creator authentication and secure account recovery | 2 | Auth, recovery and revocation tests | Planned |
 | ID-03 | Role/scope-based permissions and least privilege | 2 | Positive and negative authorisation tests | In progress |
-| ID-04 | Voice/wake phrase is not sufficient for sensitive authentication | 2, 7 | Step-up authentication tests | Planned |
+| ID-04 | Voice/wake phrase is not sufficient for sensitive authentication | 2, 7 | Step-up authentication tests | In progress |
 | SEC-01 | Untrusted content cannot override system policy or grant permissions | 2, 4, 8 | Prompt-injection/tool-boundary tests | Planned |
 | SEC-02 | Secrets excluded from source, logs and client bundles | 2, 7, 8 | Secret scanning and release inspection | Planned |
 | SEC-03 | Protected actions are audited with actor, scope, target and outcome | 2 | Audit completeness and tamper-resistance tests | Planned |
-| SEC-04 | Secure device/session revocation and recovery | 2, 9 | Lost-device/recovery exercise | Planned |
+| SEC-04 | Secure device/session revocation and recovery | 2, 9 | Lost-device/recovery exercise | In progress |
 | MEM-01 | Separate session, preference, episodic, semantic, project and sensitive memory | 3 | Data model and retrieval tests | Planned |
 | MEM-02 | Durable memory includes provenance, confidence and timestamps | 3 | Provenance validation tests | Planned |
 | MEM-03 | Creator can inspect, correct, export and delete eligible memory | 3 | Lifecycle and access-control tests | Planned |
@@ -67,15 +67,18 @@ Do not upgrade status based on design notes alone.
 
 ## Phase 2 implementation progress
 
+- Added a pure Kotlin Creator identity gate that checks account state, session principal/device binding, session validity/revocation, verified device state, fresh authentication proof and multi-factor step-up for sensitive operations.
+- The identity gate explicitly rejects local biometric unlock as sufficient proof for remote high-impact actions.
+- Added 10 focused identity-gate test cases. These new tests are awaiting the next full Gradle CI result.
 - Added a pure Kotlin capability-authorisation policy model with explicit session, device, capability and resource-scope checks.
 - Added payload-bound, expiring, single-use approval matching logic.
 - Added JVM tests for allow, unauthenticated access, unregistered devices, principal mismatch, scope mismatch, session expiry/revocation and approval binding/reuse.
 - A local Kotlin compiler smoke check passed for the domain source and 12 representative assertions; it also exposed and led to correction of a revoked-grant classification bug.
-- The earlier successful CI revision ran 10 tests (9 security-domain plus 1 foundation). The latest branch now has 19 security-domain/policy JUnit test cases plus the foundation test, but this expanded test set still needs a fresh Gradle CI run.
+- CI run `42588010169` passed 20 tests on commit `464b8fc6c0806374915990af45bd05c0c3f1ee4c` (15 capability-authorisation, 4 risk-policy and 1 foundation test). The new Creator identity gate adds 10 more test cases and is awaiting CI on the updated branch.
 - These are local domain components and tests only. They are not server enforcement, authentication, secure credential storage or production approval execution. They remain unverified until the latest branch passes CI.
 
 ## Phase 2 contract reference
 
 The initial implementation contract is documented in [Phase 2 — Identity, Trust and Security Contracts](PHASE-2-IDENTITY-SECURITY-CONTRACTS.md). It specifies identity/device/session records, capability-based authorisation, approval-bound action lifecycle, audit requirements, recovery controls and a negative security test matrix.
 
-**Status remains Planned for all application requirements.** The contract is design documentation only; it does not change any requirement to Implemented or Verified.
+**Status remains evidence-based.** Local identity and authorisation code is In progress pending CI and trusted-server implementation. The contract is not production authentication or server enforcement.
