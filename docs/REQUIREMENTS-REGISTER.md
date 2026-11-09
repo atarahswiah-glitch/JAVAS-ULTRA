@@ -127,12 +127,12 @@ The local Keystore key is device-bound; no cross-device recovery or encrypted sy
 
 | ID | Requirement | Evidence | Status |
 |---|---|---|---|
-| MEM-09 | Retrieve relevant memory while enforcing privacy and lifecycle filters | Deterministic lexical ranker with access checks, expiry filtering and evidence-weighted scoring | Implemented; CI pending |
+| MEM-09 | Retrieve relevant memory while enforcing privacy and lifecycle filters | Deterministic lexical ranker with access checks, expiry filtering at retrieval and access-policy boundaries, and evidence-weighted scoring | Implemented; CI pending |
 
 
 | ID | Requirement | Evidence | Status |
 |---|---|---|---|
-| LRN-11 | Maintain an auditable lifecycle for autonomous learning tasks | Learning journal entry/event contracts and transition policy | Implemented; CI pending |
+| LRN-11 | Maintain an auditable lifecycle for autonomous learning tasks | Encrypted SQLite append-only event store, transactional entry snapshots, event-ID replay protection and lifecycle transition policy | Implemented; CI/device verification pending |
 | LRN-12 | Schedule autonomous learning with pause and daily limits | Learning schedule policy and tests | Implemented; CI pending |
 
 
@@ -153,4 +153,12 @@ The local Keystore key is device-bound; no cross-device recovery or encrypted sy
 | LRN-11 | Maintain an auditable lifecycle for autonomous learning tasks | Event-driven immutable journal transition policy with evidence references | Implemented as domain policy; durable event store pending |
 | LRN-12 | Schedule autonomous learning with pause and daily limits | Schedule eligibility policy | Implemented as policy; Android background worker pending |
 
-The current journal transition function is pure domain logic. It is not yet a durable append-only event store. Public research remains an adapter contract; no autonomous network retrieval is enabled. Do not describe these as running services until durable persistence, transport safety limits, background scheduling and integration tests exist.
+The journal now has a dedicated encrypted SQLite append-only event store and versioned binary codecs. The storage transaction, Android Keystore behaviour and restart/replay path still need device/instrumentation verification. Public research remains an adapter contract; no autonomous network retrieval is enabled. The Android background scheduler and integration with a real research adapter are still pending.
+
+
+## Latest integration and build delivery update — 2026-11-09
+
+- Added a root codemagic.yaml for the Creator's existing Codemagic account. It defines an unsigned Android debug workflow with JDK 17, Gradle 8.13, JVM unit tests and APK/test-report artifacts. Codemagic app connection and an actual Codemagic run remain to be confirmed in its dashboard.
+- GitHub Actions run #48 on commit 18925b6766ff216de0a93e6f379e4c98f978c11b passed the JVM unit-test step; APK assembly was still running at the time of this update. The later memory-expiry change is queued for its own verification.
+- Added explicit expiry enforcement to the memory access-policy boundary, with a request-supplied clock and tests for expired records and the exact expiry instant.
+- No release signing, production publishing, live model provider, autonomous network research, or production backend is enabled.
