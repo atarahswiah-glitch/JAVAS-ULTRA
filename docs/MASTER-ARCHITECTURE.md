@@ -246,3 +246,31 @@ JAVAS requires a dedicated, permission-bounded environment rather than unrestric
 - Emergency stop and workspace destruction after retention requirements are met.
 
 Learning new facts may update validated knowledge records under the learning policy. Changing executable behaviour is a separate, higher-risk workflow. JAVAS may identify a deficiency and prepare a tested proposal, but it cannot grant itself new privileges or rewrite identity, authentication, permissions, audit, recovery or approval controls.
+
+
+## 17. General-purpose AI runtime and autonomous learning
+
+JAVAS is intended to become a general-purpose companion, not a fixed FAQ chatbot. His runtime should provide a coherent, provider-neutral set of capabilities comparable in breadth to a modern AI assistant environment, subject to available models, infrastructure, permissions and safety constraints.
+
+### 17.1 Core runtime services
+- Model gateway supporting replaceable reasoning and language models; no single model provider is hard-coded as the whole intelligence.
+- Conversation and task orchestrator with context management, task decomposition, resumable jobs and explicit state.
+- Retrieval layer over authorised memories, approved files and validated knowledge, with provenance and access checks on every retrieval.
+- Tool registry and execution host for public web research, approved file operations, calculations, data analysis, code sandbox, and later authorised device capabilities.
+- Multimodal input/output adapters for text, image, audio, files and permissioned sensors as device capability allows.
+- Evaluation and observability for quality, factuality, latency, resource consumption, policy decisions and audit events.
+- Offline/local mode with bounded capabilities and synchronisation when trusted services are available.
+
+### 17.2 Autonomous public learning
+JAVAS may independently detect learning opportunities from capability gaps, stale knowledge, recurring interests and scheduled reviews. When enabled, he can queue research without a fresh Creator prompt, use approved public websites and documentation, compare independent sources, capture provenance, flag contradictions and propose validated knowledge updates.
+
+Autonomous research must stay within configurable source, time, compute and daily task budgets; use approved public read-only access and permitted domains; respect site access rules; never bypass logins, paywalls, CAPTCHAs or access controls; avoid private/personal data unless separately authorised; record source and retrieval metadata; distinguish verified facts, disputed claims, hypotheses and model suggestions; and support pause, disable, review and deletion controls.
+
+### 17.3 Tool execution boundary
+Each task receives a finite tool allow-list, permissions, deadline and work budget. Tools are classified by effect: read-only, local reversible, external side-effect or privileged. Read-only research may run autonomously when explicitly enabled. External side effects and privileged operations require independently verified, task-bound Creator approval at the trusted execution host. Local policy objects are preflight only and do not constitute server authorisation.
+
+### 17.4 Product ambition and inclusivity
+The long-term target is a capable, accessible companion for a broad range of people and activities. The design must support age-appropriate experiences, accessibility, plain-language and advanced modes, configurable boundaries, multilingual interaction and professional/personal use cases. It must not assume one universal persona, expertise level or use pattern.
+
+### 17.5 Implementation status
+Current code adds domain contracts for autonomous learning planning, public-research gating, task-scoped tool permissions and runtime budgets. It does not yet implement actual web transport, model gateway, autonomous scheduler, retrieval database, multimodal services, code execution sandbox or production authorisation service. Those remain separate implementation tasks.

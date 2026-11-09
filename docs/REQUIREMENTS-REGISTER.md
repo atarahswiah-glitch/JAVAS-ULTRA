@@ -93,3 +93,21 @@ The initial implementation contract is documented in [Phase 2 — Identity, Trus
 - Added an isolated upgrade-workspace proposal policy. Feature changes require successful tests, static analysis, dependency review, secret scan, verified backup, Creator approval and rollback plan. Identity, permissions, trust root, audit and recovery are explicitly protected from self-modification.
 - Added focused unit tests for research evidence, learning task bounds, capability/upgrade policy and memory privacy.
 - All new modules remain local domain contracts until the current CI run verifies compilation and tests. No persistent learning service, research connector, sandbox runner, deployment engine, sensor access or cloud backend is yet enabled.
+
+
+## Autonomous learning and assistant-runtime requirements
+
+| ID | Requirement | Initial implementation evidence | Status |
+|---|---|---|---|
+| LRN-07 | Discover learning opportunities without a new Creator prompt | Autonomous learning planner | In progress |
+| LRN-08 | Public web research with allow-listed domains and read-only access | Public research gateway and adapter contract | In progress |
+| LRN-09 | Source/time/task budgets and pause controls | Bounded learning settings and planner policy | In progress |
+| LRN-10 | Source provenance, contradiction and confidence handling | Research evidence model and tests | In progress |
+| AGT-01 | Task-scoped tool registry and permissions | Agent runtime tool descriptors and policy preflight | In progress |
+| AGT-02 | Tool-call, time and work-unit limits | Agent task envelope and runtime checks | In progress |
+| AGT-03 | External side effects require explicit Creator approval | Runtime preflight requires approval for side-effect/privileged tools | In progress |
+| AGT-04 | Multi-modal, retrieval, model gateway and orchestration | Architecture defined; adapters/services pending | Planned |
+| DEV-04 | Isolated code-experiment runner with test/rollback | Workspace policy defined; actual sandbox runner pending | Planned |
+| UX-01 | Inclusive, accessible, age-appropriate general companion | Product requirement recorded; UX implementation pending | Planned |
+
+Local policy classes are not a substitute for trusted execution-host enforcement. Website transport, domain/DNS safety, redirects, response size/time limits, robots/terms handling, malware/content isolation, encrypted persistence and server-side approval validation remain required before autonomous research is enabled in a release.
