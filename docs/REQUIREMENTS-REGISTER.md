@@ -162,3 +162,14 @@ The journal now has a dedicated encrypted SQLite append-only event store and ver
 - GitHub Actions run #48 on commit 18925b6766ff216de0a93e6f379e4c98f978c11b passed the JVM unit-test step; APK assembly was still running at the time of this update. The later memory-expiry change is queued for its own verification.
 - Added explicit expiry enforcement to the memory access-policy boundary, with a request-supplied clock and tests for expired records and the exact expiry instant.
 - No release signing, production publishing, live model provider, autonomous network research, or production backend is enabled.
+
+
+## Additional hardening — 2026-11-09
+
+- Autonomous learning planner now rejects duplicate signal IDs, future-dated signals, oversized objectives, invalid public-web allowlists and daily-budget exhaustion with a distinct denial reason.
+- Learning-journal SQLite store explicitly enables foreign-key enforcement.
+- Memory access policy now restricts every non-public record to its owner; explicitly public semantic knowledge remains shareable with authorised research actors. Highly sensitive export/delete continues to require step-up preflight.
+- Added an explicit memory export repository path that requires an EXPORT request rather than allowing export through a READ request.
+- Memory SQLite enables secure-delete mode before database operations. This is a platform SQLite mitigation, not a certified forensic-erasure guarantee.
+- Model routing now checks the request's estimated input units against each provider's declared context capacity, in addition to output capacity, privacy classification, modality and offline restrictions.
+- New tests cover these policy boundaries. The latest branch-tip CI result is still pending.
