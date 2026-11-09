@@ -56,6 +56,10 @@ jobs:
         with:
           name: JAVAS-ULTRA-debug-and-test-reports
           path: |
+            gradlew
+            gradlew.bat
+            gradle/wrapper/gradle-wrapper.jar
+            gradle/wrapper/gradle-wrapper.properties
             app/build/outputs/apk/debug/*.apk
             app/build/reports/tests/
             app/build/test-results/
