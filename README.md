@@ -6,10 +6,10 @@ JAVAS ULTRA is being developed as a secure, memory-enabled, practical AI compani
 
 ## Project status
 
-- Current phase: **Phase 1 — repository inspection and master architecture**
-- Current implementation status: **Documentation foundation only**
-- No working Android application or production backend is claimed at this stage.
-- The initial architecture and execution roadmap are being established before implementation.
+- Current work: Phase 1 architecture/repository baseline, with Phase 2 identity and security contracts drafted.
+- Current implementation status: documentation and design only.
+- No working Android application, authentication implementation or production backend is claimed.
+- Draft PR #1 remains open and unmerged.
 
 ## Start here
 
@@ -17,6 +17,7 @@ JAVAS ULTRA is being developed as a secure, memory-enabled, practical AI compani
 - [Integrated ten-phase roadmap](docs/ROADMAP.md)
 - [Requirements register](docs/REQUIREMENTS-REGISTER.md)
 - [Security and privacy baseline](docs/SECURITY-AND-PRIVACY-BASELINE.md)
+- [Phase 2 identity and security contracts](docs/PHASE-2-IDENTITY-SECURITY-CONTRACTS.md)
 
 ## Development principles
 
