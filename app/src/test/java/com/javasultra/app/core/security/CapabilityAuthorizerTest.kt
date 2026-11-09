@@ -163,4 +163,34 @@ class CapabilityAuthorizerTest {
         )
     }
 
+
+    @Test fun protectedActionMustFollowDeclaredLifecycle() {
+        assertTrue(ProtectedActionState.PROPOSED.canTransitionTo(ProtectedActionState.VALIDATED))
+        assertTrue(ProtectedActionState.VALIDATED.canTransitionTo(ProtectedActionState.AWAITING_APPROVAL))
+        assertTrue(ProtectedActionState.AWAITING_APPROVAL.canTransitionTo(ProtectedActionState.AUTHORIZED))
+        assertTrue(ProtectedActionState.AUTHORIZED.canTransitionTo(ProtectedActionState.EXECUTING))
+        assertTrue(ProtectedActionState.EXECUTING.canTransitionTo(ProtectedActionState.SUCCEEDED))
+        assertFalse(ProtectedActionState.PROPOSED.canTransitionTo(ProtectedActionState.SUCCEEDED))
+        assertFalse(ProtectedActionState.SUCCEEDED.canTransitionTo(ProtectedActionState.EXECUTING))
+    }
+
+    @Test fun auditEventCarriesTraceableMetadataWithoutActionPayloadField() {
+        val event = SecurityAuditEvent(
+            eventId = "event-1",
+            actor = creator,
+            device = device,
+            action = "memory.read",
+            target = "creator-private-memory",
+            outcome = AuditOutcome.ALLOWED,
+            occurredAt = now,
+            correlationId = "correlation-1",
+            policyVersion = "v1",
+            safeMetadata = mapOf("source" to "android")
+        )
+        assertEquals("event-1", event.eventId)
+        assertEquals("correlation-1", event.correlationId)
+        assertEquals(AuditOutcome.ALLOWED, event.outcome)
+        assertEquals("android", event.safeMetadata["source"])
+    }
+
 }
