@@ -133,7 +133,10 @@ object LearningJournalPolicy {
                 LearningJournalState.CANCELLED
         } ?: return LearningJournalApplyResult(denial = LearningJournalDenial.INVALID_TRANSITION)
 
+        // A task may collect multiple independent sources and review multiple claims.
+        // These evidence events may repeat without advancing the task state.
         val observationOnlyEvent = event.type == LearningJournalEventType.SIGNAL_DETECTED ||
+            event.type == LearningJournalEventType.SOURCE_RETRIEVED ||
             event.type == LearningJournalEventType.CLAIM_REVIEWED
         if ((target == entry.state && !observationOnlyEvent) ||
             (target != entry.state && !canTransition(entry.state, target))
