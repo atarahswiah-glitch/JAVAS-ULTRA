@@ -1,0 +1,48 @@
+workflows:
+  javas-ultra-android-debug:
+    name: JAVAS ULTRA — Android debug and tests
+    max_build_duration: 60
+    instance_type: linux_x2
+
+    environment:
+      java: 17
+
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: "main"
+          include: true
+          source: false
+        - pattern: "docs/phase-1-architecture-foundation"
+          include: true
+          source: true
+
+    scripts:
+      - name: Generate pinned Gradle wrapper
+        script: |
+          gradle wrapper --gradle-version 8.13 --distribution-type bin
+          chmod +x ./gradlew
+
+      - name: Configure Android SDK path
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+
+      - name: Verify Java and Gradle
+        script: |
+          java -version
+          ./gradlew --version
+
+      - name: Run JVM unit tests
+        script: |
+          ./gradlew --no-daemon --stacktrace testDebugUnitTest
+
+      - name: Assemble unsigned debug APK
+        script: |
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+    artifacts:
+      - app/build/outputs/apk/debug/*.apk
+      - app/build/reports/tests/testDebugUnitTest/**
+      - app/build/test-results/testDebugUnitTest/**
