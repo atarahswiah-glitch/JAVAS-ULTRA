@@ -1,6 +1,6 @@
 # JAVAS ULTRA — Requirements Register
 
-This is the top-level traceability register. Detailed acceptance tests will be added alongside each implementation module. Status values: **Planned**, **In progress**, **Implemented**, **Verified**, **Blocked**. At this baseline, no application capability is claimed as implemented.
+This is the top-level traceability register. Detailed acceptance tests will be added alongside each implementation module. Status values: **Planned**, **In progress**, **Implemented**, **Verified**, **Blocked**. Status is evidence-based: domain code may be implemented while CI, device, trusted-server or production acceptance evidence remains pending.
 
 | ID | Requirement | Phase | Minimum acceptance evidence | Initial status |
 |---|---|---:|---|---|
@@ -140,3 +140,17 @@ The local Keystore key is device-bound; no cross-device recovery or encrypted sy
 |---|---|---|---|
 | AGT-05 | Route model requests by modality, privacy classification, offline state and budgets | Provider-neutral model gateway contracts and route policy | Implemented; CI pending |
 | AGT-06 | Treat model tool calls as proposals requiring independent authorisation | Response contract separates proposed tool calls from execution | Implemented; CI pending |
+
+
+## Latest learning-journal implementation evidence
+
+| ID | Requirement | Evidence | Status |
+|---|---|---|---|
+| LRN-07 | Discover learning opportunities without a new Creator prompt | Bounded autonomous learning planner and schedule eligibility policy | Implemented; CI pending |
+| LRN-08 | Public web research with allow-listed domains and read-only access | HTTPS/domain/GET/public-content/robots/privacy gate and adapter contract | Implemented as policy/contract; transport pending |
+| LRN-09 | Source/time/task budgets and pause controls | Bounded learning settings, schedule policy and pause/daily-limit tests | Implemented as policy; worker pending |
+| LRN-10 | Source provenance, contradiction and confidence handling | Research evidence model, source provenance and claim-level evidence tests | Implemented; CI pending |
+| LRN-11 | Maintain an auditable lifecycle for autonomous learning tasks | Event-driven immutable journal transition policy with evidence references | Implemented as domain policy; durable event store pending |
+| LRN-12 | Schedule autonomous learning with pause and daily limits | Schedule eligibility policy | Implemented as policy; Android background worker pending |
+
+The current journal transition function is pure domain logic. It is not yet a durable append-only event store. Public research remains an adapter contract; no autonomous network retrieval is enabled. Do not describe these as running services until durable persistence, transport safety limits, background scheduling and integration tests exist.
