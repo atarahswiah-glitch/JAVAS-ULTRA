@@ -88,3 +88,15 @@ The policy remains storage-agnostic. It does not yet append events to a durable 
 - Tightened lifecycle application so state-changing events cannot be accepted as duplicate no-op transitions; evidence observation events remain non-transitioning where appropriate.
 
 **Verification boundary:** the codec and policy have JVM unit tests. The SQLite transaction, Android Keystore integration, process-restart replay behaviour and database migration path still require Android instrumentation/device tests. The journal database currently refuses unknown schema upgrades rather than risking destructive migration. No scheduled worker or automatic public-web fetcher is claimed by this batch.
+
+
+## Batch 7: memory boundary and export hardening
+
+- Non-public memory is now owner-scoped even when the requesting actor is not marked as the Creator; only explicitly PUBLIC records can be shared with other principals.
+- Added an explicit repository export operation that requires `MemoryAction.EXPORT`; high-sensitivity export remains subject to step-up policy.
+- Enabled SQLite `secure_delete` for the local encrypted-memory database to reduce retention of deleted ciphertext in freed database pages.
+- Added tests for non-public owner isolation, public research access, sensitive export step-up and delete ownership.
+- The model gateway route policy now checks estimated input units against provider context limits before selecting a provider.
+- Autonomous-learning planning now rejects duplicate/future signals, invalid web allowlists, oversized topics and exhausted daily budgets.
+
+**Verification boundary:** these are local policy and repository changes. Export packaging, user-facing correction/deletion flows, tamper-resistant audit, Android Keystore/device tests, forensic erasure guarantees and trusted-server enforcement remain outstanding.
