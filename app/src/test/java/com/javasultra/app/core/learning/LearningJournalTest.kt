@@ -75,6 +75,29 @@ class LearningJournalTest {
             LearningJournalPolicy.validateEvent(entry(LearningJournalState.COMPLETED), event(LearningJournalEventType.TASK_COMPLETED)))
     }
 
+    @Test fun rejectsDuplicateStateChangingEvents() {
+        val result = LearningJournalPolicy.apply(entry(), event(LearningJournalEventType.TASK_QUEUED))
+        assertEquals(LearningJournalDenial.INVALID_TRANSITION, result.denial)
+    }
+
+    @Test fun permitsNonTransitioningEvidenceReviewEvent() {
+        val result = LearningJournalPolicy.apply(
+            entry(LearningJournalState.SOURCE_REVIEW),
+            event(LearningJournalEventType.CLAIM_REVIEWED, claim = "claim-2")
+        )
+        assertTrue(result.accepted)
+        assertEquals(LearningJournalState.SOURCE_REVIEW, result.updatedEntry?.state)
+    }
+
+    @Test fun sanitizesFailureDetailsBeforeStoringThemInEntry() {
+        val result = LearningJournalPolicy.apply(
+            entry(LearningJournalState.RUNNING),
+            event(LearningJournalEventType.TASK_FAILED).copy(safeDetail = "token=secret; network timeout!")
+        )
+        assertTrue(result.accepted)
+        assertEquals("tokensecret network timeout", result.updatedEntry?.failureCode)
+    }
+
     @Test fun allowsScheduledLearningWhenDueWithoutCreatorPrompt() {
         val schedule = LearningSchedule(true, 3600, 8)
         assertNull(LearningSchedulePolicy.evaluate(schedule, now, now.minusSeconds(3600), 2))
