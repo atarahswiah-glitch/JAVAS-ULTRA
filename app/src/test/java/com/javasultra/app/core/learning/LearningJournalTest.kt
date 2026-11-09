@@ -1,6 +1,7 @@
 package com.javasultra.app.core.learning
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -12,8 +13,8 @@ class LearningJournalTest {
         "journal-1", "task-1", "Study planetary science", LearningDomain.SCIENCE,
         state, now.minusSeconds(60), now.minusSeconds(30)
     )
-    private fun event(type: LearningJournalEventType, at: Instant = now) =
-        LearningJournalEvent("event-1", "journal-1", type, at, "javas-learning-agent")
+    private fun event(type: LearningJournalEventType, at: Instant = now, source: String? = null, claim: String? = null) =
+        LearningJournalEvent("event-1", "journal-1", type, at, "javas-learning-agent", source, claim)
 
     @Test fun permitsNormalLearningLifecycle() {
         assertTrue(LearningJournalPolicy.canTransition(LearningJournalState.DISCOVERED, LearningJournalState.QUEUED))
@@ -21,6 +22,33 @@ class LearningJournalTest {
         assertTrue(LearningJournalPolicy.canTransition(LearningJournalState.RUNNING, LearningJournalState.SOURCE_REVIEW))
         assertTrue(LearningJournalPolicy.canTransition(LearningJournalState.SOURCE_REVIEW, LearningJournalState.KNOWLEDGE_PROPOSED))
         assertTrue(LearningJournalPolicy.canTransition(LearningJournalState.KNOWLEDGE_PROPOSED, LearningJournalState.COMPLETED))
+    }
+
+    @Test fun appliesEventsAndCarriesEvidenceReferences() {
+        val started = LearningJournalPolicy.apply(entry(), event(LearningJournalEventType.TASK_STARTED))
+        assertTrue(started.accepted)
+        assertEquals(LearningJournalState.RUNNING, started.updatedEntry?.state)
+
+        val sourced = LearningJournalPolicy.apply(
+            started.updatedEntry!!,
+            event(LearningJournalEventType.SOURCE_RETRIEVED, now.plusSeconds(1), source = "source-1")
+        )
+        assertTrue(sourced.accepted)
+        assertEquals(setOf("source-1"), sourced.updatedEntry?.sourceIds)
+        assertEquals(LearningJournalState.SOURCE_REVIEW, sourced.updatedEntry?.state)
+
+        val reviewed = LearningJournalPolicy.apply(
+            sourced.updatedEntry!!,
+            event(LearningJournalEventType.CLAIM_REVIEWED, now.plusSeconds(2), claim = "claim-1")
+        )
+        assertTrue(reviewed.accepted)
+        assertEquals(setOf("claim-1"), reviewed.updatedEntry?.claimIds)
+    }
+
+    @Test fun rejectsEventThatDoesNotMatchCurrentState() {
+        val result = LearningJournalPolicy.apply(entry(), event(LearningJournalEventType.TASK_COMPLETED))
+        assertEquals(LearningJournalDenial.INVALID_TRANSITION, result.denial)
+        assertNull(result.updatedEntry)
     }
 
     @Test fun rejectsRestartFromCompletedState() {
@@ -35,6 +63,11 @@ class LearningJournalTest {
     @Test fun requiresSourceIdForSourceRetrievalEvent() {
         assertEquals(LearningJournalDenial.SOURCE_REQUIRED,
             LearningJournalPolicy.validateEvent(entry(), event(LearningJournalEventType.SOURCE_RETRIEVED)))
+    }
+
+    @Test fun requiresClaimIdForClaimReviewEvent() {
+        assertEquals(LearningJournalDenial.CLAIM_REQUIRED,
+            LearningJournalPolicy.validateEvent(entry(LearningJournalState.SOURCE_REVIEW), event(LearningJournalEventType.CLAIM_REVIEWED)))
     }
 
     @Test fun rejectsEventsForTerminalEntries() {
