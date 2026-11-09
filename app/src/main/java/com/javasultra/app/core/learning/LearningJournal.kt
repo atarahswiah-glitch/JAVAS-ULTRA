@@ -42,6 +42,13 @@ enum class LearningJournalDenial {
     SOURCE_REQUIRED, CLAIM_REQUIRED, TERMINAL_STATE
 }
 
+data class LearningJournalApplyResult(
+    val updatedEntry: LearningJournalEntry? = null,
+    val denial: LearningJournalDenial? = null
+) {
+    val accepted: Boolean get() = updatedEntry != null && denial == null
+}
+
 object LearningJournalPolicy {
     private val transitions = mapOf(
         LearningJournalState.DISCOVERED to setOf(LearningJournalState.QUEUED, LearningJournalState.CANCELLED),
@@ -80,6 +87,53 @@ object LearningJournalPolicy {
             return LearningJournalDenial.CLAIM_REQUIRED
         }
         return null
+    }
+
+    /**
+     * Applies a validated event to an entry. Persistence layers must append the event and
+     * replace the entry atomically; this pure policy function never writes storage.
+     */
+    fun apply(entry: LearningJournalEntry, event: LearningJournalEvent): LearningJournalApplyResult {
+        validateEntry(entry)?.let { return LearningJournalApplyResult(denial = it) }
+        validateEvent(entry, event)?.let { return LearningJournalApplyResult(denial = it) }
+
+        val target = when (event.type) {
+            LearningJournalEventType.SIGNAL_DETECTED ->
+                if (entry.state == LearningJournalState.DISCOVERED) entry.state else null
+            LearningJournalEventType.TASK_QUEUED ->
+                LearningJournalState.QUEUED
+            LearningJournalEventType.TASK_STARTED ->
+                LearningJournalState.RUNNING
+            LearningJournalEventType.SOURCE_RETRIEVED ->
+                LearningJournalState.SOURCE_REVIEW
+            LearningJournalEventType.CLAIM_REVIEWED ->
+                if (entry.state == LearningJournalState.SOURCE_REVIEW) entry.state else null
+            LearningJournalEventType.KNOWLEDGE_PROPOSED ->
+                LearningJournalState.KNOWLEDGE_PROPOSED
+            LearningJournalEventType.TASK_PAUSED ->
+                LearningJournalState.PAUSED
+            LearningJournalEventType.TASK_RESUMED ->
+                if (entry.state == LearningJournalState.PAUSED) LearningJournalState.QUEUED else null
+            LearningJournalEventType.TASK_COMPLETED ->
+                LearningJournalState.COMPLETED
+            LearningJournalEventType.TASK_FAILED ->
+                LearningJournalState.FAILED
+            LearningJournalEventType.TASK_CANCELLED ->
+                LearningJournalState.CANCELLED
+        } ?: return LearningJournalApplyResult(denial = LearningJournalDenial.INVALID_TRANSITION)
+
+        if (target != entry.state && !canTransition(entry.state, target)) {
+            return LearningJournalApplyResult(denial = LearningJournalDenial.INVALID_TRANSITION)
+        }
+
+        val updated = entry.copy(
+            state = target,
+            updatedAt = event.occurredAt,
+            sourceIds = event.sourceId?.let { entry.sourceIds + it } ?: entry.sourceIds,
+            claimIds = event.claimId?.let { entry.claimIds + it } ?: entry.claimIds,
+            failureCode = if (event.type == LearningJournalEventType.TASK_FAILED) event.safeDetail else entry.failureCode
+        )
+        return LearningJournalApplyResult(updatedEntry = updated)
     }
 
     fun canTransition(from: LearningJournalState, to: LearningJournalState): Boolean =
