@@ -1,6 +1,6 @@
 # Phase 3 — Memory, Knowledge and Learning Foundation
 
-**Status:** Encrypted memory persistence, privacy-aware retrieval, learning policy and event-driven journal transitions implemented on the draft branch; latest CI verification pending. Durable learning-journal storage, scheduled worker execution and device-level security testing remain outstanding.  
+**Status:** Encrypted memory persistence, privacy-aware retrieval, learning policy, event-driven journal transitions and an encrypted append-only learning-journal store implemented on the draft branch; latest CI verification pending. Scheduled worker execution and device-level security testing remain outstanding.  
 **Branch:** `docs/phase-1-architecture-foundation`
 
 ## Batch 1: memory domain and access policy
@@ -75,3 +75,16 @@ This defines the scheduler and audit-journal contracts. It does not yet install 
 - Added tests for sequential event application, evidence-reference retention, invalid transitions and required claim identifiers.
 
 The policy remains storage-agnostic. It does not yet append events to a durable journal, guarantee event-ID idempotency across process restarts, or run a scheduler. Those remain separate implementation tasks.
+
+
+## Batch 6: encrypted append-only learning journal
+
+- Added a dedicated SQLite journal store with encrypted entry snapshots and encrypted event payloads using a separate Android Keystore AES-256-GCM alias.
+- Entry snapshots and event history are written in one SQLite transaction so an event cannot be committed without its corresponding state update.
+- Event IDs are unique. Replaying the same event ID and normalized payload returns the current entry; reusing an event ID with different content is rejected.
+- Authenticated additional data binds each encrypted payload to its kind and opaque identifier.
+- Added a versioned, bounded binary codec for journal entries and events, including source/claim references and safe metadata.
+- Added JVM codec tests for round trips, unsupported versions, trailing data and safe-detail sanitisation.
+- Tightened lifecycle application so state-changing events cannot be accepted as duplicate no-op transitions; evidence observation events remain non-transitioning where appropriate.
+
+**Verification boundary:** the codec and policy have JVM unit tests. The SQLite transaction, Android Keystore integration, process-restart replay behaviour and database migration path still require Android instrumentation/device tests. The journal database currently refuses unknown schema upgrades rather than risking destructive migration. No scheduled worker or automatic public-web fetcher is claimed by this batch.
