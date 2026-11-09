@@ -180,7 +180,7 @@ object LearningJournalCodec {
         out.writeUTF(value.domain.name); out.writeUTF(value.state.name)
         out.writeLong(value.createdAt.toEpochMilli()); out.writeLong(value.updatedAt.toEpochMilli())
         writeSet(out, value.sourceIds); writeSet(out, value.claimIds)
-        out.writeNullable(value.failureCode?.take(160))
+        out.writeNullable(LearningJournalSafeDetail.normalize(value.failureCode))
     }
 
     fun decodeEntry(bytes: ByteArray): LearningJournalEntry = decode(bytes) { input ->
@@ -210,7 +210,10 @@ object LearningJournalCodec {
             input.readUTF(), input.readUTF(), LearningJournalEventType.valueOf(input.readUTF()),
             Instant.ofEpochMilli(input.readLong()), input.readUTF(), input.readNullable(),
             input.readNullable(), input.readNullable()
-        ).also { require(it.id.isNotBlank() && it.entryId.isNotBlank() && it.actor.isNotBlank()) }
+        ).also {
+            require(it.id.isNotBlank() && it.entryId.isNotBlank() && it.actor.isNotBlank())
+            require(it.safeDetail == null || LearningJournalSafeDetail.normalize(it.safeDetail) == it.safeDetail)
+        }
     }
 
     private fun encode(write: (DataOutputStream) -> Unit): ByteArray {
