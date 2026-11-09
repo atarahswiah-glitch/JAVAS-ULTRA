@@ -23,7 +23,9 @@ data class ModelRequest(
     val dataClassification: DataClassification,
     val requestedToolSupport: Boolean,
     val maxOutputUnits: Int,
-    val deadline: Instant,\n    val inputUnits: Int = prompt.length\n)
+    val deadline: Instant,
+    val inputUnits: Int = prompt.length
+)
 
 data class ProposedToolCall(
     val proposalId: String,
@@ -58,7 +60,8 @@ object ModelRoutePolicy {
         return providers.asSequence()
             .filter { it.enabled && it.id.isNotBlank() }
             .filter { request.modalities.all(it.supportedModalities::contains) }
-            .filter { request.inputUnits <= it.maxInputUnits }\n            .filter { request.maxOutputUnits <= it.maxOutputUnits }
+            .filter { request.inputUnits <= it.maxInputUnits }
+            .filter { request.maxOutputUnits <= it.maxOutputUnits }
             .filter { request.dataClassification in it.acceptedData }
             .filter { !request.requestedToolSupport || it.supportedTools }
             .filter { !offline || it.kind == ModelProviderKind.ON_DEVICE }

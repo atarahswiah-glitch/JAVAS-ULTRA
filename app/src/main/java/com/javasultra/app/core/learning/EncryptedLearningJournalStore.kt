@@ -31,7 +31,12 @@ class EncryptedLearningJournalStore(
     private val encryptor: MemoryEncryptor = AndroidKeystoreMemoryEncryptor("javas.learning.journal.aesgcm.v1")
 ) : SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
 
-    override fun onConfigure(db: SQLiteDatabase) {\n        super.onConfigure(db)\n        db.setForeignKeyConstraintsEnabled(true)\n    }\n\n    override fun onCreate(db: SQLiteDatabase) {
+    override fun onConfigure(db: SQLiteDatabase) {
+        super.onConfigure(db)
+        db.setForeignKeyConstraintsEnabled(true)
+    }
+
+    override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE $ENTRIES ($ID TEXT PRIMARY KEY NOT NULL, $PAYLOAD BLOB NOT NULL, $UPDATED INTEGER NOT NULL)")
         db.execSQL("CREATE TABLE $EVENTS ($EVENT_ID TEXT PRIMARY KEY NOT NULL, $ENTRY_ID TEXT NOT NULL, $OCCURRED INTEGER NOT NULL, $PAYLOAD BLOB NOT NULL, FOREIGN KEY($ENTRY_ID) REFERENCES $ENTRIES($ID))")
         db.execSQL("CREATE INDEX journal_events_entry_time ON $EVENTS($ENTRY_ID, $OCCURRED)")

@@ -46,17 +46,35 @@ object AutonomousLearningPlanner {
         if (!settings.enabled) return denied(PlanningDenial.DISABLED)
         if (settings.pausedUntil?.isAfter(now) == true) return denied(PlanningDenial.PAUSED)
         if (signal.involvesPrivateData) return denied(PlanningDenial.PRIVATE_DATA)
-        if (signal.id.isBlank() || signal.topic.isBlank() || signal.topic.length > 500 || signal.id in existingSignalIds) {\n            return denied(PlanningDenial.DUPLICATE_OR_EMPTY_TOPIC)\n        }\n        if (signal.detectedAt.isAfter(now)) return denied(PlanningDenial.FUTURE_SIGNAL)
+        if (signal.id.isBlank() || signal.topic.isBlank() || signal.topic.length > 500 || signal.id in existingSignalIds) {
+            return denied(PlanningDenial.DUPLICATE_OR_EMPTY_TOPIC)
+        }
+        if (signal.detectedAt.isAfter(now)) return denied(PlanningDenial.FUTURE_SIGNAL)
         if (settings.maxTasksPerDay !in 1..100 || settings.maxSourcesPerTask !in 1..100 ||
             settings.maxTaskDuration.isNegative || settings.maxTaskDuration.isZero ||
             settings.maxTaskDuration > Duration.ofHours(24) ||
-            tasksCreatedToday < 0 || tasksCreatedToday >= settings.maxTasksPerDay
+            tasksCreatedToday < 0
         ) return denied(PlanningDenial.INVALID_LIMITS)
+        if (tasksCreatedToday >= settings.maxTasksPerDay) {
+            return denied(PlanningDenial.DAILY_LIMIT_REACHED)
+        }
         if (settings.permissions.none { it == AutonomyPermission.PUBLIC_WEB_READ || it == AutonomyPermission.PUBLIC_DOCUMENTATION_READ }) {
             return denied(PlanningDenial.NO_PERMISSION)
         }
+        if (AutonomyPermission.PUBLIC_WEB_READ in settings.permissions &&
+            (settings.allowedDomains.isEmpty() || settings.allowedDomains.any { !validDomain(it) })
+        ) return denied(PlanningDenial.INVALID_DOMAIN_POLICY)
         return LearningPlanDecision(true)
     }
 
-    private fun validDomain(value: String): Boolean {\n        val domain = value.lowercase().removePrefix("www.")\n        return domain.length <= 253 && domain.contains('.') &&\n            domain.split('.').all { label -> label.length in 1..63 &&\n                label.first().isLetterOrDigit() && label.last().isLetterOrDigit() &&\n                label.all { it.isLetterOrDigit() || it == '-' }\n            }\n    }\n\n    private fun denied(reason: PlanningDenial) = LearningPlanDecision(false, reason)
+    private fun validDomain(value: String): Boolean {
+        val domain = value.lowercase().removePrefix("www.")
+        return domain.length <= 253 && domain.contains('.') &&
+            domain.split('.').all { label -> label.length in 1..63 &&
+                label.first().isLetterOrDigit() && label.last().isLetterOrDigit() &&
+                label.all { it.isLetterOrDigit() || it == '-' }
+            }
+    }
+
+    private fun denied(reason: PlanningDenial) = LearningPlanDecision(false, reason)
 }
