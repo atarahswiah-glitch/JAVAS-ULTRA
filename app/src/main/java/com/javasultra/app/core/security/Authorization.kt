@@ -94,6 +94,7 @@ object CapabilityAuthorizer {
         if (activeGrant != null) return AuthorizationDecision.Allowed
 
         val nonRevoked = matchingScope.filter { it.revokedAt == null || now.isBefore(it.revokedAt) }
+        if (nonRevoked.isEmpty()) return denied(AuthorizationDenial.GRANT_REVOKED)
         if (nonRevoked.none { !now.isBefore(it.validFrom) }) {
             return denied(AuthorizationDenial.GRANT_NOT_YET_VALID)
         }
