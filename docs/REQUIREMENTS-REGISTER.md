@@ -111,3 +111,15 @@ The initial implementation contract is documented in [Phase 2 — Identity, Trus
 | UX-01 | Inclusive, accessible, age-appropriate general companion | Product requirement recorded; UX implementation pending | Planned |
 
 Local policy classes are not a substitute for trusted execution-host enforcement. Website transport, domain/DNS safety, redirects, response size/time limits, robots/terms handling, malware/content isolation, encrypted persistence and server-side approval validation remain required before autonomous research is enabled in a release.
+
+
+## Encrypted memory persistence progress
+
+| ID | Requirement | Evidence | Status |
+|---|---|---|---|
+| MEM-05 | Persist complete memory records encrypted at rest on Android | Versioned codec, Android Keystore AES-GCM encryptor and SQLite repository | Implemented; CI pending |
+| MEM-06 | Bind ciphertext to record identity and enforce owner/access checks on reads | AES-GCM associated data and repository access-policy checks | Implemented; CI pending |
+| MEM-07 | Preserve memory lifecycle when inserting and activating records | Proposed insertion and explicit Creator activation path | Implemented; CI pending |
+| MEM-08 | Recover, rotate and synchronise memory keys safely across devices | Requires account-bound key recovery and trusted sync design | Planned |
+
+The local Keystore key is device-bound; no cross-device recovery or encrypted sync is claimed. Loss or invalidation of the local key can make stored records unreadable. A production release requires a reviewed recovery/key-rotation design, audit logging, migration tests and real-device verification.

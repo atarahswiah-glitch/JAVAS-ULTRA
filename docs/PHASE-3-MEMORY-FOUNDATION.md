@@ -1,34 +1,44 @@
-# Phase 3 — Memory Foundation (Implementation Batch 1)
+# Phase 3 — Memory Foundation (Implementation Batches 1–2)
 
-**Status:** Implemented locally in the Android domain layer; awaiting CI verification.  
+**Status:** Domain policy and local encrypted repository implemented; awaiting CI verification and device-level security testing.  
 **Branch:** `docs/phase-1-architecture-foundation`
 
-## Included capabilities
+## Batch 1: memory domain and access policy
 
 - Typed memory categories: session, preference, episodic, semantic, project and sensitive.
 - Explicit sensitivity labels, verification states and lifecycle states.
 - Provenance fields for source type, source reference, observation time, actor/publisher and notes.
 - Confidence and timestamp validation, optional expiry and supersession references.
-- A local Creator-scoped access preflight for read, update, export and delete operations.
-- Highly sensitive memory requires a step-up proof for read/export/delete preflight.
+- Creator-scoped access preflight for read, update, export and delete operations.
+- Highly sensitive memory requires step-up proof for read/export/delete preflight.
 - Creator-private preferences, episodes and project records are not accessible to non-Creator actors.
 - General public semantic knowledge can be read by a non-Creator research worker when classified public.
 
-## Security and correctness boundary
+## Batch 2: encrypted local persistence
 
-This batch is a pure Kotlin domain model and deterministic policy preflight. It is **not** encrypted persistence, authenticated storage, a trusted server policy, or a functioning memory database. The server/storage adapter must independently authenticate the actor, reload current ownership/classification/lifecycle, enforce authorisation, encrypt private data at rest and in transit, and write tamper-resistant audit events. The boolean `isCreator` and `stepUpAuthenticated` inputs are caller-supplied preflight values and must never be trusted as server proof.
+- Versioned binary codec for complete memory records, including provenance, sensitivity, lifecycle, confidence and tags.
+- Android Keystore AES-256-GCM encryption with a non-exportable key.
+- Authenticated additional data binds each encrypted record to its opaque record ID.
+- SQLite stores the ciphertext and lookup ID; owner, content, source references and classification remain inside the encrypted payload.
+- Repository supports proposed-memory insertion, Creator activation, policy-checked reads, filtered listing and policy-checked deletion.
+- Codec tests cover full round-trip, unsupported versions, truncated payloads and invalid records.
 
-No personal conversation content or real Creator memory is seeded into the repository. No cloud project, paid service, or production secret is required by this batch.
+## Security and correctness boundaries
 
-## Test coverage added
+The repository is local-device storage, not cloud sync or a trusted server policy. The server must independently authenticate actors, reload current ownership/classification/lifecycle, enforce access, encrypt data in transit and at rest, and write tamper-resistant audit events. Caller-supplied `isCreator` and `stepUpAuthenticated` values remain local preflight inputs and must never be trusted as server proof.
 
-- Creator can read their own preference.
-- Non-Creator cannot read Creator-private memory.
-- Creator cannot read another owner's memory.
-- Highly sensitive read requires step-up preflight.
-- Proposed memory cannot be read as active.
-- Invalid confidence is rejected.
-- Sensitive category must use the highest sensitivity classification.
-- Public semantic knowledge can be read by a non-Creator research worker.
+The Android Keystore key is device-bound. This implementation does not yet provide multi-device key recovery, cloud backup, key rotation, secure cross-device sync or account-level recovery. If the Keystore key is invalidated or lost, encrypted records may become unrecoverable; a tested recovery design is required before production use. The database schema is versioned and intentionally refuses destructive upgrades until explicit migrations exist.
 
-CI must pass before this batch is marked verified. Durable storage, encryption/key management, consent/retention workflows, inspect/correct/export/delete UI, retrieval ranking, contradiction handling and research ingestion remain subsequent work.
+No real Creator memories or personal conversation content are seeded into the repository. No cloud project, paid service or production secret is required.
+
+## Remaining memory work
+
+- Retrieval ranking and query matching with sensitivity-aware filtering.
+- Consent, retention, expiry, correction, export and verified erasure workflows.
+- Audit events for memory lifecycle changes.
+- Robust key invalidation/recovery and key rotation strategy.
+- Encrypted sync protocol and trusted-server authorisation.
+- UI for inspecting, correcting and deleting remembered information.
+- Device-level security testing and CI verification.
+
+Do not mark this batch Verified until CI and required Android-device tests pass.
