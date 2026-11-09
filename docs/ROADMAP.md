@@ -97,3 +97,23 @@ Never report a task as complete merely because its design or code draft exists.
 - The debug artifact was downloaded and inspected: APK ZIP integrity is valid, manifest and DEX entries are present, and test XML reports 117/117 passing.
 - The APK remains unsigned and has not undergone physical-device installation, permission, offline, thermal or battery testing.
 - Public research remains disabled at runtime. The gateway is a preflight contract only; safe transport still needs redirect/DNS/IP validation, bounded HTTP handling, content extraction controls and tests.
+
+
+## Current capability truth — 2026-11-09
+
+The app's current launcher (`MainActivity.kt`) is a placeholder foundation screen. The following are code foundations, not end-user capabilities: Creator identity/session preflight; capability/approval policy; encrypted local memory repository; encrypted learning journal; bounded learning planner; research evidence and public-target preflight; model/tool adapter contracts. No user-facing memory management, conversation/model connection, safe research transport, background learning worker, tool execution host, production authentication or device integration is active.
+
+### Next vertical slice — Creator identity and usable memory
+
+1. Implement account bootstrap and secure session persistence/revocation; do not invent an unauthenticated shared principal for memory ownership.
+2. Connect the Creator identity gate and capability checks to the actual application session boundary.
+3. Build memory-management screens and repository operations: propose, inspect, activate, retrieve, correct/supersede, export and delete, with audit-safe provenance and lifecycle handling.
+4. Add Android instrumentation tests for Keystore encryption, database persistence, process restart, owner isolation, deletion and key invalidation/recovery behaviour.
+5. Only after that, connect conversation context assembly to approved memory retrieval.
+
+### Latest build verification — 2026-11-09
+
+- CI run #100 (`42626623452`) completed successfully on commit `ea1a2f55db31723675fc1620414a98d9d21b786b`.
+- All 122 JVM unit tests across 16 suites passed (0 failures, 0 errors, 0 skipped).
+- Debug APK assembly and artifact upload passed. The downloaded artifact was inspected: APK archive integrity is valid; Android manifest and DEX entries are present. APK SHA-256: `ef727bde1d8c763bf7a541aa703143e8da0c98373d406a1e63cf8e2bae7a65e4`.
+- The APK is unsigned and has not been installed or tested on a physical device. CI tests do not establish production authentication, runtime model connectivity or real device behaviour.
