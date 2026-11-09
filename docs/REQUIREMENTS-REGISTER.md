@@ -184,3 +184,12 @@ The journal now has a dedicated encrypted SQLite append-only event store and ver
 - APK archive integrity check passed; Android manifest and DEX bytecode entries are present. SHA-256: 60d7391bb884b8c792ebeb89234d488d92844fed8037f36c375a7fc6869f2187.
 - This is an unsigned debug APK, not a production release. It has not been installed or exercised on a physical Android device.
 - A subsequent research-target validation hardening change is in CI and must pass independently before its code is considered verified.
+
+
+## Application wiring and usable-capability status — 2026-11-09
+
+- The launcher remains a foundation-only Compose screen; there is no working chat, account setup, memory-management UI, research control panel or device tool UI.
+- Identity gate, capability authorisation, encrypted memory repository, retrieval, encrypted learning journal, learning planner, research evidence, public target preflight and model/tool contracts exist as code foundations only.
+- No production identity provider/trusted server, active model adapter, safe research transport, scheduled worker, action execution host or physical-device integration is enabled.
+- Latest CI run #100 (`42626623452`) on commit `ea1a2f55db31723675fc1620414a98d9d21b786b`: 122 JVM tests across 16 suites passed; debug APK assembly and upload passed. Downloaded APK archive was inspected; SHA-256 `ef727bde1d8c763bf7a541aa703143e8da0c98373d406a1e63cf8e2bae7a65e4`.
+- This remains an unsigned development APK; physical-device, production-authentication, provider, offline and privacy acceptance are pending.
