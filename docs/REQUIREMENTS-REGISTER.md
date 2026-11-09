@@ -71,7 +71,7 @@ Do not upgrade status based on design notes alone.
 - Added payload-bound, expiring, single-use approval matching logic.
 - Added JVM tests for allow, unauthenticated access, unregistered devices, principal mismatch, scope mismatch, session expiry/revocation and approval binding/reuse.
 - A local Kotlin compiler smoke check passed for the domain source and 12 representative assertions; it also exposed and led to correction of a revoked-grant classification bug.
-- The repository contains 15 JUnit test cases for this module, but the latest branch's full Gradle test run has not yet been triggered.
+- The earlier successful CI revision ran 10 tests (9 security-domain plus 1 foundation). The latest branch now has 19 security-domain/policy JUnit test cases plus the foundation test, but this expanded test set still needs a fresh Gradle CI run.
 - These are local domain components and tests only. They are not server enforcement, authentication, secure credential storage or production approval execution. They remain unverified until the latest branch passes CI.
 
 ## Phase 2 contract reference
