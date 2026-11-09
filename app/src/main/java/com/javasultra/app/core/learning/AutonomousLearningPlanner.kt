@@ -27,7 +27,7 @@ data class AutonomousLearningSettings(
     val pausedUntil: Instant? = null
 )
 
-enum class PlanningDenial { DISABLED, PAUSED, PRIVATE_DATA, INVALID_LIMITS, NO_PERMISSION, DUPLICATE_OR_EMPTY_TOPIC }
+enum class PlanningDenial { DISABLED, PAUSED, PRIVATE_DATA, INVALID_LIMITS, DAILY_LIMIT_REACHED, NO_PERMISSION, INVALID_DOMAIN_POLICY, FUTURE_SIGNAL, DUPLICATE_OR_EMPTY_TOPIC }
 
 data class LearningPlanDecision(val approvedForQueue: Boolean, val denial: PlanningDenial? = null)
 
@@ -40,12 +40,13 @@ object AutonomousLearningPlanner {
         signal: LearningSignal,
         settings: AutonomousLearningSettings,
         now: Instant,
-        tasksCreatedToday: Int
+        tasksCreatedToday: Int,
+        existingSignalIds: Set<String> = emptySet()
     ): LearningPlanDecision {
         if (!settings.enabled) return denied(PlanningDenial.DISABLED)
         if (settings.pausedUntil?.isAfter(now) == true) return denied(PlanningDenial.PAUSED)
         if (signal.involvesPrivateData) return denied(PlanningDenial.PRIVATE_DATA)
-        if (signal.id.isBlank() || signal.topic.isBlank()) return denied(PlanningDenial.DUPLICATE_OR_EMPTY_TOPIC)
+        if (signal.id.isBlank() || signal.topic.isBlank() || signal.topic.length > 500 || signal.id in existingSignalIds) {\n            return denied(PlanningDenial.DUPLICATE_OR_EMPTY_TOPIC)\n        }\n        if (signal.detectedAt.isAfter(now)) return denied(PlanningDenial.FUTURE_SIGNAL)
         if (settings.maxTasksPerDay !in 1..100 || settings.maxSourcesPerTask !in 1..100 ||
             settings.maxTaskDuration.isNegative || settings.maxTaskDuration.isZero ||
             settings.maxTaskDuration > Duration.ofHours(24) ||
@@ -57,5 +58,5 @@ object AutonomousLearningPlanner {
         return LearningPlanDecision(true)
     }
 
-    private fun denied(reason: PlanningDenial) = LearningPlanDecision(false, reason)
+    private fun validDomain(value: String): Boolean {\n        val domain = value.lowercase().removePrefix("www.")\n        return domain.length <= 253 && domain.contains('.') &&\n            domain.split('.').all { label -> label.length in 1..63 &&\n                label.first().isLetterOrDigit() && label.last().isLetterOrDigit() &&\n                label.all { it.isLetterOrDigit() || it == '-' }\n            }\n    }\n\n    private fun denied(reason: PlanningDenial) = LearningPlanDecision(false, reason)
 }
