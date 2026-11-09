@@ -39,5 +39,13 @@ class MemoryPolicyTest {
 
     @Test fun invalidConfidenceIsRejected() = assertEquals(MemoryAccessDenial.INVALID_RECORD, denied(MemoryAccessPolicy.evaluate(record().copy(confidence = 1.5), request())))
     @Test fun sensitiveKindRequiresHighestClassification() = assertEquals(MemoryAccessDenial.INVALID_RECORD, denied(MemoryAccessPolicy.evaluate(record(MemoryKind.SENSITIVE, MemorySensitivity.CREATOR_PRIVATE), request())))
+    @Test fun nonPublicMemoryCannotBeReadByAnotherPrincipal() {
+        val internal = record(MemoryKind.SEMANTIC, MemorySensitivity.INTERNAL)
+        assertEquals(
+            MemoryAccessDenial.OWNER_MISMATCH,
+            denied(MemoryAccessPolicy.evaluate(internal, request(false, "research-worker")))
+        )
+    }
+
     @Test fun generalPublicKnowledgeCanBeReadByResearchWorker() = assertEquals(MemoryAccessDecision.Allowed, MemoryAccessPolicy.evaluate(record(MemoryKind.SEMANTIC, MemorySensitivity.PUBLIC), request(false, "research-worker")))
 }
