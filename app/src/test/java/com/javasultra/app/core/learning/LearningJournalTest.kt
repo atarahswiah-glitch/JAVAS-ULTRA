@@ -92,10 +92,19 @@ class LearningJournalTest {
     @Test fun sanitizesFailureDetailsBeforeStoringThemInEntry() {
         val result = LearningJournalPolicy.apply(
             entry(LearningJournalState.RUNNING),
+            event(LearningJournalEventType.TASK_FAILED).copy(safeDetail = "NETWORK_TIMEOUT")
+        )
+        assertTrue(result.accepted)
+        assertEquals("NETWORK_TIMEOUT", result.updatedEntry?.failureCode)
+    }
+
+    @Test fun rejectsFreeTextFailureDetailsThatMayContainSecrets() {
+        val result = LearningJournalPolicy.apply(
+            entry(LearningJournalState.RUNNING),
             event(LearningJournalEventType.TASK_FAILED).copy(safeDetail = "token=secret; network timeout!")
         )
         assertTrue(result.accepted)
-        assertEquals("tokensecret network timeout", result.updatedEntry?.failureCode)
+        assertNull(result.updatedEntry?.failureCode)
     }
 
     @Test fun allowsScheduledLearningWhenDueWithoutCreatorPrompt() {
