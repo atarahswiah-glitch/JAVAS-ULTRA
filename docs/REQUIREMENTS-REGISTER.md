@@ -42,6 +42,18 @@ This is the top-level traceability register. Detailed acceptance tests will be a
 | GOV-01 | Neural/BCI, mind-uploading and identity-merging ideas remain excluded from current build | All | Scope review on each phase | Verified as scope exclusion |
 | GOV-02 | No feature is marked implemented/verified without evidence | All | PR and release checklist | Verified as process rule |
 
+
+| LRN-01 | Discover and research knowledge gaps across open-ended subject domains, not a hard-coded subject catalogue | 3 | Research-task evaluation across unrelated domains | Planned |
+| LRN-02 | Capture source provenance, evidence type, timestamp, confidence and claim-level support | 3 | Provenance and source-quality tests | Planned |
+| LRN-03 | Corroborate claims, detect contradictions and revise outdated knowledge transparently | 3 | Contradiction, update and retraction tests | Planned |
+| LRN-04 | Learn from permission-gated environmental observations and label their origin and uncertainty | 3, 6 | Sensor/source provenance and permission tests | Planned |
+| LRN-05 | Maintain a Creator-protected self-model of modules, versions, dependencies, capabilities and limitations | 2, 4, 8 | Architecture-registry access and accuracy tests | Planned |
+| LRN-06 | Distinguish knowledge updates from executable self-modification | 3, 8 | Policy-boundary tests | Planned |
+| LRN-07 | Keep internal architecture and private Creator information restricted to authorised access | 2, 8 | Access-control and disclosure tests | Planned |
+| LRN-08 | Study neuroscience, cognition and consciousness while distinguishing evidence from hypotheses and claims of subjective experience | 3, 4 | Scientific-source and uncertainty evaluation | Planned |
+| CRE-01 | Maintain Creator goals, preferences and approved priorities without allowing untrusted sources to rewrite them | 2, 3, 4 | Priority integrity and injection tests | Planned |
+| DEV-03 | Identify capability gaps, propose improvements, test in isolation and retain rollback evidence | 8 | End-to-end safe-improvement exercise | Planned |
+
 ## Status policy
 
 - **Planned:** requirement accepted but implementation not started.
