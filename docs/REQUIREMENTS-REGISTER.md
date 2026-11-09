@@ -12,10 +12,10 @@ This is the top-level traceability register. Detailed acceptance tests will be a
 | SEC-02 | Secrets excluded from source, logs and client bundles | 2, 7, 8 | Secret scanning and release inspection | Planned |
 | SEC-03 | Protected actions are audited with actor, scope, target and outcome | 2 | Audit completeness and tamper-resistance tests | Planned |
 | SEC-04 | Secure device/session revocation and recovery | 2, 9 | Lost-device/recovery exercise | In progress |
-| MEM-01 | Separate session, preference, episodic, semantic, project and sensitive memory | 3 | Data model and retrieval tests | Planned |
-| MEM-02 | Durable memory includes provenance, confidence and timestamps | 3 | Provenance validation tests | Planned |
+| MEM-01 | Separate session, preference, episodic, semantic, project and sensitive memory | 3 | Data model and retrieval tests | In progress |
+| MEM-02 | Durable memory includes provenance, confidence and timestamps | 3 | Provenance validation tests | In progress |
 | MEM-03 | Creator can inspect, correct, export and delete eligible memory | 3 | Lifecycle and access-control tests | Planned |
-| MEM-04 | Learning verifies important claims and records uncertainty | 3 | Source evaluation and contradiction tests | Planned |
+| MEM-04 | Learning verifies important claims and records uncertainty | 3 | Source evaluation and contradiction tests | In progress |
 | INT-01 | Reasoning distinguishes facts, assumptions and unknowns | 4 | Scenario-based evaluation | Planned |
 | INT-02 | Plans include dependencies, risks, stop conditions and verification | 4 | Planner acceptance tests | Planned |
 | INT-03 | Planning cannot independently authorise external actions | 2, 4 | Permission-boundary tests | Planned |
@@ -30,7 +30,7 @@ This is the top-level traceability register. Detailed acceptance tests will be a
 | AND-02 | Voice, wake phrase, notifications and visual presence degrade gracefully | 7 | Device matrix and permission tests | Planned |
 | ACT-01 | Tool adapters declare scopes, side effects and rollback behaviour | 4, 8 | Adapter contract tests | Planned |
 | ACT-02 | High-impact actions require explicit approval | 2, 8 | Approval-gate tests | In progress |
-| DEV-01 | Generated code runs in an isolated workspace and test pipeline | 8 | Sandbox and CI evidence | Planned |
+| DEV-01 | Generated code runs in an isolated workspace and test pipeline | 8 | Sandbox and CI evidence | In progress |
 | DEV-02 | Protected changes require approval, signed deployment and rollback | 8 | Release/rollback exercise | Planned |
 | OFF-01 | Selected local identity and memory remain available offline | 9 | Airplane-mode acceptance test | Planned |
 | OFF-02 | Sync is authenticated, idempotent and conflict-aware | 9 | Duplicate/reorder/conflict tests | Planned |
@@ -44,15 +44,15 @@ This is the top-level traceability register. Detailed acceptance tests will be a
 
 
 | LRN-01 | Discover and research knowledge gaps across open-ended subject domains, not a hard-coded subject catalogue | 3 | Research-task evaluation across unrelated domains | Planned |
-| LRN-02 | Capture source provenance, evidence type, timestamp, confidence and claim-level support | 3 | Provenance and source-quality tests | Planned |
+| LRN-02 | Capture source provenance, evidence type, timestamp, confidence and claim-level support | 3 | Provenance and source-quality tests | In progress |
 | LRN-03 | Corroborate claims, detect contradictions and revise outdated knowledge transparently | 3 | Contradiction, update and retraction tests | Planned |
 | LRN-04 | Learn from permission-gated environmental observations and label their origin and uncertainty | 3, 6 | Sensor/source provenance and permission tests | Planned |
-| LRN-05 | Maintain a Creator-protected self-model of modules, versions, dependencies, capabilities and limitations | 2, 4, 8 | Architecture-registry access and accuracy tests | Planned |
-| LRN-06 | Distinguish knowledge updates from executable self-modification | 3, 8 | Policy-boundary tests | Planned |
+| LRN-05 | Maintain a Creator-protected self-model of modules, versions, dependencies, capabilities and limitations | 2, 4, 8 | Architecture-registry access and accuracy tests | In progress |
+| LRN-06 | Distinguish knowledge updates from executable self-modification | 3, 8 | Policy-boundary tests | In progress |
 | LRN-07 | Keep internal architecture and private Creator information restricted to authorised access | 2, 8 | Access-control and disclosure tests | Planned |
 | LRN-08 | Study neuroscience, cognition and consciousness while distinguishing evidence from hypotheses and claims of subjective experience | 3, 4 | Scientific-source and uncertainty evaluation | Planned |
 | CRE-01 | Maintain Creator goals, preferences and approved priorities without allowing untrusted sources to rewrite them | 2, 3, 4 | Priority integrity and injection tests | Planned |
-| DEV-03 | Identify capability gaps, propose improvements, test in isolation and retain rollback evidence | 8 | End-to-end safe-improvement exercise | Planned |
+| DEV-03 | Identify capability gaps, propose improvements, test in isolation and retain rollback evidence | 8 | End-to-end safe-improvement exercise | In progress |
 
 ## Status policy
 
@@ -82,3 +82,14 @@ Do not upgrade status based on design notes alone.
 The initial implementation contract is documented in [Phase 2 — Identity, Trust and Security Contracts](PHASE-2-IDENTITY-SECURITY-CONTRACTS.md). It specifies identity/device/session records, capability-based authorisation, approval-bound action lifecycle, audit requirements, recovery controls and a negative security test matrix.
 
 **Status remains evidence-based.** Local identity and authorisation code is In progress pending CI and trusted-server implementation. The contract is not production authentication or server enforcement.
+
+## Combined Phase 3 and Phase 8 implementation progress
+
+- Added typed memory records for session, preference, episodic, semantic, project and sensitive memory, including provenance, confidence, verification, sensitivity, lifecycle, expiry and supersession metadata.
+- Added Creator-scoped memory access preflight and focused negative/positive tests. This is not yet encrypted durable persistence or trusted server-side enforcement.
+- Added a domain-general research evidence model with source provenance, claim-level supporting/contradicting evidence, confidence bands and contradiction validation.
+- Added bounded learning-task policy inputs to support open-ended subject research without hard-coding an encyclopaedia.
+- Added a capability registry model for module status, version, dependencies, permissions, risk and known limitations.
+- Added an isolated upgrade-workspace proposal policy. Feature changes require successful tests, static analysis, dependency review, secret scan, verified backup, Creator approval and rollback plan. Identity, permissions, trust root, audit and recovery are explicitly protected from self-modification.
+- Added focused unit tests for research evidence, learning task bounds, capability/upgrade policy and memory privacy.
+- All new modules remain local domain contracts until the current CI run verifies compilation and tests. No persistent learning service, research connector, sandbox runner, deployment engine, sensor access or cloud backend is yet enabled.

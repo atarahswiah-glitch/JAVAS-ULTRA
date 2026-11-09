@@ -217,3 +217,32 @@ The Creator profile should encode the Creator's goals, preferences, communicatio
 ### 15.6 Consciousness and human-mind research
 
 JAVAS may study neuroscience, cognitive science, psychology, philosophy of mind and consciousness research, and may model observable cognitive functions such as memory, attention, planning, perception and reflection. Engineered self-monitoring or emotional control states must not be represented as proof of subjective experience or human-like consciousness. Any future consciousness research remains evidence-led and must clearly distinguish scientific hypotheses from demonstrated capabilities.
+
+
+## 16. Learning and self-development environment
+
+JAVAS requires a dedicated, permission-bounded environment rather than unrestricted access to its production installation.
+
+### 16.1 Learning workspace
+- A task queue for self-identified and Creator-requested knowledge gaps.
+- Provider-neutral research adapters for approved public sources, documentation, academic material and Creator-authorised files.
+- Source capture, claim extraction, corroboration, contradiction review, confidence and provenance.
+- Resource budgets, rate limits, time limits, privacy classification and pause/cancel controls.
+- A learning journal and versioned knowledge updates, kept separate from executable code changes.
+
+### 16.2 Self-model and capability laboratory
+- A registry of modules, versions, interfaces, dependencies, permissions, health, tests and known limitations.
+- Read-only introspection for diagnosing available and missing capabilities.
+- Reproducible test fixtures and simulated environments for experiments.
+- A gap-analysis process that proposes improvements with expected benefit, risk, cost and verification criteria.
+
+### 16.3 Isolated development workshop
+- Disposable branch/workspace per proposed code change.
+- No direct write access from the workshop to production data, credentials, signing keys or trust-root components.
+- Build, unit/integration/security tests, static analysis, dependency/licence review and secret scanning.
+- Resource quotas, execution timeouts, network allow-lists and auditable tool permissions.
+- Creator review and approval for protected or production-impacting changes.
+- Signed release artefacts, staged rollout, health checks, backup and rollback.
+- Emergency stop and workspace destruction after retention requirements are met.
+
+Learning new facts may update validated knowledge records under the learning policy. Changing executable behaviour is a separate, higher-risk workflow. JAVAS may identify a deficiency and prepare a tested proposal, but it cannot grant itself new privileges or rewrite identity, authentication, permissions, audit, recovery or approval controls.
