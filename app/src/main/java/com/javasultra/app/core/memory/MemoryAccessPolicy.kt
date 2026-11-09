@@ -26,6 +26,10 @@ object MemoryAccessPolicy {
         if (record.lifecycle != MemoryLifecycle.ACTIVE &&
             !(request.action == MemoryAction.DELETE && record.lifecycle == MemoryLifecycle.DELETION_REQUESTED)
         ) return denied(MemoryAccessDenial.NOT_ACTIVE)
+        // Internal memory is scoped to its owning principal even when it is not creator-private.
+        if (record.sensitivity == MemorySensitivity.INTERNAL &&
+            record.ownerPrincipalId != request.actorPrincipalId
+        ) return denied(MemoryAccessDenial.OWNER_MISMATCH)
         val creatorOwned = record.sensitivity == MemorySensitivity.CREATOR_PRIVATE ||
             record.sensitivity == MemorySensitivity.HIGHLY_SENSITIVE ||
             record.kind in setOf(MemoryKind.PREFERENCE, MemoryKind.EPISODIC, MemoryKind.PROJECT)
