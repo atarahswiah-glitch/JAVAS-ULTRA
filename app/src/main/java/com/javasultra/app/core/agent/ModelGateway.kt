@@ -23,8 +23,7 @@ data class ModelRequest(
     val dataClassification: DataClassification,
     val requestedToolSupport: Boolean,
     val maxOutputUnits: Int,
-    val deadline: Instant
-)
+    val deadline: Instant,\n    val inputUnits: Int = prompt.length\n)
 
 data class ProposedToolCall(
     val proposalId: String,
@@ -54,12 +53,12 @@ object ModelRoutePolicy {
         now: Instant
     ): ModelProviderDescriptor? {
         if (request.taskId.isBlank() || request.prompt.isBlank() ||
-            request.maxOutputUnits !in 1..100_000 || !request.deadline.isAfter(now)
+            request.maxOutputUnits !in 1..100_000 || request.inputUnits !in 1..1_000_000 || !request.deadline.isAfter(now)
         ) return null
         return providers.asSequence()
             .filter { it.enabled && it.id.isNotBlank() }
             .filter { request.modalities.all(it.supportedModalities::contains) }
-            .filter { request.maxOutputUnits <= it.maxOutputUnits }
+            .filter { request.inputUnits <= it.maxInputUnits }\n            .filter { request.maxOutputUnits <= it.maxOutputUnits }
             .filter { request.dataClassification in it.acceptedData }
             .filter { !request.requestedToolSupport || it.supportedTools }
             .filter { !offline || it.kind == ModelProviderKind.ON_DEVICE }
