@@ -65,7 +65,7 @@ object PublicResearchGateway {
 
     private fun normalizeDomain(value: String): String? {
         val candidate = value.trim().lowercase().removePrefix("www.").removeSuffix(".")
-        if (candidate.isBlank() || candidate != value.trim().lowercase().removePrefix("www.").removeSuffix(".")) return null
+        if (candidate.isBlank()) return null
         if (candidate.any { it.isWhitespace() || it == '/' || it == ':' || it == '@' || it == '*' }) return null
         return candidate
     }
