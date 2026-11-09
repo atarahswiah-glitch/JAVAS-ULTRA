@@ -85,6 +85,13 @@ class EncryptedMemoryRepository(
         failure(MemoryRepositoryFailure.STORAGE_ERROR)
     }
 
+
+    /** Explicit export path; callers cannot accidentally export through a READ request. */
+    override fun exportReadable(request: MemoryAccessRequest): MemoryRepositoryResult<List<MemoryRecord>> {
+        if (request.action != MemoryAction.EXPORT) return failure(MemoryRepositoryFailure.ACCESS_DENIED)
+        return listReadable(request)
+    }
+
     override fun delete(id: MemoryId, request: MemoryAccessRequest): MemoryRepositoryResult<Unit> {
         val record = load(id) ?: return failure(MemoryRepositoryFailure.NOT_FOUND)
         if (MemoryAccessPolicy.evaluate(record, request.copy(action = MemoryAction.DELETE)) != MemoryAccessDecision.Allowed) {
