@@ -116,7 +116,7 @@ class EncryptedMemoryRepository(
     }
 
     private fun aad(id: MemoryId) = ("javas-memory-v1:" + id.value).toByteArray(Charsets.UTF_8)
-    private fun <T> failure(reason: MemoryRepositoryFailure) = MemoryRepositoryResult.Failure(reason)
+    private fun failure(reason: MemoryRepositoryFailure): MemoryRepositoryResult.Failure = MemoryRepositoryResult.Failure(reason)
 
     private companion object {
         const val DATABASE_NAME = "javas_encrypted_memory.db"
