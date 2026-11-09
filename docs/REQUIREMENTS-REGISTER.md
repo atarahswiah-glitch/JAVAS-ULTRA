@@ -51,3 +51,10 @@ This is the top-level traceability register. Detailed acceptance tests will be a
 - **Blocked:** dependency, access, policy or technical constraint prevents progress.
 
 Do not upgrade status based on design notes alone.
+
+
+## Phase 2 contract reference
+
+The initial implementation contract is documented in [Phase 2 — Identity, Trust and Security Contracts](PHASE-2-IDENTITY-SECURITY-CONTRACTS.md). It specifies identity/device/session records, capability-based authorisation, approval-bound action lifecycle, audit requirements, recovery controls and a negative security test matrix.
+
+**Status remains Planned for all application requirements.** The contract is design documentation only; it does not change any requirement to Implemented or Verified.
