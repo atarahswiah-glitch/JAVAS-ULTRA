@@ -28,4 +28,21 @@ class PublicResearchGatewayTest {
         assertEquals(PublicFetchDenial.AUTHENTICATION_NOT_ALLOWED, PublicResearchGateway.evaluate(request().copy(attemptsAuthentication = true), setOf("nasa.gov")))
         assertEquals(PublicFetchDenial.BYPASS_ATTEMPT_BLOCKED, PublicResearchGateway.evaluate(request().copy(attemptsPaywallOrCaptchaBypass = true), setOf("nasa.gov")))
     }
+    @Test fun rejectsMalformedOrEmptyAllowlist() {
+        assertEquals(PublicFetchDenial.INVALID_DOMAIN_POLICY, PublicResearchGateway.evaluate(request(), emptySet()))
+        assertEquals(PublicFetchDenial.INVALID_DOMAIN_POLICY, PublicResearchGateway.evaluate(request(), setOf("https://nasa.gov/path")))
+        assertEquals(PublicFetchDenial.INVALID_DOMAIN_POLICY, PublicResearchGateway.evaluate(request(), setOf("*.nasa.gov")))
+    }
+    @Test fun rejectsCredentialsAndNonStandardPorts() {
+        assertEquals(PublicFetchDenial.INVALID_URI, PublicResearchGateway.evaluate(request("https://user@nasa.gov/"), setOf("nasa.gov")))
+        assertEquals(PublicFetchDenial.INVALID_URI, PublicResearchGateway.evaluate(request("https://nasa.gov:8443/"), setOf("nasa.gov")))
+    }
+    @Test fun rejectsIpLiteralAndLocalHostTargets() {
+        assertEquals(PublicFetchDenial.DOMAIN_NOT_ALLOWED, PublicResearchGateway.evaluate(request("https://127.0.0.1/"), setOf("nasa.gov")))
+        assertEquals(PublicFetchDenial.DOMAIN_NOT_ALLOWED, PublicResearchGateway.evaluate(request("https://localhost/"), setOf("localhost")))
+    }
+    @Test fun rejectsPersonalDataAndNonPublicPages() {
+        assertEquals(PublicFetchDenial.PERSONAL_DATA_BLOCKED, PublicResearchGateway.evaluate(request().copy(containsPersonalData = true), setOf("nasa.gov")))
+        assertEquals(PublicFetchDenial.PUBLIC_ACCESS_ONLY, PublicResearchGateway.evaluate(request().copy(declaredPublic = false), setOf("nasa.gov")))
+    }
 }
