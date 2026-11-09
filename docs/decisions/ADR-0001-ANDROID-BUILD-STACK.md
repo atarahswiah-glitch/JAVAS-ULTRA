@@ -1,6 +1,6 @@
 # ADR-0001: Provisional Native Android Build Stack
 
-- **Status:** Initial CI path selected for validation — GitHub Actions workflow committed; clean build pending.
+- **Status:** GitHub Actions validation is active; Codemagic is the Creator's preferred cloud Android build and artifact-delivery service, with a repository workflow configuration now committed. Neither provider's latest run should be treated as a release approval.
 - **Date:** 2026-11-09
 - **Decision owners:** Creator approval required before production adoption.
 
@@ -39,7 +39,7 @@ The Creator previously expressed interest in Codemagic. For the first build, Git
 
 ## Consequences
 
-- The project can be built without relying on the Creator's phone as the primary compiler.
+- The project can be built without relying on the Creator's phone as the primary compiler.\n- Codemagic is the preferred Android cloud build/artifact path; GitHub Actions supplies independent PR verification.
 - Cloud builds require GitHub Actions to be enabled for the repository and the workflow to pass. Usage remains subject to GitHub Actions account/repository limits.
 - A successful cloud build does not prove physical-device sensor, battery, biometric, offline or notification behaviour.
 - The phone remains necessary for device acceptance tests.
