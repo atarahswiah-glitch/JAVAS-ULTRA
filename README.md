@@ -6,9 +6,11 @@ JAVAS ULTRA is being developed as a secure, memory-enabled, practical AI compani
 
 ## Project status
 
-- Current work: Phase 1 architecture/repository baseline, Phase 2 identity/security contracts drafted, and the first native Android shell plus CI pipeline under build verification.
-- Current implementation status: architecture/security documentation plus an initial Android source skeleton; build verification is pending.
-- No successfully built or installable Android APK, authentication implementation or production backend is claimed yet.
+- Current work: architecture and security foundations, encrypted local memory and learning-journal modules, provider-neutral model/tool contracts, and native Android build delivery.
+- The Android UI is still a foundation screen; domain modules are not yet integrated into a complete interactive assistant.
+- GitHub Actions has produced successful test/build artifacts on earlier commits. The latest changes are being revalidated; see the current pull-request checks.
+- A Codemagic workflow is committed at the repository root for the Creator's existing account. The Codemagic app connection and first build still require confirmation in the Codemagic dashboard.
+- No production authentication, live model-provider connection, autonomous web research, dedicated JAVAS backend or signed release is claimed.
 - Draft PR #1 remains open and unmerged.
 
 ## Start here
@@ -19,7 +21,7 @@ JAVAS ULTRA is being developed as a secure, memory-enabled, practical AI compani
 - [Security and privacy baseline](docs/SECURITY-AND-PRIVACY-BASELINE.md)
 - [Phase 2 identity and security contracts](docs/PHASE-2-IDENTITY-SECURITY-CONTRACTS.md)
 
-## Development principles
+## Build and delivery\n\n- Preferred cloud Android build: existing Codemagic account, configured by [codemagic.yaml](codemagic.yaml).\n- Independent verification: [GitHub Actions Android CI](.github/workflows/android-ci.yml).\n- Debug builds are unsigned. Release signing and store publishing remain disabled pending Creator approval and a secure signing-key custody plan.\n\n## Development principles
 
 - Native Android is the first client direction.
 - Preserve identity, approved memory and user control across upgrades and migration.
