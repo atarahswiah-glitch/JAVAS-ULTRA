@@ -122,7 +122,11 @@ object LearningJournalPolicy {
                 LearningJournalState.CANCELLED
         } ?: return LearningJournalApplyResult(denial = LearningJournalDenial.INVALID_TRANSITION)
 
-        if (target != entry.state && !canTransition(entry.state, target)) {
+        val observationOnlyEvent = event.type == LearningJournalEventType.SIGNAL_DETECTED ||
+            event.type == LearningJournalEventType.CLAIM_REVIEWED
+        if ((target == entry.state && !observationOnlyEvent) ||
+            (target != entry.state && !canTransition(entry.state, target))
+        ) {
             return LearningJournalApplyResult(denial = LearningJournalDenial.INVALID_TRANSITION)
         }
 
@@ -131,7 +135,9 @@ object LearningJournalPolicy {
             updatedAt = event.occurredAt,
             sourceIds = event.sourceId?.let { entry.sourceIds + it } ?: entry.sourceIds,
             claimIds = event.claimId?.let { entry.claimIds + it } ?: entry.claimIds,
-            failureCode = if (event.type == LearningJournalEventType.TASK_FAILED) event.safeDetail else entry.failureCode
+            failureCode = if (event.type == LearningJournalEventType.TASK_FAILED) {
+                event.safeDetail?.filter { it.isLetterOrDigit() || it in " _-.:/" }?.take(160)
+            } else entry.failureCode
         )
         return LearningJournalApplyResult(updatedEntry = updated)
     }
