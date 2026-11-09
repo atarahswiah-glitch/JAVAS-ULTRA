@@ -118,4 +118,49 @@ class CapabilityAuthorizerTest {
         )
         assertFalse(approval.matches("action-1", "digest-A", now))
     }
+
+    @Test fun deniesMissingCapability() {
+        assertEquals(
+            AuthorizationDenial.CAPABILITY_NOT_GRANTED,
+            (CapabilityAuthorizer.evaluate(session(), emptyList(), request(), now)
+                as AuthorizationDecision.Denied).reason
+        )
+    }
+
+    @Test fun deniesGrantThatHasNotStarted() {
+        assertEquals(
+            AuthorizationDenial.GRANT_NOT_YET_VALID,
+            (CapabilityAuthorizer.evaluate(
+                session(),
+                listOf(grant(validFrom = now.plusSeconds(1))),
+                request(),
+                now
+            ) as AuthorizationDecision.Denied).reason
+        )
+    }
+
+    @Test fun deniesExpiredGrant() {
+        assertEquals(
+            AuthorizationDenial.GRANT_EXPIRED,
+            (CapabilityAuthorizer.evaluate(
+                session(),
+                listOf(grant(validUntil = now)),
+                request(),
+                now
+            ) as AuthorizationDecision.Denied).reason
+        )
+    }
+
+    @Test fun deniesRevokedGrant() {
+        assertEquals(
+            AuthorizationDenial.GRANT_REVOKED,
+            (CapabilityAuthorizer.evaluate(
+                session(),
+                listOf(grant(revokedAt = now)),
+                request(),
+                now
+            ) as AuthorizationDecision.Denied).reason
+        )
+    }
+
 }
