@@ -29,6 +29,8 @@ No application source tree, Gradle wrapper, Android project, tests, CI workflow 
 - `docs/SECURITY-AND-PRIVACY-BASELINE.md` — initial security controls.
 - `.gitignore` — Android/Gradle and secret-file exclusions.
 - `CONTRIBUTING.md` — review, security and test workflow.
+- `docs/decisions/ADR-0001-ANDROID-BUILD-STACK.md` — provisional, documented Kotlin/AGP/Gradle/JDK matrix and Codemagic approach.
+- `docs/decisions/ADR-0002-BACKEND-ISOLATION.md` — accepted rule keeping JAVAS isolated from the SACCO Supabase project.
 
 These are documentation and repository-governance changes, not an application build.
 
@@ -57,7 +59,7 @@ Creating a separate backend is deferred until the Creator chooses/authorises the
 | Supabase JAVAS backend | No dedicated project visible | Blocked / not provisioned |
 | Android toolchain/build | Not inspected in this remote session | Not verified |
 | Device hardware/performance | Cannot be established remotely from repository | Requires device inspection |
-| CI/CD | Not configured or tested yet | Planned |
+| CI/CD | Codemagic is the proposed remote build path; no Codemagic connection/build has been tested | Planned |
 | Installable application | No source/build artefact exists in repository baseline | Not implemented |
 
 ## 5. Decisions and approvals still needed
