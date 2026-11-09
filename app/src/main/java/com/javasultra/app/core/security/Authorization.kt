@@ -133,3 +133,52 @@ data class ApprovalBinding(
             now.isBefore(expiresAt) &&
             consumedAt == null
 }
+
+/**
+ * Minimal audit record shape. Callers must whitelist safe metadata and must never
+ * attach credentials, tokens, private keys, biometric material or full private memory.
+ */
+data class SecurityAuditEvent(
+    val eventId: String,
+    val actor: PrincipalId,
+    val device: DeviceId?,
+    val action: String,
+    val target: String,
+    val outcome: AuditOutcome,
+    val occurredAt: Instant,
+    val correlationId: String,
+    val policyVersion: String,
+    val safeMetadata: Map<String, String> = emptyMap()
+)
+
+enum class AuditOutcome {
+    ALLOWED,
+    DENIED,
+    APPROVED,
+    REJECTED,
+    STARTED,
+    SUCCEEDED,
+    FAILED,
+    UNKNOWN
+}
+
+fun ProtectedActionState.canTransitionTo(next: ProtectedActionState): Boolean = when (this) {
+    ProtectedActionState.PROPOSED ->
+        next == ProtectedActionState.VALIDATED || next == ProtectedActionState.CANCELLED
+    ProtectedActionState.VALIDATED ->
+        next == ProtectedActionState.AWAITING_APPROVAL ||
+            next == ProtectedActionState.AUTHORIZED ||
+            next == ProtectedActionState.CANCELLED
+    ProtectedActionState.AWAITING_APPROVAL ->
+        next == ProtectedActionState.AUTHORIZED || next == ProtectedActionState.CANCELLED
+    ProtectedActionState.AUTHORIZED ->
+        next == ProtectedActionState.EXECUTING || next == ProtectedActionState.CANCELLED
+    ProtectedActionState.EXECUTING ->
+        next == ProtectedActionState.SUCCEEDED ||
+            next == ProtectedActionState.FAILED ||
+            next == ProtectedActionState.UNKNOWN
+    ProtectedActionState.SUCCEEDED,
+    ProtectedActionState.FAILED,
+    ProtectedActionState.CANCELLED,
+    ProtectedActionState.UNKNOWN -> false
+}
