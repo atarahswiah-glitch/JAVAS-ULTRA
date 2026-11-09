@@ -6,9 +6,9 @@ JAVAS ULTRA is being developed as a secure, memory-enabled, practical AI compani
 
 ## Project status
 
-- Current work: Phase 1 architecture/repository baseline, with Phase 2 identity and security contracts drafted.
-- Current implementation status: documentation and design only.
-- No working Android application, authentication implementation or production backend is claimed.
+- Current work: Phase 1 architecture/repository baseline, Phase 2 identity/security contracts drafted, and the first native Android shell plus CI pipeline under build verification.
+- Current implementation status: architecture/security documentation plus an initial Android source skeleton; build verification is pending.
+- No successfully built or installable Android APK, authentication implementation or production backend is claimed yet.
 - Draft PR #1 remains open and unmerged.
 
 ## Start here
