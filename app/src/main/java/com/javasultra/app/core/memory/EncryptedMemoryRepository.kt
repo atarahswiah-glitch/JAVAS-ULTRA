@@ -20,6 +20,7 @@ interface MemoryRepository {
     fun activate(id: MemoryId, actorPrincipalId: String, at: Instant): MemoryRepositoryResult<MemoryRecord>
     fun read(id: MemoryId, request: MemoryAccessRequest): MemoryRepositoryResult<MemoryRecord>
     fun listReadable(request: MemoryAccessRequest): MemoryRepositoryResult<List<MemoryRecord>>
+    fun exportReadable(request: MemoryAccessRequest): MemoryRepositoryResult<List<MemoryRecord>>
     fun delete(id: MemoryId, request: MemoryAccessRequest): MemoryRepositoryResult<Unit>
 }
 
