@@ -43,3 +43,7 @@ Brain-computer interfaces, neural sensing, mind uploading, consciousness transfe
 ## Contributions and changes
 
 Use focused branches and reviewable pull requests. Material changes to identity, permissions, security boundaries, memory lifecycle or deployment authority require explicit review.
+
+## Current product status
+
+JAVAS ULTRA is currently a native Android foundation build, not yet a functional AI companion. The launcher screen is a foundation message. Identity, memory, learning, research, model routing and tool permission modules exist as local domain/storage foundations, but are not wired into a usable conversation or controls on the phone. There is no active model connection, production authentication backend, live research transport, scheduled learning worker or enabled device-action tool. The next milestone is Creator identity/session setup followed by a real encrypted memory manager and conversation UI.
