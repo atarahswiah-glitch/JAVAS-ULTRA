@@ -45,6 +45,22 @@ class LearningJournalTest {
         assertEquals(setOf("claim-1"), reviewed.updatedEntry?.claimIds)
     }
 
+    @Test fun acceptsMultipleSourcesDuringSourceReview() {
+        val first = LearningJournalPolicy.apply(
+            entry(LearningJournalState.RUNNING),
+            event(LearningJournalEventType.SOURCE_RETRIEVED, now, source = "source-1")
+        )
+        assertTrue(first.accepted)
+
+        val second = LearningJournalPolicy.apply(
+            first.updatedEntry!!,
+            event(LearningJournalEventType.SOURCE_RETRIEVED, now.plusSeconds(1), source = "source-2")
+        )
+        assertTrue(second.accepted)
+        assertEquals(setOf("source-1", "source-2"), second.updatedEntry?.sourceIds)
+        assertEquals(LearningJournalState.SOURCE_REVIEW, second.updatedEntry?.state)
+    }
+
     @Test fun rejectsEventThatDoesNotMatchCurrentState() {
         val result = LearningJournalPolicy.apply(entry(), event(LearningJournalEventType.TASK_COMPLETED))
         assertEquals(LearningJournalDenial.INVALID_TRANSITION, result.denial)
