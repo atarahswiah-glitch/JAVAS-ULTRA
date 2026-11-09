@@ -17,7 +17,7 @@ enum class MemoryRepositoryFailure {
 
 interface MemoryRepository {
     fun insertProposed(record: MemoryRecord, actorPrincipalId: String): MemoryRepositoryResult<Unit>
-    fun activate(id: MemoryId, actorPrincipalId: String, at: Instant): MemoryRepositoryResult<MemoryRecord>
+    fun activate(id: MemoryId, actorPrincipalId: String, at: Instant, stepUpAuthenticated: Boolean = false): MemoryRepositoryResult<MemoryRecord>
     fun read(id: MemoryId, request: MemoryAccessRequest): MemoryRepositoryResult<MemoryRecord>
     fun listReadable(request: MemoryAccessRequest): MemoryRepositoryResult<List<MemoryRecord>>
     fun exportReadable(request: MemoryAccessRequest): MemoryRepositoryResult<List<MemoryRecord>>
@@ -65,7 +65,7 @@ class EncryptedMemoryRepository(
         id: MemoryId,
         actorPrincipalId: String,
         at: Instant,
-        stepUpAuthenticated: Boolean = false
+        stepUpAuthenticated: Boolean
     ): MemoryRepositoryResult<MemoryRecord> {
         val current = load(id) ?: return failure(MemoryRepositoryFailure.NOT_FOUND)
         if (current.ownerPrincipalId != actorPrincipalId) return failure(MemoryRepositoryFailure.OWNER_MISMATCH)
