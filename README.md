@@ -21,7 +21,13 @@ JAVAS ULTRA is being developed as a secure, memory-enabled, practical AI compani
 - [Security and privacy baseline](docs/SECURITY-AND-PRIVACY-BASELINE.md)
 - [Phase 2 identity and security contracts](docs/PHASE-2-IDENTITY-SECURITY-CONTRACTS.md)
 
-## Build and delivery\n\n- Preferred cloud Android build: existing Codemagic account, configured by [codemagic.yaml](codemagic.yaml).\n- Independent verification: [GitHub Actions Android CI](.github/workflows/android-ci.yml).\n- Debug builds are unsigned. Release signing and store publishing remain disabled pending Creator approval and a secure signing-key custody plan.\n\n## Development principles
+## Build and delivery
+
+- Preferred cloud Android build: existing Codemagic account, configured by [codemagic.yaml](codemagic.yaml).
+- Independent verification: [GitHub Actions Android CI](.github/workflows/android-ci.yml).
+- Debug builds are unsigned. Release signing and store publishing remain disabled pending Creator approval and a secure signing-key custody plan.
+
+## Development principles
 
 - Native Android is the first client direction.
 - Preserve identity, approved memory and user control across upgrades and migration.
