@@ -74,7 +74,10 @@ object LearningJournalPolicy {
         if (entry.id.isBlank() || entry.taskId.isBlank() || entry.objective.isBlank() ||
             entry.updatedAt.isBefore(entry.createdAt)
         ) return LearningJournalDenial.INVALID_ENTRY
-        if (entry.failureCode != null && LearningJournalSafeDetail.normalize(entry.failureCode) != entry.failureCode) {\n            return LearningJournalDenial.INVALID_ENTRY\n        }\n        if (entry.sourceIds.any(String::isBlank) || entry.claimIds.any(String::isBlank)) {
+        if (entry.failureCode != null && LearningJournalSafeDetail.normalize(entry.failureCode) != entry.failureCode) {
+            return LearningJournalDenial.INVALID_ENTRY
+        }
+        if (entry.sourceIds.any(String::isBlank) || entry.claimIds.any(String::isBlank)) {
             return LearningJournalDenial.INVALID_ENTRY
         }
         return null
