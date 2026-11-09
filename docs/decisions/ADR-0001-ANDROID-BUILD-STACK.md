@@ -1,6 +1,6 @@
 # ADR-0001: Provisional Native Android Build Stack
 
-- **Status:** Proposed — validate with a clean cloud build before adoption.
+- **Status:** Initial CI path selected for validation — GitHub Actions workflow committed; clean build pending.
 - **Date:** 2026-11-09
 - **Decision owners:** Creator approval required before production adoption.
 
@@ -18,7 +18,7 @@ JAVAS ULTRA's first client is a native Android application. The project must avo
 | JDK for Gradle | 17 |
 | UI | Jetpack Compose + Material 3 |
 | Compose compiler plugin | Kotlin Compose plugin matching Kotlin 2.3.21 |
-| Build pipeline | Codemagic YAML, unsigned debug build first |
+| Initial build pipeline | GitHub Actions workflow, unsigned debug build first |
 | Version control | GitHub private repository preferred |
 
 This is a compatibility candidate, not yet a verified working build. Kotlin's published compatibility table lists Kotlin Gradle Plugin 2.3.20–2.3.21 as compatible with Gradle 7.6.3–9.3.0 and AGP 8.2.2–9.0.0. Android's AGP table lists Gradle 8.13 as the minimum for AGP 8.13. The selected versions therefore intersect on paper. A clean CI build is still required.
@@ -27,7 +27,7 @@ This is a compatibility candidate, not yet a verified working build. Kotlin's pu
 
 1. Create the smallest native Android application skeleton after the project package ID and app identity are confirmed.
 2. Add the Gradle wrapper and pinned plugin/dependency versions.
-3. Configure Codemagic with a root-level `codemagic.yaml`.
+3. Use the committed GitHub Actions workflow at `.github/workflows/android-ci.yml` for the first reproducible build.
 4. First pipeline produces an unsigned debug APK and test reports only.
 5. Add lint/unit tests and dependency/secret scanning.
 6. Introduce release signing only after the Creator has approved the release identity and signing-key custody plan.
@@ -35,12 +35,12 @@ This is a compatibility candidate, not yet a verified working build. Kotlin's pu
 
 ## Why Codemagic is proposed
 
-The Creator previously expressed interest in Codemagic as a way to build remotely and avoid local JDK/Gradle setup issues. Official Codemagic documentation supports native Android projects using a committed root-level `codemagic.yaml` and Gradle wrapper commands. The repository must still be connected to Codemagic and a build must actually run before CI is considered operational.
+The Creator previously expressed interest in Codemagic. For the first build, GitHub Actions was selected because it is directly available from the repository and requires no separate build-service account connection. The committed workflow installs JDK 17, Gradle 8.13 and Android SDK packages, generates the wrapper in the CI workspace, runs tests and assembles an unsigned debug APK. Codemagic remains a possible later alternative, but no Codemagic connection or build is claimed.
 
 ## Consequences
 
 - The project can be built without relying on the Creator's phone as the primary compiler.
-- Cloud builds require an authorised Codemagic account, connected GitHub repository, suitable build minutes/plan and correct webhook/configuration.
+- Cloud builds require GitHub Actions to be enabled for the repository and the workflow to pass. Usage remains subject to GitHub Actions account/repository limits.
 - A successful cloud build does not prove physical-device sensor, battery, biometric, offline or notification behaviour.
 - The phone remains necessary for device acceptance tests.
 
