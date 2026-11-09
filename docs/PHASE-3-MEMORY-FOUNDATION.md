@@ -53,3 +53,14 @@ Do not mark this batch Verified until CI and required Android-device tests pass.
 - Tests cover relevance, private-memory isolation, Creator access, expiry and disputed-evidence ranking.
 
 This is a deterministic lexical baseline, not vector/semantic retrieval. Embeddings, hybrid retrieval, multilingual tokenisation and relevance evaluation remain future work.
+
+
+## Batch 4: learning journal and scheduled discovery policy
+
+- Added a learning journal state model with a controlled lifecycle from discovery through queueing, research, evidence review, knowledge proposal and completion.
+- Added event validation for actor, entry binding, timestamps and required source/claim references.
+- Terminal completed/cancelled entries cannot be reopened through ordinary transitions.
+- Added a schedule policy for recurring autonomous learning, including pause windows, minimum/maximum interval and daily task limits.
+- Added tests for valid lifecycle, terminal-state restrictions, event validation and scheduled execution eligibility.
+
+This defines the scheduler and audit-journal contracts. It does not yet install a background worker, persist journal events or execute website research automatically. Those require the subsequent scheduler, durable journal repository and reviewed public-web transport.

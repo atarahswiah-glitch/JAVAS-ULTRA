@@ -128,3 +128,9 @@ The local Keystore key is device-bound; no cross-device recovery or encrypted sy
 | ID | Requirement | Evidence | Status |
 |---|---|---|---|
 | MEM-09 | Retrieve relevant memory while enforcing privacy and lifecycle filters | Deterministic lexical ranker with access checks, expiry filtering and evidence-weighted scoring | Implemented; CI pending |
+
+
+| ID | Requirement | Evidence | Status |
+|---|---|---|---|
+| LRN-11 | Maintain an auditable lifecycle for autonomous learning tasks | Learning journal entry/event contracts and transition policy | Implemented; CI pending |
+| LRN-12 | Schedule autonomous learning with pause and daily limits | Learning schedule policy and tests | Implemented; CI pending |
