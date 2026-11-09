@@ -7,6 +7,14 @@ enum class LearningJournalState {
     PAUSED, COMPLETED, FAILED, CANCELLED
 }
 
+object LearningJournalSafeDetail {
+    private val codePattern = Regex("[A-Z][A-Z0-9_]{0,63}")
+
+    /** Accept only stable error/event codes; arbitrary text may contain private data or secrets. */
+    fun normalize(value: String?): String? =
+        value?.takeIf { codePattern.matches(it) }
+}
+
 enum class LearningJournalEventType {
     SIGNAL_DETECTED, TASK_QUEUED, TASK_STARTED, SOURCE_RETRIEVED,
     CLAIM_REVIEWED, KNOWLEDGE_PROPOSED, TASK_PAUSED, TASK_RESUMED,
@@ -136,7 +144,7 @@ object LearningJournalPolicy {
             sourceIds = event.sourceId?.let { entry.sourceIds + it } ?: entry.sourceIds,
             claimIds = event.claimId?.let { entry.claimIds + it } ?: entry.claimIds,
             failureCode = if (event.type == LearningJournalEventType.TASK_FAILED) {
-                event.safeDetail?.filter { it.isLetterOrDigit() || it in " _-.:/" }?.take(160)
+                LearningJournalSafeDetail.normalize(event.safeDetail)
             } else entry.failureCode
         )
         return LearningJournalApplyResult(updatedEntry = updated)
