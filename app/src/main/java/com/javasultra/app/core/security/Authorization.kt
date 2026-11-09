@@ -119,6 +119,11 @@ enum class ProtectedActionState {
     UNKNOWN
 }
 
+/**
+ * Immutable approval snapshot. This local match is only a preflight check;
+ * the trusted server must atomically consume approval with the action claim
+ * to guarantee single-use behaviour under concurrent requests.
+ */
 data class ApprovalBinding(
     val actionId: String,
     val canonicalPayloadDigest: String,
