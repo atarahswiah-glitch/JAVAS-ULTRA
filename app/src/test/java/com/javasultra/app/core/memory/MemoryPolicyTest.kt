@@ -51,6 +51,19 @@ class MemoryPolicyTest {
         )
     }
 
+
+    @Test fun highlySensitiveUpdateRequiresStepUp() {
+        val sensitive = record(MemoryKind.SENSITIVE, MemorySensitivity.HIGHLY_SENSITIVE)
+        assertEquals(
+            MemoryAccessDenial.STEP_UP_REQUIRED,
+            denied(MemoryAccessPolicy.evaluate(sensitive, request(action = MemoryAction.UPDATE)))
+        )
+        assertEquals(
+            MemoryAccessDecision.Allowed,
+            MemoryAccessPolicy.evaluate(sensitive, request(action = MemoryAction.UPDATE, stepUp = true))
+        )
+    }
+
     @Test fun memoryDeleteRequiresCorrectOwner() {
         val internal = record(MemoryKind.SEMANTIC, MemorySensitivity.INTERNAL)
         assertEquals(
