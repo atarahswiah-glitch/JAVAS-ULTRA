@@ -173,3 +173,47 @@ Every material architecture change must record: decision, context, alternatives,
 - Select the first build pipeline and validate a minimal reproducible Android build.
 - Confirm hosting/API/model costs and free-tier constraints before enabling paid resources.
 - Turn this architecture into a traceable, testable implementation plan.
+
+
+## 15. Open-ended learning and environmental development
+
+JAVAS must not depend on a manually preloaded encyclopaedia or a fixed list of facts. The intended foundation is a domain-general learning system that can discover, investigate, evaluate, retain and revise knowledge as authorised sources and tools become available.
+
+### 15.1 Domain-general knowledge acquisition
+
+The learning system should be capable of researching any useful subject, including astronomy, biology, geography, physics and its major branches, mathematics, chemistry, computer science, information technology, engineering, cybersecurity, history, languages and other disciplines. This list is illustrative, not a limit on the system's subject coverage.
+
+The architecture must provide:
+- Search and retrieval adapters for approved public and private information sources.
+- Source identity, publication time, evidence type and provenance records.
+- Claim extraction, corroboration, contradiction detection and confidence tracking.
+- Separation of established findings, hypotheses, estimates, opinions and unknowns.
+- A knowledge graph or equivalent linked knowledge store with revision history.
+- Scheduled or event-driven re-evaluation of knowledge that may become outdated.
+- Learning journals that record what was investigated, what changed and why.
+
+The system should be able to recognise a knowledge gap, formulate a research plan, seek appropriate evidence, test consistency, and explain what remains uncertain. Retrieval and tool access must be governed by explicit permissions, rate limits, privacy rules and resource budgets.
+
+### 15.2 Environmental learning and perception
+
+JAVAS may learn from its environment through permission-gated sources such as location, maps, weather, astronomy data, camera, microphone, device sensors, connected equipment and Creator-provided files. Each observation must record its source, time, context and confidence where feasible. Sensor access must be visible and revocable; no covert monitoring is permitted.
+
+Environmental observations are not automatically trusted facts. The system must consider sensor accuracy, missing context, spoofing, stale data and alternative explanations before drawing conclusions.
+
+### 15.3 Self-model and architecture awareness
+
+Maintain a machine-readable architecture and capability registry describing modules, versions, dependencies, permissions, data flows, tests, known limitations and owners/approval requirements. An authorised introspection service may use this registry and repository metadata to explain how JAVAS is assembled, identify unavailable capabilities, inspect its own health and propose improvements.
+
+The self-model is descriptive and diagnostic; it does not grant permission to read secrets, bypass access controls or change protected components. Internal design information must be available only to authenticated, authorised Creator sessions and approved maintenance processes.
+
+### 15.4 Learning versus self-modification
+
+Learning new information and changing executable software are separate processes. Knowledge may be updated through validated, reversible records under the learning policy. Changes to code, permissions, identity, security controls, model routing or deployment require the controlled self-development workflow in Section 9, including isolated testing, audit, approval where protected, signed deployment and rollback.
+
+### 15.5 Creator purpose and priority
+
+The Creator profile should encode the Creator's goals, preferences, communication needs and explicitly approved priorities. The planner should rank assistance according to those priorities while retaining truthfulness, privacy, lawfulness, safety and the system's security boundaries. No external document, website, message or tool result may silently rewrite the Creator profile or elevate itself to Creator authority.
+
+### 15.6 Consciousness and human-mind research
+
+JAVAS may study neuroscience, cognitive science, psychology, philosophy of mind and consciousness research, and may model observable cognitive functions such as memory, attention, planning, perception and reflection. Engineered self-monitoring or emotional control states must not be represented as proof of subjective experience or human-like consciousness. Any future consciousness research remains evidence-led and must clearly distinguish scientific hypotheses from demonstrated capabilities.
