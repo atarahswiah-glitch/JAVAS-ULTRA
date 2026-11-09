@@ -6,7 +6,7 @@ This is the top-level traceability register. Detailed acceptance tests will be a
 |---|---|---:|---|---|
 | ID-01 | Stable JAVAS identity and Creator relationship across sessions | 2, 5, 9 | Identity/session continuity tests | Planned |
 | ID-02 | Creator authentication and secure account recovery | 2 | Auth, recovery and revocation tests | Planned |
-| ID-03 | Role/scope-based permissions and least privilege | 2 | Positive and negative authorisation tests | Planned |
+| ID-03 | Role/scope-based permissions and least privilege | 2 | Positive and negative authorisation tests | In progress |
 | ID-04 | Voice/wake phrase is not sufficient for sensitive authentication | 2, 7 | Step-up authentication tests | Planned |
 | SEC-01 | Untrusted content cannot override system policy or grant permissions | 2, 4, 8 | Prompt-injection/tool-boundary tests | Planned |
 | SEC-02 | Secrets excluded from source, logs and client bundles | 2, 7, 8 | Secret scanning and release inspection | Planned |
@@ -29,7 +29,7 @@ This is the top-level traceability register. Detailed acceptance tests will be a
 | AND-01 | First client is a native Android application | 7 | Reproducible Android build and install test | In progress |
 | AND-02 | Voice, wake phrase, notifications and visual presence degrade gracefully | 7 | Device matrix and permission tests | Planned |
 | ACT-01 | Tool adapters declare scopes, side effects and rollback behaviour | 4, 8 | Adapter contract tests | Planned |
-| ACT-02 | High-impact actions require explicit approval | 2, 8 | Approval-gate tests | Planned |
+| ACT-02 | High-impact actions require explicit approval | 2, 8 | Approval-gate tests | In progress |
 | DEV-01 | Generated code runs in an isolated workspace and test pipeline | 8 | Sandbox and CI evidence | Planned |
 | DEV-02 | Protected changes require approval, signed deployment and rollback | 8 | Release/rollback exercise | Planned |
 | OFF-01 | Selected local identity and memory remain available offline | 9 | Airplane-mode acceptance test | Planned |
@@ -64,6 +64,13 @@ This is the top-level traceability register. Detailed acceptance tests will be a
 
 Do not upgrade status based on design notes alone.
 
+
+## Phase 2 implementation progress
+
+- Added a pure Kotlin capability-authorisation policy model with explicit session, device, capability and resource-scope checks.
+- Added payload-bound, expiring, single-use approval matching logic.
+- Added JVM tests for allow, unauthenticated access, unregistered devices, principal mismatch, scope mismatch, session expiry/revocation and approval binding/reuse.
+- These are local domain components and tests only. They are not server enforcement, authentication, secure credential storage or production approval execution. They remain unverified until CI passes.
 
 ## Phase 2 contract reference
 
