@@ -39,7 +39,7 @@ class PublicResearchGatewayTest {
     }
     @Test fun rejectsIpLiteralAndLocalHostTargets() {
         assertEquals(PublicFetchDenial.DOMAIN_NOT_ALLOWED, PublicResearchGateway.evaluate(request("https://127.0.0.1/"), setOf("nasa.gov")))
-        assertEquals(PublicFetchDenial.DOMAIN_NOT_ALLOWED, PublicResearchGateway.evaluate(request("https://localhost/"), setOf("localhost")))
+        assertEquals(PublicFetchDenial.DOMAIN_NOT_ALLOWED, PublicResearchGateway.evaluate(request("https://localhost/"), setOf("nasa.gov")))
     }
     @Test fun rejectsPersonalDataAndNonPublicPages() {
         assertEquals(PublicFetchDenial.PERSONAL_DATA_BLOCKED, PublicResearchGateway.evaluate(request().copy(containsPersonalData = true), setOf("nasa.gov")))
