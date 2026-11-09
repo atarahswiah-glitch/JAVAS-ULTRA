@@ -123,3 +123,8 @@ Local policy classes are not a substitute for trusted execution-host enforcement
 | MEM-08 | Recover, rotate and synchronise memory keys safely across devices | Requires account-bound key recovery and trusted sync design | Planned |
 
 The local Keystore key is device-bound; no cross-device recovery or encrypted sync is claimed. Loss or invalidation of the local key can make stored records unreadable. A production release requires a reviewed recovery/key-rotation design, audit logging, migration tests and real-device verification.
+
+
+| ID | Requirement | Evidence | Status |
+|---|---|---|---|
+| MEM-09 | Retrieve relevant memory while enforcing privacy and lifecycle filters | Deterministic lexical ranker with access checks, expiry filtering and evidence-weighted scoring | Implemented; CI pending |

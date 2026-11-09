@@ -42,3 +42,14 @@ No real Creator memories or personal conversation content are seeded into the re
 - Device-level security testing and CI verification.
 
 Do not mark this batch Verified until CI and required Android-device tests pass.
+
+
+## Batch 3: privacy-aware retrieval
+
+- Added deterministic local keyword retrieval over authorised memory records.
+- Access/lifecycle checks and expiry filtering occur before relevance scoring.
+- Ranking considers query-term coverage, exact phrase match, confidence and verification status; disputed claims rank below corroborated/Creator-confirmed records.
+- Search results include matched terms and are bounded to a maximum of 100 results.
+- Tests cover relevance, private-memory isolation, Creator access, expiry and disputed-evidence ranking.
+
+This is a deterministic lexical baseline, not vector/semantic retrieval. Embeddings, hybrid retrieval, multilingual tokenisation and relevance evaluation remain future work.
