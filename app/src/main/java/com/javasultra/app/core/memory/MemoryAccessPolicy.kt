@@ -38,7 +38,7 @@ object MemoryAccessPolicy {
             return denied(MemoryAccessDenial.OWNER_MISMATCH)
         }
         if (record.sensitivity == MemorySensitivity.HIGHLY_SENSITIVE &&
-            request.action in setOf(MemoryAction.READ, MemoryAction.EXPORT, MemoryAction.DELETE) &&
+            request.action in setOf(MemoryAction.READ, MemoryAction.UPDATE, MemoryAction.EXPORT, MemoryAction.DELETE) &&
             !request.stepUpAuthenticated
         ) return denied(MemoryAccessDenial.STEP_UP_REQUIRED)
         return MemoryAccessDecision.Allowed
