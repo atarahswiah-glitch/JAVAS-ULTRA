@@ -12,7 +12,7 @@ class MemoryPolicyTest {
             MemoryProvenance(MemorySourceType.CREATOR_STATEMENT, null, now.minusSeconds(30), creatorId),
             now.minusSeconds(20), now.minusSeconds(10), 1.0, MemoryVerification.CREATOR_CONFIRMED, sensitivity, lifecycle)
     private fun request(creator: Boolean = true, actor: String = creatorId, action: MemoryAction = MemoryAction.READ, stepUp: Boolean = false) =
-        MemoryAccessRequest(actor, creator, action, stepUp)
+        MemoryAccessRequest(actor, creator, action, stepUp, now)
     private fun denied(result: MemoryAccessDecision) = (result as MemoryAccessDecision.Denied).reason
 
     @Test fun creatorCanReadOwnPreference() = assertEquals(MemoryAccessDecision.Allowed, MemoryAccessPolicy.evaluate(record(), request()))
@@ -21,6 +21,22 @@ class MemoryPolicyTest {
     @Test fun highlySensitiveReadRequiresStepUp() = assertEquals(MemoryAccessDenial.STEP_UP_REQUIRED, denied(MemoryAccessPolicy.evaluate(record(MemoryKind.SENSITIVE, MemorySensitivity.HIGHLY_SENSITIVE), request())))
     @Test fun highlySensitiveReadAllowsStepUpPreflight() = assertEquals(MemoryAccessDecision.Allowed, MemoryAccessPolicy.evaluate(record(MemoryKind.SENSITIVE, MemorySensitivity.HIGHLY_SENSITIVE), request(stepUp = true)))
     @Test fun proposedMemoryCannotBeReadAsActive() = assertEquals(MemoryAccessDenial.NOT_ACTIVE, denied(MemoryAccessPolicy.evaluate(record(lifecycle = MemoryLifecycle.PROPOSED), request())))
+    @Test fun expiredMemoryCannotBeReadEvenIfItsLifecycleIsActive() {
+        val expired = record().copy(expiresAt = now.minusSeconds(1))
+        assertEquals(
+            MemoryAccessDenial.NOT_ACTIVE,
+            denied(MemoryAccessPolicy.evaluate(expired, request()))
+        )
+    }
+
+    @Test fun memoryExpiryBoundaryUsesTheRequestClock() {
+        val expiring = record().copy(expiresAt = now)
+        assertEquals(
+            MemoryAccessDenial.NOT_ACTIVE,
+            denied(MemoryAccessPolicy.evaluate(expiring, request()))
+        )
+    }
+
     @Test fun invalidConfidenceIsRejected() = assertEquals(MemoryAccessDenial.INVALID_RECORD, denied(MemoryAccessPolicy.evaluate(record().copy(confidence = 1.5), request())))
     @Test fun sensitiveKindRequiresHighestClassification() = assertEquals(MemoryAccessDenial.INVALID_RECORD, denied(MemoryAccessPolicy.evaluate(record(MemoryKind.SENSITIVE, MemorySensitivity.CREATOR_PRIVATE), request())))
     @Test fun generalPublicKnowledgeCanBeReadByResearchWorker() = assertEquals(MemoryAccessDecision.Allowed, MemoryAccessPolicy.evaluate(record(MemoryKind.SEMANTIC, MemorySensitivity.PUBLIC), request(false, "research-worker")))
