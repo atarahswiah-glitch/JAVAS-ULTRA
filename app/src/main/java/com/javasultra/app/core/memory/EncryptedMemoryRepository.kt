@@ -22,7 +22,7 @@ interface MemoryRepository {
     fun listReadable(request: MemoryAccessRequest): MemoryRepositoryResult<List<MemoryRecord>>
     fun exportReadable(request: MemoryAccessRequest): MemoryRepositoryResult<List<MemoryRecord>>
     fun delete(id: MemoryId, request: MemoryAccessRequest): MemoryRepositoryResult<Unit>
-    fun supersede(id: MemoryId, replacement: MemoryRecord, request: MemoryAccessRequest): MemoryRepositoryResult<MemoryRecord>
+    fun proposeCorrection(id: MemoryId, replacement: MemoryRecord, request: MemoryAccessRequest): MemoryRepositoryResult<MemoryRecord>
 }
 
 /** Stores ciphertext and an opaque lookup id. All memory fields are encrypted together. */
@@ -61,11 +61,53 @@ class EncryptedMemoryRepository(
         }
     }
 
-    override fun activate(id: MemoryId, actorPrincipalId: String, at: Instant): MemoryRepositoryResult<MemoryRecord> {
+    override fun activate(
+        id: MemoryId,
+        actorPrincipalId: String,
+        at: Instant,
+        stepUpAuthenticated: Boolean = false
+    ): MemoryRepositoryResult<MemoryRecord> {
         val current = load(id) ?: return failure(MemoryRepositoryFailure.NOT_FOUND)
         if (current.ownerPrincipalId != actorPrincipalId) return failure(MemoryRepositoryFailure.OWNER_MISMATCH)
-        if (current.lifecycle != MemoryLifecycle.PROPOSED) return failure(MemoryRepositoryFailure.INVALID_RECORD)
-        return replace(current.copy(lifecycle = MemoryLifecycle.ACTIVE, updatedAt = at))
+        if (current.lifecycle != MemoryLifecycle.PROPOSED || at.isBefore(current.updatedAt)) {
+            return failure(MemoryRepositoryFailure.INVALID_RECORD)
+        }
+        val prior = current.supersedes?.let { load(it) }
+        if (current.supersedes != null) {
+            if (prior == null || prior.ownerPrincipalId != actorPrincipalId ||
+                prior.lifecycle != MemoryLifecycle.ACTIVE || at.isBefore(prior.updatedAt)
+            ) return failure(MemoryRepositoryFailure.INVALID_RECORD)
+            if (prior.sensitivity == MemorySensitivity.HIGHLY_SENSITIVE && !stepUpAuthenticated) {
+                return failure(MemoryRepositoryFailure.ACCESS_DENIED)
+            }
+        }
+        return try {
+            val activated = current.copy(lifecycle = MemoryLifecycle.ACTIVE, updatedAt = at)
+            val encryptedActivated = encryptor.encrypt(MemoryRecordCodec.encode(activated), aad(id))
+            val db = writableDatabase
+            db.beginTransaction()
+            try {
+                if (prior != null) {
+                    val superseded = prior.copy(lifecycle = MemoryLifecycle.SUPERSEDED, updatedAt = at)
+                    val priorValues = ContentValues().apply {
+                        put(COL_PAYLOAD, encryptor.encrypt(MemoryRecordCodec.encode(superseded), aad(prior.id)))
+                    }
+                    if (db.update(TABLE, priorValues, "$COL_ID = ?", arrayOf(prior.id.value)) != 1) {
+                        return failure(MemoryRepositoryFailure.NOT_FOUND)
+                    }
+                }
+                val values = ContentValues().apply { put(COL_PAYLOAD, encryptedActivated) }
+                if (db.update(TABLE, values, "$COL_ID = ?", arrayOf(id.value)) != 1) {
+                    return failure(MemoryRepositoryFailure.NOT_FOUND)
+                }
+                db.setTransactionSuccessful()
+                MemoryRepositoryResult.Success(activated)
+            } finally {
+                db.endTransaction()
+            }
+        } catch (_: Exception) {
+            failure(MemoryRepositoryFailure.STORAGE_ERROR)
+        }
     }
 
     override fun read(id: MemoryId, request: MemoryAccessRequest): MemoryRepositoryResult<MemoryRecord> {
@@ -113,10 +155,10 @@ class EncryptedMemoryRepository(
     }
 
     /**
-     * Corrects an active record without destroying its history. The previous record is marked
-     * SUPERSEDED and the proposed replacement is inserted in one SQLite transaction.
+     * Stores a proposed correction while keeping the current record active.
+     * The old record is superseded only when the replacement is explicitly activated.
      */
-    override fun supersede(
+    override fun proposeCorrection(
         id: MemoryId,
         replacement: MemoryRecord,
         request: MemoryAccessRequest
@@ -135,32 +177,15 @@ class EncryptedMemoryRepository(
         ) return failure(MemoryRepositoryFailure.INVALID_RECORD)
 
         return try {
-            val updatedCurrent = current.copy(
-                lifecycle = MemoryLifecycle.SUPERSEDED,
-                updatedAt = request.now
-            )
-            val oldCiphertext = encryptor.encrypt(MemoryRecordCodec.encode(updatedCurrent), aad(id))
-            val newCiphertext = encryptor.encrypt(MemoryRecordCodec.encode(replacement), aad(replacement.id))
-            val db = writableDatabase
-            db.beginTransaction()
-            try {
-                val values = ContentValues().apply { put(COL_PAYLOAD, oldCiphertext) }
-                if (db.update(TABLE, values, "$COL_ID = ?", arrayOf(id.value)) != 1) {
-                    db.setTransactionSuccessful()
-                    return failure(MemoryRepositoryFailure.NOT_FOUND)
-                }
-                val newValues = ContentValues().apply {
-                    put(COL_ID, replacement.id.value)
-                    put(COL_PAYLOAD, newCiphertext)
-                    put(COL_CREATED, replacement.createdAt.toEpochMilli())
-                }
-                val inserted = db.insertWithOnConflict(TABLE, null, newValues, SQLiteDatabase.CONFLICT_IGNORE)
-                if (inserted == -1L) return failure(MemoryRepositoryFailure.DUPLICATE_ID)
-                db.setTransactionSuccessful()
-                MemoryRepositoryResult.Success(replacement)
-            } finally {
-                db.endTransaction()
+            val encrypted = encryptor.encrypt(MemoryRecordCodec.encode(replacement), aad(replacement.id))
+            val values = ContentValues().apply {
+                put(COL_ID, replacement.id.value)
+                put(COL_PAYLOAD, encrypted)
+                put(COL_CREATED, replacement.createdAt.toEpochMilli())
             }
+            val inserted = writableDatabase.insertWithOnConflict(TABLE, null, values, SQLiteDatabase.CONFLICT_IGNORE)
+            if (inserted == -1L) failure(MemoryRepositoryFailure.DUPLICATE_ID)
+            else MemoryRepositoryResult.Success(replacement)
         } catch (_: Exception) {
             failure(MemoryRepositoryFailure.STORAGE_ERROR)
         }
