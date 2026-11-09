@@ -274,3 +274,12 @@ The long-term target is a capable, accessible companion for a broad range of peo
 
 ### 17.5 Implementation status
 Current code adds domain contracts for autonomous learning planning, public-research gating, task-scoped tool permissions and runtime budgets. It does not yet implement actual web transport, model gateway, autonomous scheduler, retrieval database, multimodal services, code execution sandbox or production authorisation service. Those remain separate implementation tasks.
+
+
+### 17.6 Provider-neutral model gateway
+- Model providers are adapters behind a common request/response contract; JAVAS's orchestration, memory and policy must not be inseparably tied to one model vendor.
+- Route selection considers modality support, input/output budgets, tool-call support, data classification, enabled state, offline mode and request deadline.
+- Creator-private data prefers on-device execution; every provider must explicitly declare which data classifications it accepts.
+- Model-generated tool calls are untrusted proposals. They must be separately authorised by the task-scoped tool policy and trusted execution host; a model response never executes an action by itself.
+- Provider adapters must implement credential isolation, cancellation, timeouts, response-size limits, privacy controls and failure handling.
+- No live provider credentials or paid model service are configured in this foundation.

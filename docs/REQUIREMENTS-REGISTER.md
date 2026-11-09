@@ -134,3 +134,9 @@ The local Keystore key is device-bound; no cross-device recovery or encrypted sy
 |---|---|---|---|
 | LRN-11 | Maintain an auditable lifecycle for autonomous learning tasks | Learning journal entry/event contracts and transition policy | Implemented; CI pending |
 | LRN-12 | Schedule autonomous learning with pause and daily limits | Learning schedule policy and tests | Implemented; CI pending |
+
+
+| ID | Requirement | Evidence | Status |
+|---|---|---|---|
+| AGT-05 | Route model requests by modality, privacy classification, offline state and budgets | Provider-neutral model gateway contracts and route policy | Implemented; CI pending |
+| AGT-06 | Treat model tool calls as proposals requiring independent authorisation | Response contract separates proposed tool calls from execution | Implemented; CI pending |
