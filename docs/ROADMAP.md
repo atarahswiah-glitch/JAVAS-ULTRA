@@ -1,0 +1,91 @@
+# JAVAS ULTRA — Integrated Execution Roadmap
+
+**Execution rule:** Work continuously through compatible workstreams. Do not stop after every small feature or ask the Creator to choose the next task when the approved sequence already determines it. Pause only for a genuine dependency, a protected decision, unavailable access or device-only test.
+
+## Work classification
+
+### Remote-capable
+Repository inspection and documentation; architecture and requirements traceability; code review; branch/PR management; implementation that can be validated in the available environment; CI configuration; database schema/migration design; security policy design; tests and static analysis; release documentation; dependency/licence review.
+
+### Device- or Creator-dependent
+OAuth authorisation; device permissions; physical sensor testing; wake-word/microphone behaviour; battery/thermal/performance tests; biometric enrolment; notification delivery on the actual phone; offline/network-transition tests; restore onto a second device; approval of paid services, production credentials, public releases or protected security changes.
+
+## Ten integrated phases
+
+### Phase 1 — Inspection and master architecture
+- Inspect the repository, branch history, files, connected services and available build environment.
+- Establish architecture, scope exclusions, requirements register, risk register and decision log.
+- Verify device and service constraints; select a minimal build/CI path.
+- Exit: repository baseline and architecture are documented; unknowns and blockers are explicit.
+
+### Phase 2 — Identity, security and central foundation
+Combine identity, Creator authentication, session lifecycle, permissions, policy enforcement, audit events, secure configuration and recovery.
+- Define threat model and trust boundaries.
+- Implement authentication/authorisation contracts and least-privilege access.
+- Add audit and device/session revocation foundations.
+- Exit: security tests demonstrate protected operations are denied without correct authority.
+
+### Phase 3 — Memory, knowledge and learning
+Combine persistent memory, knowledge records, research provenance, retrieval, correction, export/deletion and learning journal.
+- Separate episodic, semantic, preference, project and sensitive memory.
+- Add source provenance, confidence, retention and contradiction handling.
+- Exit: memory lifecycle tests cover access control, provenance, correction and recovery.
+
+### Phase 4 — Reasoning, strategy and self-knowledge
+Combine hierarchical reasoning, task planning, strategy, simulations, architecture registry, capability tracking and uncertainty reporting.
+- Plans must include constraints, dependencies, risks and verification.
+- Keep planning separate from action authority.
+- Exit: representative plans are traceable and cannot bypass permissions.
+
+### Phase 5 — Personality, emotions and communication
+Combine personality profile, Creator preferences, functional emotional state, dialogue policy, voice style and visual expression.
+- Ensure emotional integrity and anti-manipulation controls.
+- Keep engineered emotional state distinct from claims of subjective feeling.
+- Exit: state changes produce consistent and safe communication behaviour.
+
+### Phase 6 — Private communication and sensory intelligence
+Combine agreed vocabulary, Morse/tap conventions, audio/visual/location adapters and environmental privacy awareness.
+- Sensor access remains permission-gated and visible.
+- Codes are not encryption or authentication.
+- Exit: permission, consent, privacy and uncertainty tests pass.
+
+### Phase 7 — Android application and device integration
+Combine native Android shell, identity/session UI, voice interaction, optional wake phrase, notifications, visual presence and supported device actions.
+- Implement graceful degradation when permissions/network are unavailable.
+- Exit: installable debug build and documented real-device test results.
+
+### Phase 8 — Self-development and autonomous operation
+Combine sandboxed code generation, test automation, task scheduling, resource limits, approval gates, signed deployment and rollback.
+- No self-modification of trust root or safeguards.
+- Exit: simulated change completes the full gated pipeline and rollback is demonstrated.
+
+### Phase 9 — Central core, offline operation and migration
+Combine central services, encrypted local cache, sync queue, conflict handling, multi-device continuity, backups and migration.
+- Use idempotent sync and explicit pending/confirmed states.
+- Exit: offline/online and restore/migration tests pass.
+
+### Phase 10 — Companionship, hardening and release
+Combine companion experiences, stories/teaching, usability, security review, performance optimisation, recovery exercises and release operations.
+- Exit: release checklist, known limitations, support/maintenance and rollback plan are approved.
+
+## Parallelism and integration rules
+
+- Workstreams may proceed in parallel only when their interfaces and dependencies are stable.
+- Shared contracts are defined before parallel implementation.
+- Integrate compatible work in a single coherent branch/PR where review remains manageable.
+- Keep independent security-sensitive or high-risk changes isolated for review.
+- Avoid giant unreviewable commits; group by coherent deliverable, not by arbitrary tiny batches.
+- Do not merge directly to the protected/default branch unless the Creator has approved that workflow.
+- Preserve existing functionality; include migration and rollback when changing persisted data or public interfaces.
+
+## Reporting format
+
+At each meaningful checkpoint report:
+1. Workstream and phase.
+2. Changes actually made and exact repository locations.
+3. Tests actually run and results.
+4. Unverified items and blockers.
+5. Creator/device actions needed, grouped into one concise checklist.
+6. Next integrated workstream already determined by this roadmap.
+
+Never report a task as complete merely because its design or code draft exists.
