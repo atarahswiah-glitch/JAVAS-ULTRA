@@ -72,7 +72,7 @@ class EncryptedLearningJournalStore(
     /** Replaying the same event id and payload is safe; reusing an id for different content is rejected. */
     fun append(event: LearningJournalEvent): LearningJournalStoreResult<LearningJournalEntry> {
         val normalizedEvent = event.copy(
-            safeDetail = event.safeDetail?.filter { it.isLetterOrDigit() || it in " _-.:/" }?.take(160)
+            safeDetail = LearningJournalSafeDetail.normalize(event.safeDetail)
         )
         if (normalizedEvent.id.isBlank() || normalizedEvent.entryId.isBlank() || normalizedEvent.actor.isBlank()) {
             return failure(LearningJournalStoreFailure.INVALID_EVENT)
@@ -201,7 +201,7 @@ object LearningJournalCodec {
         out.writeUTF(value.id); out.writeUTF(value.entryId); out.writeUTF(value.type.name)
         out.writeLong(value.occurredAt.toEpochMilli()); out.writeUTF(value.actor)
         out.writeNullable(value.sourceId); out.writeNullable(value.claimId)
-        out.writeNullable(value.safeDetail?.filter { it.isLetterOrDigit() || it in " _-.:/" }?.take(160))
+        out.writeNullable(LearningJournalSafeDetail.normalize(value.safeDetail))
     }
 
     fun decodeEvent(bytes: ByteArray): LearningJournalEvent = decode(bytes) { input ->
