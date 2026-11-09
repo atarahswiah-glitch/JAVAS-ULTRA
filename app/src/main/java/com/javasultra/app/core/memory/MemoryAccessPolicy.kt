@@ -1,12 +1,15 @@
 package com.javasultra.app.core.memory
 
+import java.time.Instant
+
 enum class MemoryAction { READ, UPDATE, EXPORT, DELETE }
 
 data class MemoryAccessRequest(
     val actorPrincipalId: String,
     val isCreator: Boolean,
     val action: MemoryAction,
-    val stepUpAuthenticated: Boolean = false
+    val stepUpAuthenticated: Boolean = false,
+    val now: Instant = Instant.now()
 )
 
 enum class MemoryAccessDenial { INVALID_RECORD, CREATOR_ONLY, OWNER_MISMATCH, STEP_UP_REQUIRED, NOT_ACTIVE }
@@ -19,6 +22,7 @@ sealed interface MemoryAccessDecision {
 object MemoryAccessPolicy {
     fun evaluate(record: MemoryRecord, request: MemoryAccessRequest): MemoryAccessDecision {
         if (record.validate().isNotEmpty()) return denied(MemoryAccessDenial.INVALID_RECORD)
+        if (record.expiresAt?.isAfter(request.now) == false) return denied(MemoryAccessDenial.NOT_ACTIVE)
         if (record.lifecycle != MemoryLifecycle.ACTIVE &&
             !(request.action == MemoryAction.DELETE && record.lifecycle == MemoryLifecycle.DELETION_REQUESTED)
         ) return denied(MemoryAccessDenial.NOT_ACTIVE)
