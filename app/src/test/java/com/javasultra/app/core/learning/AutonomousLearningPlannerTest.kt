@@ -29,8 +29,48 @@ class AutonomousLearningPlannerTest {
         assertEquals(PlanningDenial.PRIVATE_DATA, AutonomousLearningPlanner.evaluate(signal.copy(involvesPrivateData = true), settings(), now, 0).denial)
     }
     @Test fun respectsDailyTaskBudget() {
-        assertEquals(PlanningDenial.INVALID_LIMITS, AutonomousLearningPlanner.evaluate(signal, settings(), now, 8).denial)
+        assertEquals(PlanningDenial.DAILY_LIMIT_REACHED, AutonomousLearningPlanner.evaluate(signal, settings(), now, 8).denial)
     }
+    @Test fun rejectsDuplicateDiscoverySignals() {
+        assertEquals(
+            PlanningDenial.DUPLICATE_OR_EMPTY_TOPIC,
+            AutonomousLearningPlanner.evaluate(signal, settings(), now, 0, setOf(signal.id)).denial
+        )
+    }
+
+    @Test fun rejectsSignalsFromTheFuture() {
+        assertEquals(
+            PlanningDenial.FUTURE_SIGNAL,
+            AutonomousLearningPlanner.evaluate(signal.copy(detectedAt = now.plusSeconds(1)), settings(), now, 0).denial
+        )
+    }
+
+    @Test fun rejectsInvalidOrEmptyWebDomainAllowlist() {
+        assertEquals(
+            PlanningDenial.INVALID_DOMAIN_POLICY,
+            AutonomousLearningPlanner.evaluate(signal, settings().copy(allowedDomains = emptySet()), now, 0).denial
+        )
+        assertEquals(
+            PlanningDenial.INVALID_DOMAIN_POLICY,
+            AutonomousLearningPlanner.evaluate(signal, settings().copy(allowedDomains = setOf("https://evil.example/path")), now, 0).denial
+        )
+    }
+
+    @Test fun rejectsOversizedLearningObjective() {
+        assertEquals(
+            PlanningDenial.DUPLICATE_OR_EMPTY_TOPIC,
+            AutonomousLearningPlanner.evaluate(signal.copy(topic = "x".repeat(501)), settings(), now, 0).denial
+        )
+    }
+
+    @Test fun allowsDocumentationOnlyLearningWithoutWebDomainAllowlist() {
+        val documentationOnly = settings().copy(
+            permissions = setOf(AutonomyPermission.PUBLIC_DOCUMENTATION_READ),
+            allowedDomains = emptySet()
+        )
+        assertTrue(AutonomousLearningPlanner.evaluate(signal, documentationOnly, now, 0).approvedForQueue)
+    }
+
     @Test fun requiresPublicResearchPermission() {
         assertEquals(PlanningDenial.NO_PERMISSION, AutonomousLearningPlanner.evaluate(signal, settings(privateRead = true), now, 0).denial)
     }
