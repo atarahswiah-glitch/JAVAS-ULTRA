@@ -41,6 +41,31 @@ class ModelRoutePolicyTest {
         assertNull(ModelRoutePolicy.select(r, listOf(noTools), false, now))
     }
 
+    @Test fun rejectsProviderThatCannotFitInputContext() {
+        val smallContext = provider("small", ModelProviderKind.ON_DEVICE).copy(maxInputUnits = 10)
+        assertNull(
+            ModelRoutePolicy.select(
+                request().copy(inputUnits = 11),
+                listOf(smallContext),
+                false,
+                now
+            )
+        )
+    }
+
+    @Test fun acceptsProviderAtExactInputContextLimit() {
+        val smallContext = provider("small", ModelProviderKind.ON_DEVICE).copy(maxInputUnits = 10)
+        assertEquals(
+            "small",
+            ModelRoutePolicy.select(
+                request().copy(inputUnits = 10),
+                listOf(smallContext),
+                false,
+                now
+            )?.id
+        )
+    }
+
     @Test fun rejectsExpiredOrInvalidRequests() {
         assertNull(ModelRoutePolicy.select(request().copy(deadline = now), listOf(provider("local", ModelProviderKind.ON_DEVICE)), false, now))
         assertNull(ModelRoutePolicy.select(request().copy(prompt = " "), listOf(provider("local", ModelProviderKind.ON_DEVICE)), false, now))
