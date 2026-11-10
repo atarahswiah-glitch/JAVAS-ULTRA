@@ -69,16 +69,22 @@ class EncryptedMemoryRepository(
     ): MemoryRepositoryResult<MemoryRecord> {
         val current = load(id) ?: return failure(MemoryRepositoryFailure.NOT_FOUND)
         if (current.ownerPrincipalId != actorPrincipalId) return failure(MemoryRepositoryFailure.OWNER_MISMATCH)
-        if (current.lifecycle != MemoryLifecycle.PROPOSED || at.isBefore(current.updatedAt)) {
-            return failure(MemoryRepositoryFailure.INVALID_RECORD)
-        }
         val prior = current.supersedes?.let { load(it) }
-        if (current.supersedes != null) {
-            if (prior == null || prior.ownerPrincipalId != actorPrincipalId ||
-                prior.lifecycle != MemoryLifecycle.ACTIVE || at.isBefore(prior.updatedAt)
-            ) return failure(MemoryRepositoryFailure.INVALID_RECORD)
-            if (prior.sensitivity == MemorySensitivity.HIGHLY_SENSITIVE && !stepUpAuthenticated) {
-                return failure(MemoryRepositoryFailure.ACCESS_DENIED)
+        when (MemoryActivationPolicy.evaluate(
+            current,
+            prior,
+            MemoryActivationRequest(actorPrincipalId, at, stepUpAuthenticated)
+        )) {
+            MemoryActivationDecision.Allowed -> Unit
+            is MemoryActivationDecision.Denied -> {
+                val reason = (MemoryActivationPolicy.evaluate(
+                    current, prior, MemoryActivationRequest(actorPrincipalId, at, stepUpAuthenticated)
+                ) as MemoryActivationDecision.Denied).reason
+                return failure(
+                    if (reason == MemoryActivationDenial.OWNER_MISMATCH) MemoryRepositoryFailure.OWNER_MISMATCH
+                    else if (reason == MemoryActivationDenial.STEP_UP_REQUIRED) MemoryRepositoryFailure.ACCESS_DENIED
+                    else MemoryRepositoryFailure.INVALID_RECORD
+                )
             }
         }
         return try {
