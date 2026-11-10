@@ -47,7 +47,9 @@ enum class SkillAssessmentDenial {
     FUTURE_EVIDENCE,
     STALE_EVIDENCE,
     INVALID_SANDBOX_EVIDENCE,
-    INVALID_OPERATIONAL_EVIDENCE
+    INVALID_OPERATIONAL_EVIDENCE,
+    TRUSTED_SANDBOX_VERIFIER_UNAVAILABLE,
+    TRUSTED_OPERATIONAL_VERIFIER_UNAVAILABLE
 }
 
 data class SkillAssessmentDecision(
@@ -88,6 +90,9 @@ object SkillAssessmentPolicy {
                     item.acceptanceCriteriaId != sandboxReceipt.acceptanceSuiteSha256 ||
                     item.evidenceReference != sandboxDecision.evidenceReference
                 ) return denied(SkillAssessmentDenial.INVALID_SANDBOX_EVIDENCE)
+                // A local boolean/receipt is not a cryptographic host verification.
+                // Fail closed until an authenticated trusted-host verifier is integrated.
+                return denied(SkillAssessmentDenial.TRUSTED_SANDBOX_VERIFIER_UNAVAILABLE)
             } else if (item.sandboxRequest != null || item.sandboxReceipt != null) {
                 return denied(SkillAssessmentDenial.INVALID_EVIDENCE)
             }
@@ -102,6 +107,8 @@ object SkillAssessmentPolicy {
                 if (!item.trustedAttestationVerifiedByHost ||
                     !item.evidenceReference.startsWith(expectedPrefix)
                 ) return denied(SkillAssessmentDenial.INVALID_OPERATIONAL_EVIDENCE)
+                // The client-side flag is descriptive only, never a trust decision.
+                return denied(SkillAssessmentDenial.TRUSTED_OPERATIONAL_VERIFIER_UNAVAILABLE)
             } else if (item.trustedAttestationVerifiedByHost) {
                 return denied(SkillAssessmentDenial.INVALID_EVIDENCE)
             }
