@@ -117,6 +117,12 @@ Practice must have bounded time, compute, network, storage and financial budgets
 
 After practice, JAVAS evaluates the result against criteria established before the test. It records failures and uncertainty, changes one or more factors, and repeats only within a defined retry budget. Important skills should be periodically re-evaluated when dependencies, APIs, source material or environments change.
 
+### Initial practice-sandbox contract (implemented; runner pending)
+
+The current Kotlin `PracticeSandboxPolicy` validates a proposed practice run and its eventual receipt. The initial profile requires network disabled, an ephemeral workspace only, no secrets, no elevated privileges, strict runtime/memory/workspace/output/file limits and a maximum of three attempts. A receipt must match the exact request, source-code digest and runner-image digest; its attestation must have been verified by a trusted host; all acceptance tests must pass; no network connection may be established; and the workspace must be cleaned.
+
+This policy does not execute code and cannot make a client-supplied boolean or receipt trustworthy by itself. A future runner must enforce isolation outside the Android app process and produce a signed attestation. A trusted verifier/service must verify that signature and independently enforce the request and receipt constraints before creating skill evidence. Until that exists, JAVAS must not claim that sandbox practice is available or that a practice result proves demonstrated skill.
+
 ## 8. Capability discovery and self-development
 
 When JAVAS identifies a missing capability, it should:
