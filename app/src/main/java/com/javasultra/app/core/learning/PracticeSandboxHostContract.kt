@@ -1,5 +1,9 @@
 package com.javasultra.app.core.learning
 
+import java.io.ByteArrayOutputStream
+import java.io.DataOutputStream
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.time.Instant
 
 /**
@@ -53,6 +57,79 @@ data class SignedPracticeSandboxAttestation(
 interface PracticeSandboxGateway {
     suspend fun submit(submission: PracticeSandboxSubmission): PracticeSandboxHostStatus
     suspend fun getStatus(submissionId: String): PracticeSandboxHostStatus
+}
+
+
+/**
+ * Versioned canonical digests used by the host signature protocol. The trusted host
+ * signs these digests; clients still must verify the signature against a pinned key.
+ */
+object PracticeSandboxAttestationDigest {
+    fun requestDigest(submission: PracticeSandboxSubmission): String {
+        val request = submission.request
+        val limits = request.limits
+        return sha256(
+            "javas-practice-submission-v1",
+            submission.submissionId,
+            submission.idempotencyKey,
+            submission.submittedAt.toString(),
+            request.id,
+            request.taskId,
+            request.skillId,
+            request.codeSha256.lowercase(),
+            request.runnerImageSha256.lowercase(),
+            request.createdAt.toString(),
+            request.deadline.toString(),
+            request.attemptNumber.toString(),
+            limits.maxRuntimeSeconds.toString(),
+            limits.maxMemoryMiB.toString(),
+            limits.maxWorkspaceMiB.toString(),
+            limits.maxOutputKiB.toString(),
+            limits.maxFiles.toString(),
+            limits.maxAttempts.toString(),
+            request.network.name,
+            request.filesystem.name,
+            request.secrets.name,
+            request.privileges.name,
+            submission.codeArtifactReference.lowercase(),
+            submission.acceptanceSuiteArtifactReference.lowercase()
+        )
+    }
+
+    fun receiptDigest(receipt: PracticeSandboxReceipt): String = sha256(
+        "javas-practice-receipt-v1",
+        receipt.requestId,
+        receipt.codeSha256.lowercase(),
+        receipt.runnerImageSha256.lowercase(),
+        receipt.runnerId,
+        receipt.completedAt.toString(),
+        receipt.attestationSha256.lowercase(),
+        receipt.exitCode.toString(),
+        receipt.timedOut.toString(),
+        receipt.memoryLimitExceeded.toString(),
+        receipt.workspaceLimitExceeded.toString(),
+        receipt.outputLimitExceeded.toString(),
+        receipt.establishedNetworkConnections.toString(),
+        receipt.workspaceCleaned.toString(),
+        receipt.acceptanceSuiteSha256.lowercase(),
+        receipt.acceptanceTestsRun.toString(),
+        receipt.acceptanceTestsPassed.toString()
+    )
+
+    private fun sha256(vararg fields: String): String {
+        val bytes = ByteArrayOutputStream()
+        DataOutputStream(bytes).use { output ->
+            output.writeInt(fields.size)
+            fields.forEach { field ->
+                val encoded = field.toByteArray(StandardCharsets.UTF_8)
+                output.writeInt(encoded.size)
+                output.write(encoded)
+            }
+        }
+        return MessageDigest.getInstance("SHA-256")
+            .digest(bytes.toByteArray())
+            .joinToString("") { byte -> "%02x".format(byte) }
+    }
 }
 
 enum class PracticeSandboxHostContractDenial {
@@ -143,6 +220,8 @@ object PracticeSandboxHostContract {
                     attestation.algorithm.isBlank() || attestation.signatureBase64.isBlank() ||
                     !digest.matches(attestation.requestDigestSha256) ||
                     !digest.matches(attestation.receiptDigestSha256) ||
+                    !attestation.requestDigestSha256.equals(PracticeSandboxAttestationDigest.requestDigest(submission), true) ||
+                    !attestation.receiptDigestSha256.equals(PracticeSandboxAttestationDigest.receiptDigest(receipt), true) ||
                     attestation.issuedAt.isAfter(now) ||
                     attestation.issuedAt.isBefore(submission.submittedAt)
                 ) return PracticeSandboxHostContractDenial.INVALID_ATTESTATION_METADATA
