@@ -88,7 +88,10 @@ object PracticeSandboxHostContract {
         if (!codeDigest.equals(submission.request.codeSha256, ignoreCase = true)) {
             return PracticeSandboxHostContractDenial.CODE_ARTIFACT_MISMATCH
         }
-        if (digestReference.matches(submission.acceptanceSuiteArtifactReference).not()) {
+        val suiteDigest = digestReference.matchEntire(submission.acceptanceSuiteArtifactReference)
+            ?.groupValues?.get(1)
+            ?: return PracticeSandboxHostContractDenial.INVALID_ARTIFACT_REFERENCE
+        if (!digest.matches(suiteDigest)) {
             return PracticeSandboxHostContractDenial.INVALID_ARTIFACT_REFERENCE
         }
         if (submission.idempotencyKey.length !in 16..128 ||
@@ -133,6 +136,8 @@ object PracticeSandboxHostContract {
                     ?: return PracticeSandboxHostContractDenial.INVALID_STATUS_SHAPE
                 val attestation = status.signedAttestation
                     ?: return PracticeSandboxHostContractDenial.INVALID_ATTESTATION_METADATA
+                val suiteDigest = digestReference.matchEntire(submission.acceptanceSuiteArtifactReference)
+                    ?.groupValues?.get(1)
                 if (status.rejectionCode != null ||
                     attestation.issuer.isBlank() || attestation.keyId.isBlank() ||
                     attestation.algorithm.isBlank() || attestation.signatureBase64.isBlank() ||
@@ -144,7 +149,10 @@ object PracticeSandboxHostContract {
                 if (receipt.requestId != submission.request.id ||
                     !receipt.codeSha256.equals(submission.request.codeSha256, true) ||
                     !receipt.runnerImageSha256.equals(submission.request.runnerImageSha256, true) ||
-                    receipt.completedAt != status.updatedAt
+                    !receipt.acceptanceSuiteSha256.equals(suiteDigest, true) ||
+                    receipt.completedAt.isBefore(submission.submittedAt) ||
+                    receipt.completedAt.isAfter(status.updatedAt) ||
+                    receipt.completedAt.isAfter(now)
                 ) return PracticeSandboxHostContractDenial.INVALID_RECEIPT
                 null
             }
