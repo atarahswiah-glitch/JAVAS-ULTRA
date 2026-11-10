@@ -146,7 +146,6 @@ class SkillAssessmentPolicyTest {
         val result = SkillAssessmentPolicy.evaluate(request(
             evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
             evidence("explain", SkillEvidenceKind.EXPLANATION),
-            sandboxEvidence("practice"),
             evidence("integration", SkillEvidenceKind.INTEGRATION_VERIFICATION),
             evidence("execution", SkillEvidenceKind.AUTHORIZED_EXECUTION),
             permission = true
