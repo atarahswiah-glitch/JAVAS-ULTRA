@@ -214,3 +214,15 @@ Still not implemented as production-connected capabilities:
 - End-to-end model-provider/research transport and autonomous execution.
 
 Do not mark ID-01, ID-02, SEC-03 or SEC-04 Verified on the basis of these local domain tests. Their production acceptance evidence remains outstanding.
+
+
+## CI evidence update — 2026-11-10
+
+The latest fully completed PR head at the time of this update was `b4e478c58dd3f0e4161179e579cfc50180bf5a36`. Both push run [#116](https://github.com/atarahswiah-glitch/JAVAS-ULTRA/actions/runs/42725826060) and pull-request run [#117](https://github.com/atarahswiah-glitch/JAVAS-ULTRA/actions/runs/42725832419) passed.
+
+- 125 JVM unit tests passed with zero failures, errors or skips; the total was independently summed from all JUnit XML reports in artifact `13722990966`.
+- Debug APK assembly passed; APK SHA-256: `790e73a9debed7a5561cdba76e8860a1f06e3bfdd9dd4474b88487467b868ed5`.
+- The new identity-gate coverage rejects local-only biometric proof and malformed factor-count claims. This is policy preflight evidence, not production authentication.
+- The wrapper is still generated during CI and not committed. AND-01 remains In progress.
+
+The previous 123-test statement in the Phase 2 progress notes is superseded by this 125-test result. A further three factor-validation regression tests have since been added in commit `2635d366c043a564921a77d0548b263c3b25378e`; their CI result is pending and must be checked before calling them verified.

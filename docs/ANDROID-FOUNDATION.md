@@ -86,3 +86,18 @@ This validates the current JVM policy/domain tests and debug packaging only. It 
 - [ ] Complete real-device install, permission, lifecycle and recovery acceptance tests.
 
 Phase 1 is therefore **CI-green but not fully closed**. Device acceptance and Creator decisions remain distinct from remote CI evidence.
+
+
+## Verification update — 2026-11-10
+
+PR head `b4e478c58dd3f0e4161179e579cfc50180bf5a36` passed both push CI run [#116](https://github.com/atarahswiah-glitch/JAVAS-ULTRA/actions/runs/42725826060) and pull-request CI run [#117](https://github.com/atarahswiah-glitch/JAVAS-ULTRA/actions/runs/42725832419).
+
+- JDK 17, Gradle 8.13 and Android SDK setup passed.
+- Clean-checkout wrapper generation and Gradle configuration verification passed.
+- **125 JVM unit tests passed; 0 failures, 0 errors, 0 skipped.** Count independently summed from the JUnit XML reports in artifact `13722990966`.
+- Debug APK assembly passed. APK size: 11,846,872 bytes. SHA-256: `790e73a9debed7a5561cdba76e8860a1f06e3bfdd9dd4474b88487467b868ed5`.
+- The four wrapper files remain generated inside CI and are not committed to the branch. CI clean-checkout build is proven; direct local `./gradlew` use from a clone is not yet available.
+
+The new identity-gate tests verify that local biometric proof cannot establish remote authentication and that impossible factor-count combinations are rejected. This remains client/domain preflight; trusted-server authentication and enforcement are still outstanding.
+
+Phase 1 remains CI-green but open pending committed wrapper/local clone verification, Creator application-ID confirmation and physical-device acceptance.
