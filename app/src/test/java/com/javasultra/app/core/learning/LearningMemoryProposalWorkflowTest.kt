@@ -143,6 +143,21 @@ class LearningMemoryProposalWorkflowTest {
         assertEquals(1, secondJournal.calls)
     }
 
+    @Test fun alteredEvidenceCannotBePersistedUnderAnUnchangedReviewDigest() {
+        val writer = RecordingWriter()
+        val journal = journalWriter()
+        val req = request()
+        val alteredClaim = claim().copy(statement = "Tampered statement with original claim ID")
+        val result = LearningMemoryProposalWorkflow(writer, journal).approveAndPersist(
+            req, emptySet(), listOf(alteredClaim), sources(), creator, journalEntryId, now
+        )
+        assertTrue(result is LearningProposalWorkflowResult.Rejected)
+        assertEquals(LearningProposalDenial.EVIDENCE_DIGEST_MISMATCH,
+            (result as LearningProposalWorkflowResult.Rejected).mappingDenial)
+        assertEquals(0, writer.calls)
+        assertEquals(0, journal.calls)
+    }
+
     @Test fun journalReceiptIsBoundToTheLearningTaskId() {
         val writer = RecordingWriter()
         val journal = journalWriter(LearningJournalStoreResult.Failure(LearningJournalStoreFailure.TASK_MISMATCH))
