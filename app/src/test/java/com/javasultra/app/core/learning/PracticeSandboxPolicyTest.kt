@@ -91,7 +91,7 @@ class PracticeSandboxPolicyTest {
             PracticeSandboxPolicy.evaluateReceipt(r, receipt().copy(workspaceCleaned = false), now.plusSeconds(20)).denial)
     }
 
-    @Test fun requiresEveryAcceptanceTestToPass() {
+    @Test fun recordsPartialAcceptanceAsFailedPracticeEvidence() {
         val r = request()
         val failed = PracticeSandboxPolicy.evaluateReceipt(
             r, receipt().copy(acceptanceTestsPassed = 4), now.plusSeconds(20)
