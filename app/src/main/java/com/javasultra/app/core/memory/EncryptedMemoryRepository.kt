@@ -70,22 +70,17 @@ class EncryptedMemoryRepository(
         val current = load(id) ?: return failure(MemoryRepositoryFailure.NOT_FOUND)
         if (current.ownerPrincipalId != actorPrincipalId) return failure(MemoryRepositoryFailure.OWNER_MISMATCH)
         val prior = current.supersedes?.let { load(it) }
-        when (MemoryActivationPolicy.evaluate(
-            current,
-            prior,
-            MemoryActivationRequest(actorPrincipalId, at, stepUpAuthenticated)
-        )) {
-            MemoryActivationDecision.Allowed -> Unit
-            is MemoryActivationDecision.Denied -> {
-                val reason = (MemoryActivationPolicy.evaluate(
-                    current, prior, MemoryActivationRequest(actorPrincipalId, at, stepUpAuthenticated)
-                ) as MemoryActivationDecision.Denied).reason
-                return failure(
-                    if (reason == MemoryActivationDenial.OWNER_MISMATCH) MemoryRepositoryFailure.OWNER_MISMATCH
-                    else if (reason == MemoryActivationDenial.STEP_UP_REQUIRED) MemoryRepositoryFailure.ACCESS_DENIED
-                    else MemoryRepositoryFailure.INVALID_RECORD
-                )
-            }
+        val activationDecision = MemoryActivationPolicy.evaluate(
+            current, prior, MemoryActivationRequest(actorPrincipalId, at, stepUpAuthenticated)
+        )
+        if (activationDecision is MemoryActivationDecision.Denied) {
+            return failure(
+                when (activationDecision.reason) {
+                    MemoryActivationDenial.OWNER_MISMATCH -> MemoryRepositoryFailure.OWNER_MISMATCH
+                    MemoryActivationDenial.STEP_UP_REQUIRED -> MemoryRepositoryFailure.ACCESS_DENIED
+                    else -> MemoryRepositoryFailure.INVALID_RECORD
+                }
+            )
         }
         return try {
             val activated = current.copy(lifecycle = MemoryLifecycle.ACTIVE, updatedAt = at)
