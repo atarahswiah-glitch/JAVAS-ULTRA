@@ -27,7 +27,8 @@ data class SkillEvidence(
     val evidenceReference: String,
     val acceptanceCriteriaId: String,
     val sandboxRequest: PracticeSandboxRequest? = null,
-    val sandboxReceipt: PracticeSandboxReceipt? = null
+    val sandboxReceipt: PracticeSandboxReceipt? = null,
+    val trustedAttestationVerifiedByHost: Boolean = false
 )
 
 data class SkillAssessmentRequest(
@@ -45,7 +46,8 @@ enum class SkillAssessmentDenial {
     INVALID_EVIDENCE,
     FUTURE_EVIDENCE,
     STALE_EVIDENCE,
-    INVALID_SANDBOX_EVIDENCE
+    INVALID_SANDBOX_EVIDENCE,
+    INVALID_OPERATIONAL_EVIDENCE
 }
 
 data class SkillAssessmentDecision(
@@ -87,6 +89,20 @@ object SkillAssessmentPolicy {
                     item.evidenceReference != sandboxDecision.evidenceReference
                 ) return denied(SkillAssessmentDenial.INVALID_SANDBOX_EVIDENCE)
             } else if (item.sandboxRequest != null || item.sandboxReceipt != null) {
+                return denied(SkillAssessmentDenial.INVALID_EVIDENCE)
+            }
+            if (item.kind == SkillEvidenceKind.INTEGRATION_VERIFICATION ||
+                item.kind == SkillEvidenceKind.AUTHORIZED_EXECUTION
+            ) {
+                val expectedPrefix = if (item.kind == SkillEvidenceKind.INTEGRATION_VERIFICATION) {
+                    "integration:"
+                } else {
+                    "execution:"
+                }
+                if (!item.trustedAttestationVerifiedByHost ||
+                    !item.evidenceReference.startsWith(expectedPrefix)
+                ) return denied(SkillAssessmentDenial.INVALID_OPERATIONAL_EVIDENCE)
+            } else if (item.trustedAttestationVerifiedByHost) {
                 return denied(SkillAssessmentDenial.INVALID_EVIDENCE)
             }
         }
