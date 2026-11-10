@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.Instant
+import java.util.Base64
 
 class PracticeSandboxHostContractTest {
     private val now = Instant.parse("2026-11-10T12:00:00Z")
@@ -35,9 +36,14 @@ class PracticeSandboxHostContractTest {
         0, true, suiteDigest, 4, 4
     )
 
-    private fun attestation() = SignedPracticeSandboxAttestation(
+    private fun attestation(
+        signedSubmission: PracticeSandboxSubmission = submission,
+        signedReceipt: PracticeSandboxReceipt = receipt()
+    ) = SignedPracticeSandboxAttestation(
         "javas-practice-host", "key-2026-01", "Ed25519",
-        "e".repeat(64), "f".repeat(64), "c2lnbmF0dXJl", now
+        PracticeSandboxAttestationDigest.requestDigest(signedSubmission),
+        PracticeSandboxAttestationDigest.receiptDigest(signedReceipt),
+        Base64.getEncoder().encodeToString(ByteArray(64) { 1 }), now
     )
 
     @Test fun acceptsContentAddressedSubmissionWithBoundCodeDigest() {
@@ -115,6 +121,18 @@ class PracticeSandboxHostContractTest {
             status(PracticeSandboxHostState.COMPLETED, receipt(), attestation()),
             now
         ))
+    }
+
+    @Test fun completedStatusRejectsAttestationDigestMismatch() {
+        val invalid = attestation().copy(receiptDigestSha256 = "f".repeat(64))
+        assertEquals(
+            PracticeSandboxHostContractDenial.INVALID_ATTESTATION_METADATA,
+            PracticeSandboxHostContract.validateStatus(
+                submission,
+                status(PracticeSandboxHostState.COMPLETED, receipt(), invalid),
+                now
+            )
+        )
     }
 
     @Test fun rejectedStatusRequiresReasonAndCannotCarryReceipt() {
