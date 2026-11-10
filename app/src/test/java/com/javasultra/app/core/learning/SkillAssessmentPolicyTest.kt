@@ -73,15 +73,14 @@ class SkillAssessmentPolicyTest {
         )
     }
 
-    @Test fun successfulSandboxPracticeEstablishesDemonstratedSkill() {
-        assertEquals(
-            SkillCompetenceLevel.DEMONSTRATED_SKILL,
-            SkillAssessmentPolicy.evaluate(request(
-                evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
-                evidence("explain", SkillEvidenceKind.EXPLANATION),
-                sandboxEvidence("practice")
-            )).level
-        )
+    @Test fun localSandboxReceiptCannotEstablishDemonstratedSkillWithoutTrustedVerifier() {
+        val result = SkillAssessmentPolicy.evaluate(request(
+            evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
+            evidence("explain", SkillEvidenceKind.EXPLANATION),
+            sandboxEvidence("practice")
+        ))
+        assertEquals(SkillAssessmentDenial.TRUSTED_SANDBOX_VERIFIER_UNAVAILABLE, result.denial)
+        assertEquals(SkillCompetenceLevel.UNKNOWN, result.level)
     }
 
     @Test fun sandboxPracticeAloneCannotClaimOperationalCapability() {
@@ -92,7 +91,8 @@ class SkillAssessmentPolicyTest {
             operationalEvidence("integration", SkillEvidenceKind.INTEGRATION_VERIFICATION),
             operationalEvidence("execution", SkillEvidenceKind.AUTHORIZED_EXECUTION)
         ))
-        assertEquals(SkillCompetenceLevel.DEMONSTRATED_SKILL, result.level)
+        assertEquals(SkillAssessmentDenial.TRUSTED_SANDBOX_VERIFIER_UNAVAILABLE, result.denial)
+        assertEquals(SkillCompetenceLevel.UNKNOWN, result.level)
     }
 
     @Test fun operationalCapabilityRequiresIntegrationExecutionAndPermission() {
@@ -104,8 +104,8 @@ class SkillAssessmentPolicyTest {
             evidence("execution", SkillEvidenceKind.AUTHORIZED_EXECUTION),
             permission = true
         ))
-        assertEquals(SkillCompetenceLevel.OPERATIONAL_CAPABILITY, result.level)
-        assertEquals(5, result.acceptedEvidenceIds.size)
+        assertEquals(SkillAssessmentDenial.TRUSTED_SANDBOX_VERIFIER_UNAVAILABLE, result.denial)
+        assertEquals(SkillCompetenceLevel.UNKNOWN, result.level)
     }
 
     @Test fun latestFailedPracticeInvalidatesEarlierPassingPractice() {
@@ -115,7 +115,8 @@ class SkillAssessmentPolicyTest {
             sandboxEvidence("practice-pass", at = now.minusSeconds(60)),
             sandboxEvidence("practice-fail", passed = false)
         ))
-        assertEquals(SkillCompetenceLevel.UNDERSTANDING, result.level)
+        assertEquals(SkillAssessmentDenial.TRUSTED_SANDBOX_VERIFIER_UNAVAILABLE, result.denial)
+        assertEquals(SkillCompetenceLevel.UNKNOWN, result.level)
     }
 
 
@@ -152,6 +153,18 @@ class SkillAssessmentPolicyTest {
             permission = true
         ))
         assertEquals(SkillAssessmentDenial.INVALID_OPERATIONAL_EVIDENCE, result.denial)
+        assertEquals(SkillCompetenceLevel.UNKNOWN, result.level)
+    }
+
+    @Test fun clientSuppliedTrustedHostBooleanCannotEstablishOperationalCapability() {
+        val result = SkillAssessmentPolicy.evaluate(request(
+            evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
+            evidence("explain", SkillEvidenceKind.EXPLANATION),
+            operationalEvidence("integration", SkillEvidenceKind.INTEGRATION_VERIFICATION),
+            operationalEvidence("execution", SkillEvidenceKind.AUTHORIZED_EXECUTION),
+            permission = true
+        ))
+        assertEquals(SkillAssessmentDenial.TRUSTED_OPERATIONAL_VERIFIER_UNAVAILABLE, result.denial)
         assertEquals(SkillCompetenceLevel.UNKNOWN, result.level)
     }
 
