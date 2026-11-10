@@ -72,9 +72,11 @@ data class PracticeSandboxReceipt(
 )
 
 data class PracticeSandboxDecision(
+    /** True when the runner receipt is trustworthy and safe to record, even if tests failed. */
     val accepted: Boolean,
     val denial: PracticeSandboxDenial? = null,
-    val evidenceReference: String? = null
+    val evidenceReference: String? = null,
+    val passedAcceptanceCriteria: Boolean = false
 )
 
 /**
@@ -157,12 +159,13 @@ object PracticeSandboxPolicy {
         }
         if (!receipt.workspaceCleaned) return denied(PracticeSandboxDenial.WORKSPACE_NOT_CLEANED)
         if (receipt.acceptanceTestsRun <= 0 ||
-            receipt.acceptanceTestsPassed != receipt.acceptanceTestsRun
+            receipt.acceptanceTestsPassed !in 0..receipt.acceptanceTestsRun
         ) return denied(PracticeSandboxDenial.ACCEPTANCE_TESTS_FAILED)
 
         return PracticeSandboxDecision(
             accepted = true,
-            evidenceReference = "sandbox:${receipt.runnerId}:${receipt.attestationSha256.lowercase()}"
+            evidenceReference = "sandbox:${receipt.runnerId}:${receipt.attestationSha256.lowercase()}",
+            passedAcceptanceCriteria = receipt.acceptanceTestsPassed == receipt.acceptanceTestsRun
         )
     }
 
