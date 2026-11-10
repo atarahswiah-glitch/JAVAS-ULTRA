@@ -67,9 +67,12 @@ object MemoryRetentionProposalFactory {
                 proposedRecord.provenance.sourceType != MemorySourceType.CREATOR_STATEMENT
             ) return denied(retention, MemoryRetentionPreparationDenial.RECORD_SENSITIVITY_MISMATCH)
         } else {
-            if (proposedRecord.sensitivity !in setOf(MemorySensitivity.PUBLIC, MemorySensitivity.INTERNAL)) {
-                return denied(retention, MemoryRetentionPreparationDenial.RECORD_SENSITIVITY_MISMATCH)
-            }
+            if (proposedRecord.sensitivity !in setOf(
+                    MemorySensitivity.PUBLIC,
+                    MemorySensitivity.INTERNAL,
+                    MemorySensitivity.CREATOR_PRIVATE
+                )
+            ) return denied(retention, MemoryRetentionPreparationDenial.RECORD_SENSITIVITY_MISMATCH)
             if (proposedRecord.provenance.sourceReference.isNullOrBlank()) {
                 return denied(retention, MemoryRetentionPreparationDenial.SOURCE_REFERENCE_REQUIRED)
             }
