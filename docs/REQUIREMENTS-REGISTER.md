@@ -99,10 +99,10 @@ The initial implementation contract is documented in [Phase 2 — Identity, Trus
 
 | ID | Requirement | Initial implementation evidence | Status |
 |---|---|---|---|
-| LRN-07 | Discover learning opportunities without a new Creator prompt | Autonomous learning planner | In progress |
-| LRN-08 | Public web research with allow-listed domains and read-only access | Public research gateway and adapter contract | In progress |
-| LRN-09 | Source/time/task budgets and pause controls | Bounded learning settings and planner policy | In progress |
-| LRN-10 | Source provenance, contradiction and confidence handling | Research evidence model and tests | In progress |
+| ALRN-01 | Discover learning opportunities without a new Creator prompt | Autonomous learning planner | In progress |
+| ALRN-02 | Public web research with allow-listed domains and read-only access | Public research gateway and adapter contract | In progress |
+| ALRN-03 | Source/time/task budgets and pause controls | Bounded learning settings and planner policy | In progress |
+| ALRN-04 | Source provenance, contradiction and confidence handling | Research evidence model and tests | In progress |
 | AGT-01 | Task-scoped tool registry and permissions | Agent runtime tool descriptors and policy preflight | In progress |
 | AGT-02 | Tool-call, time and work-unit limits | Agent task envelope and runtime checks | In progress |
 | AGT-03 | External side effects require explicit Creator approval | Runtime preflight requires approval for side-effect/privileged tools | In progress |
@@ -132,8 +132,8 @@ The local Keystore key is device-bound; no cross-device recovery or encrypted sy
 
 | ID | Requirement | Evidence | Status |
 |---|---|---|---|
-| LRN-11 | Maintain an auditable lifecycle for autonomous learning tasks | Encrypted SQLite append-only event store, transactional entry snapshots, event-ID replay protection and lifecycle transition policy | Implemented; CI/device verification pending |
-| LRN-12 | Schedule autonomous learning with pause and daily limits | Learning schedule policy and tests | Implemented; CI pending |
+| ALRN-05 | Maintain an auditable lifecycle for autonomous learning tasks | Encrypted SQLite append-only event store, transactional entry snapshots, event-ID replay protection and lifecycle transition policy | Implemented; CI/device verification pending |
+| ALRN-06 | Schedule autonomous learning with pause and daily limits | Learning schedule policy and tests | Implemented; CI pending |
 
 
 | ID | Requirement | Evidence | Status |
@@ -146,12 +146,12 @@ The local Keystore key is device-bound; no cross-device recovery or encrypted sy
 
 | ID | Requirement | Evidence | Status |
 |---|---|---|---|
-| LRN-07 | Discover learning opportunities without a new Creator prompt | Bounded autonomous learning planner and schedule eligibility policy | Implemented; CI pending |
-| LRN-08 | Public web research with allow-listed domains and read-only access | HTTPS/domain/GET/public-content/robots/privacy gate and adapter contract | Implemented as policy/contract; transport pending |
-| LRN-09 | Source/time/task budgets and pause controls | Bounded learning settings, schedule policy and pause/daily-limit tests | Implemented as policy; worker pending |
-| LRN-10 | Source provenance, contradiction and confidence handling | Research evidence model, source provenance and claim-level evidence tests | Implemented; CI pending |
-| LRN-11 | Maintain an auditable lifecycle for autonomous learning tasks | Event-driven immutable journal transition policy with evidence references | Implemented as domain policy; durable event store pending |
-| LRN-12 | Schedule autonomous learning with pause and daily limits | Schedule eligibility policy | Implemented as policy; Android background worker pending |
+| ALRN-01 | Discover learning opportunities without a new Creator prompt | Bounded autonomous learning planner and schedule eligibility policy | Implemented; CI pending |
+| ALRN-02 | Public web research with allow-listed domains and read-only access | HTTPS/domain/GET/public-content/robots/privacy gate and adapter contract | Implemented as policy/contract; transport pending |
+| ALRN-03 | Source/time/task budgets and pause controls | Bounded learning settings, schedule policy and pause/daily-limit tests | Implemented as policy; worker pending |
+| ALRN-04 | Source provenance, contradiction and confidence handling | Research evidence model, source provenance and claim-level evidence tests | Implemented; CI pending |
+| ALRN-05 | Maintain an auditable lifecycle for autonomous learning tasks | Event-driven immutable journal transition policy with evidence references | Implemented as domain policy; durable event store pending |
+| ALRN-06 | Schedule autonomous learning with pause and daily limits | Schedule eligibility policy | Implemented as policy; Android background worker pending |
 
 The journal now has a dedicated encrypted SQLite append-only event store and versioned binary codecs. The storage transaction, Android Keystore behaviour and restart/replay path still need device/instrumentation verification. Public research remains an adapter contract; no autonomous network retrieval is enabled. The Android background scheduler and integration with a real research adapter are still pending.
 
@@ -239,3 +239,20 @@ PR head `f1c6df3c2d835ed955d6d809af70c07efe600eac` passed both push CI run [#124
 - The Gradle wrapper is still generated in CI and not committed; local clean-clone `./gradlew` verification remains open.
 
 The earlier 125-test pending statement is superseded by this 137-test result. Phase 1 remains open for committed-wrapper verification, Creator application-ID confirmation and physical-device acceptance. Phase 2 production identity, server authorization, provider integration and end-to-end runtime remain In progress.
+
+
+## Self-directed learning environment requirements — 2026-11-10
+
+| ID | Requirement | Phase | Minimum acceptance evidence | Initial status |
+|---|---|---:|---|---|
+| LRN-09 | JAVAS inspects and maintains an evidence-backed self-model of installed modules, versions, capabilities, dependencies, permissions and limitations | 2, 4, 8 | Self-model accuracy tests against installed/configured/authorized/verified states | Planned |
+| LRN-10 | JAVAS discovers available knowledge, model, work, practice and evaluation resources through a registry rather than a hard-coded subject catalogue | 4, 8 | Resource discovery tests and capability metadata validation | Planned |
+| LRN-11 | JAVAS follows a goal-driven loop to inspect itself, identify gaps, select resources, learn, practise, evaluate, apply and report | 3, 4, 8 | End-to-end learning-cycle evaluation across unrelated tasks | Planned |
+| LRN-12 | Durable memory is selective and justified by future usefulness, uniqueness, recurrence, re-research cost, freshness, sensitivity and Creator instruction | 3 | Memory retention decisions tested against retain/reference/research-again/do-not-retain cases | Planned |
+| LRN-13 | JAVAS distinguishes awareness, understanding, demonstrated skill and operational capability | 3, 4, 8 | Skill-level claims match recorded practice and operational evidence | Planned |
+| LRN-14 | JAVAS can practise newly learned skills in sandboxed or simulated environments with bounded resources and synthetic data | 4, 8 | Practice isolation, resource-limit and evaluation tests | Planned |
+| LRN-15 | JAVAS evaluates learning outcomes against explicit criteria, diagnoses failures and retries only within bounded budgets | 4, 8 | Deterministic pass/fail, retry-budget and failure-report tests | Planned |
+| LRN-16 | JAVAS discovers capability gaps and proposes the smallest compatible improvement, validating it in isolation before deployment | 4, 8 | End-to-end improvement proposal, regression and rollback exercise | Planned |
+| LRN-17 | JAVAS can use ordinary pre-authorized capabilities independently while high-impact actions remain approval-gated | 2, 4, 8 | Positive/negative action authorization and approval-bound execution tests | Planned |
+| LRN-18 | The learning environment remains bounded by least privilege, network/filesystem isolation, resource limits, audit and protected trust roots | 2, 8 | Adversarial boundary tests, sandbox escape tests and audit checks | Planned |
+| LRN-19 | JAVAS reports what it learned, practised, verified, retained and executed, distinguishing evidence from assumptions and unknowns | 3, 4, 8 | Learning report traceability and truthful capability-claim tests | Planned |

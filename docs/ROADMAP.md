@@ -117,3 +117,20 @@ The app's current launcher (`MainActivity.kt`) is a placeholder foundation scree
 - All 122 JVM unit tests across 16 suites passed (0 failures, 0 errors, 0 skipped).
 - Debug APK assembly and artifact upload passed. The downloaded artifact was inspected: APK archive integrity is valid; Android manifest and DEX entries are present. APK SHA-256: `ef727bde1d8c763bf7a541aa703143e8da0c98373d406a1e63cf8e2bae7a65e4`.
 - The APK is unsigned and has not been installed or tested on a physical device. CI tests do not establish production authentication, runtime model connectivity or real device behaviour.
+
+
+## Creator's learning-environment direction — 2026-11-10
+
+The Creator's clarified product goal is a self-directed learner, not a manually pre-programmed catalogue of answers and skills. JAVAS should use its existing reasoning core to inspect its own capabilities, identify knowledge/skill gaps, discover suitable resources, learn, practise safely, evaluate competence, use authorized tools, selectively retain useful information and improve through controlled changes.
+
+The implementation contract is documented in [Self-Directed Learning and Capability Environment](SELF-DIRECTED-LEARNING-ENVIRONMENT.md). It is cross-cutting across Phases 2–9, not a new parallel product or a replacement roadmap.
+
+Integration priorities:
+1. Establish an evidence-backed self-model and capability/resource registry.
+2. Complete Creator identity, memory lifecycle and selective-retention controls.
+3. Connect research and learning to real permitted resources.
+4. Add safe practice environments and skill-evaluation records.
+5. Connect planning to scoped, authorized execution and result verification.
+6. Add isolated capability improvement with regression checks, approval and rollback.
+
+The next vertical slice should demonstrate one complete learning cycle end-to-end: inspect current capability → identify a gap → discover a resource → learn → practise in a sandbox → pass an evaluation → propose or use an authorized capability → selectively retain useful knowledge → report evidence and limitations. Do not build a broad tool catalogue before this vertical slice works.
