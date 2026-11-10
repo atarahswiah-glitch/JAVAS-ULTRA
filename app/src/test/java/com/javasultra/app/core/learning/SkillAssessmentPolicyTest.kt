@@ -99,7 +99,6 @@ class SkillAssessmentPolicyTest {
         val result = SkillAssessmentPolicy.evaluate(request(
             evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
             evidence("explain", SkillEvidenceKind.EXPLANATION),
-            sandboxEvidence("practice"),
             evidence("integration", SkillEvidenceKind.INTEGRATION_VERIFICATION),
             evidence("execution", SkillEvidenceKind.AUTHORIZED_EXECUTION),
             permission = true
@@ -124,7 +123,7 @@ class SkillAssessmentPolicyTest {
         val result = SkillAssessmentPolicy.evaluate(request(
             evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
             evidence("explain", SkillEvidenceKind.EXPLANATION),
-            sandboxEvidence("practice")
+            sandboxEvidence("practice").copy(evidenceReference = "arbitrary://untrusted-reference")
         ))
         assertEquals(SkillAssessmentDenial.INVALID_SANDBOX_EVIDENCE, result.denial)
         assertEquals(SkillCompetenceLevel.UNKNOWN, result.level)
