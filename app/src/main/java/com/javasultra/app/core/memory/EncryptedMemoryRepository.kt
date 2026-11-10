@@ -15,7 +15,34 @@ enum class MemoryRepositoryFailure {
     INVALID_RECORD, OWNER_MISMATCH, NOT_FOUND, ACCESS_DENIED, DUPLICATE_ID, STORAGE_ERROR, DECRYPTION_FAILED
 }
 
+/** Pure validation shared by the atomic encrypted-memory batch insertion boundary. */
+object ProposedMemoryBatchPolicy {
+    const val MAX_BATCH_SIZE = 100
+
+    fun validate(
+        records: List<MemoryRecord>,
+        actorPrincipalId: String
+    ): MemoryRepositoryFailure? {
+        if (actorPrincipalId.isBlank() || records.isEmpty() || records.size > MAX_BATCH_SIZE) {
+            return MemoryRepositoryFailure.INVALID_RECORD
+        }
+        if (records.map { it.id }.toSet().size != records.size) {
+            return MemoryRepositoryFailure.DUPLICATE_ID
+        }
+        if (records.any { it.ownerPrincipalId != actorPrincipalId }) {
+            return MemoryRepositoryFailure.OWNER_MISMATCH
+        }
+        if (records.any {
+                it.validate().isNotEmpty() || it.lifecycle != MemoryLifecycle.PROPOSED
+            }
+        ) return MemoryRepositoryFailure.INVALID_RECORD
+        return null
+    }
+}
+
+
 interface MemoryRepository {
+    fun insertProposedBatch(records: List<MemoryRecord>, actorPrincipalId: String): MemoryRepositoryResult<Unit>
     fun insertProposed(record: MemoryRecord, actorPrincipalId: String): MemoryRepositoryResult<Unit>
     fun activate(id: MemoryId, actorPrincipalId: String, at: Instant, stepUpAuthenticated: Boolean = false): MemoryRepositoryResult<MemoryRecord>
     fun read(id: MemoryId, request: MemoryAccessRequest): MemoryRepositoryResult<MemoryRecord>
@@ -42,6 +69,38 @@ class EncryptedMemoryRepository(
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         throw IllegalStateException("No migration path from database version " + oldVersion + " to " + newVersion)
+    }
+
+    override fun insertProposedBatch(
+        records: List<MemoryRecord>,
+        actorPrincipalId: String
+    ): MemoryRepositoryResult<Unit> {
+        ProposedMemoryBatchPolicy.validate(records, actorPrincipalId)?.let { return failure(it) }
+        return try {
+            // Encrypt every record before opening the transaction. The database transaction
+            // then inserts the complete batch or rolls the whole batch back on any conflict.
+            val prepared = records.map { record ->
+                ContentValues().apply {
+                    put(COL_ID, record.id.value)
+                    put(COL_PAYLOAD, encryptor.encrypt(MemoryRecordCodec.encode(record), aad(record.id)))
+                    put(COL_CREATED, record.createdAt.toEpochMilli())
+                }
+            }
+            val db = writableDatabase
+            db.beginTransaction()
+            try {
+                for (values in prepared) {
+                    val inserted = db.insertWithOnConflict(TABLE, null, values, SQLiteDatabase.CONFLICT_IGNORE)
+                    if (inserted == -1L) return failure(MemoryRepositoryFailure.DUPLICATE_ID)
+                }
+                db.setTransactionSuccessful()
+                MemoryRepositoryResult.Success(Unit)
+            } finally {
+                db.endTransaction()
+            }
+        } catch (_: Exception) {
+            failure(MemoryRepositoryFailure.STORAGE_ERROR)
+        }
     }
 
     override fun insertProposed(record: MemoryRecord, actorPrincipalId: String): MemoryRepositoryResult<Unit> {
