@@ -77,7 +77,8 @@ object LearningMemoryProposalMapper {
         for (claim in claims) {
             if (claim.validate(sourceMap.keys).isNotEmpty() ||
                 claim.status != ClaimStatus.SUPPORTED ||
-                (claim.reviewedAt ?: request.reviewedAt).isAfter(createdAt) ||
+                claim.createdAt.isAfter(createdAt) ||
+                claim.reviewedAt?.isAfter(createdAt) == true ||
                 claim.contradictingSourceIds.isNotEmpty()
             ) return denied(LearningProposalDenial.INVALID_CLAIM)
 
@@ -100,7 +101,7 @@ object LearningMemoryProposalMapper {
                 provenance = MemoryProvenance(
                     sourceType = MemorySourceType.RESEARCH_EVIDENCE,
                     sourceReference = sourceReference,
-                    observedAt = claim.reviewedAt ?: request.reviewedAt,
+                    observedAt = supporting.maxOf { it.retrievedAt },
                     publisherOrActor = publisherSummary,
                     notes = "task=${request.task.id};review=${request.reviewId};evidence_sha256=${request.submittedEvidenceDigestSha256.lowercase()}"
                 ),
