@@ -70,9 +70,11 @@ class LearningMemoryProposalWorkflowTest {
     ) : LearningJournalReceiptWriter {
         var calls = 0
         var event: LearningJournalEvent? = null
-        override fun append(event: LearningJournalEvent): LearningJournalStoreResult<LearningJournalEntry> {
+        var expectedTaskId: String? = null
+        override fun append(event: LearningJournalEvent, expectedTaskId: String): LearningJournalStoreResult<LearningJournalEntry> {
             calls++
             this.event = event
+            this.expectedTaskId = expectedTaskId
             return result
         }
     }
@@ -112,6 +114,7 @@ class LearningMemoryProposalWorkflowTest {
         assertEquals(1, journal.calls)
         assertEquals(LearningJournalEventType.MEMORY_PROPOSAL_PERSISTED, journal.event?.type)
         assertEquals("PROPOSAL_BATCH_PERSISTED", journal.event?.safeDetail)
+        assertEquals("task-workflow-1", journal.expectedTaskId)
     }
 
     @Test fun journalFailureReportsDurableMemoryAndReturnsStableReceiptForRetry() {
@@ -136,6 +139,17 @@ class LearningMemoryProposalWorkflowTest {
         assertTrue(second is LearningProposalWorkflowResult.Persisted)
         assertEquals(first.receiptEvent.id, secondJournal.event?.id)
         assertEquals(1, secondJournal.calls)
+    }
+
+    @Test fun journalReceiptIsBoundToTheLearningTaskId() {
+        val writer = RecordingWriter()
+        val journal = journalWriter(LearningJournalStoreResult.Failure(LearningJournalStoreFailure.TASK_MISMATCH))
+        val result = execute(writer = writer, journal = journal)
+        assertTrue(result is LearningProposalWorkflowResult.PersistedJournalPending)
+        assertEquals(LearningJournalStoreFailure.TASK_MISMATCH,
+            (result as LearningProposalWorkflowResult.PersistedJournalPending).journalFailure)
+        assertEquals("task-workflow-1", journal.expectedTaskId)
+        assertEquals(1, writer.calls)
     }
 
     @Test fun invalidJournalEntryStopsBeforeMemoryPersistence() {

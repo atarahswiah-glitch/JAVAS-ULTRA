@@ -14,7 +14,7 @@ import java.time.Instant
 
 enum class LearningJournalStoreFailure {
     INVALID_ENTRY, INVALID_EVENT, NOT_FOUND, DUPLICATE_EVENT, EVENT_ID_COLLISION,
-    INVALID_TRANSITION, STORAGE_ERROR, DECRYPTION_FAILED
+    INVALID_TRANSITION, TASK_MISMATCH, STORAGE_ERROR, DECRYPTION_FAILED
 }
 
 sealed interface LearningJournalStoreResult<out T> {
@@ -75,11 +75,11 @@ class EncryptedLearningJournalStore(
     }
 
     /** Replaying the same event id and payload is safe; reusing an id for different content is rejected. */
-    fun append(event: LearningJournalEvent): LearningJournalStoreResult<LearningJournalEntry> {
+    fun append(event: LearningJournalEvent, expectedTaskId: String? = null): LearningJournalStoreResult<LearningJournalEntry> {
         val normalizedEvent = event.copy(
             safeDetail = LearningJournalSafeDetail.normalize(event.safeDetail)
         )
-        if (normalizedEvent.id.isBlank() || normalizedEvent.entryId.isBlank() || normalizedEvent.actor.isBlank()) {
+        if (normalizedEvent.id.isBlank() || normalizedEvent.entryId.isBlank() || normalizedEvent.actor.isBlank() || expectedTaskId?.isBlank() == true) {
             return failure(LearningJournalStoreFailure.INVALID_EVENT)
         }
         val db = writableDatabase
@@ -92,6 +92,10 @@ class EncryptedLearningJournalStore(
                 val prior = LearningJournalCodec.decodeEvent(encryptor.decrypt(existingEvent, aad("event", normalizedEvent.id)))
                 val current = loadEntry(db, normalizedEvent.entryId)
                     ?: run { db.endTransaction(); return failure(LearningJournalStoreFailure.NOT_FOUND) }
+                if (expectedTaskId != null && current.taskId != expectedTaskId) {
+                    db.endTransaction()
+                    return failure(LearningJournalStoreFailure.TASK_MISMATCH)
+                }
                 if (prior != normalizedEvent) {
                     db.endTransaction()
                     return failure(LearningJournalStoreFailure.EVENT_ID_COLLISION)
@@ -103,6 +107,10 @@ class EncryptedLearningJournalStore(
 
             val current = loadEntry(db, event.entryId)
                 ?: run { db.endTransaction(); return failure(LearningJournalStoreFailure.NOT_FOUND) }
+            if (expectedTaskId != null && current.taskId != expectedTaskId) {
+                db.endTransaction()
+                return failure(LearningJournalStoreFailure.TASK_MISMATCH)
+            }
             val applied = LearningJournalPolicy.apply(current, normalizedEvent)
             val updated = applied.updatedEntry
                 ?: run {

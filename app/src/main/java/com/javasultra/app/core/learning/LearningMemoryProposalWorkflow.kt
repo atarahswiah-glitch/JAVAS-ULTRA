@@ -53,14 +53,14 @@ class MemoryRepositoryLearningProposalBatchWriter(
 }
 
 fun interface LearningJournalReceiptWriter {
-    fun append(event: LearningJournalEvent): LearningJournalStoreResult<LearningJournalEntry>
+    fun append(event: LearningJournalEvent, expectedTaskId: String): LearningJournalStoreResult<LearningJournalEntry>
 }
 
 class EncryptedLearningJournalReceiptWriter(
     private val store: EncryptedLearningJournalStore
 ) : LearningJournalReceiptWriter {
-    override fun append(event: LearningJournalEvent): LearningJournalStoreResult<LearningJournalEntry> =
-        store.append(event)
+    override fun append(event: LearningJournalEvent, expectedTaskId: String): LearningJournalStoreResult<LearningJournalEntry> =
+        store.append(event, expectedTaskId)
 }
 
 /**
@@ -131,7 +131,7 @@ class LearningMemoryProposalWorkflow(
             actor = creatorPrincipalId,
             safeDetail = "PROPOSAL_BATCH_PERSISTED"
         )
-        return when (val journal = journalWriter.append(receipt)) {
+        return when (val journal = journalWriter.append(receipt, request.task.id)) {
             is LearningJournalStoreResult.Success ->
                 LearningProposalWorkflowResult.Persisted(mapped.records, journal.value)
             is LearningJournalStoreResult.Failure ->
