@@ -15,7 +15,33 @@ enum class MemoryRepositoryFailure {
     INVALID_RECORD, OWNER_MISMATCH, NOT_FOUND, ACCESS_DENIED, DUPLICATE_ID, STORAGE_ERROR, DECRYPTION_FAILED
 }
 
+/** Pure validation shared by the atomic encrypted-memory batch insertion boundary. */
+object ProposedMemoryBatchPolicy {
+    const val MAX_BATCH_SIZE = 100
+
+    fun validate(
+        records: List<MemoryRecord>,
+        actorPrincipalId: String
+    ): MemoryRepositoryFailure? {
+        if (actorPrincipalId.isBlank() || records.isEmpty() || records.size > MAX_BATCH_SIZE) {
+            return MemoryRepositoryFailure.INVALID_RECORD
+        }
+        if (records.map { it.id }.toSet().size != records.size) {
+            return MemoryRepositoryFailure.DUPLICATE_ID
+        }
+        if (records.any { it.ownerPrincipalId != actorPrincipalId }) {
+            return MemoryRepositoryFailure.OWNER_MISMATCH
+        }
+        if (records.any { it.validate().isNotEmpty() || it.lifecycle != MemoryLifecycle.PROPOSED }) {
+            return MemoryRepositoryFailure.INVALID_RECORD
+        }
+        return null
+    }
+}
+
 interface MemoryRepository {
+    /** Exact same-owner retries are idempotent; same-id/different-content is rejected. */
+    fun insertProposedBatch(records: List<MemoryRecord>, actorPrincipalId: String): MemoryRepositoryResult<Unit>
     fun insertProposed(record: MemoryRecord, actorPrincipalId: String): MemoryRepositoryResult<Unit>
     fun activate(id: MemoryId, actorPrincipalId: String, at: Instant, stepUpAuthenticated: Boolean = false): MemoryRepositoryResult<MemoryRecord>
     fun read(id: MemoryId, request: MemoryAccessRequest): MemoryRepositoryResult<MemoryRecord>
@@ -44,45 +70,57 @@ class EncryptedMemoryRepository(
         throw IllegalStateException("No migration path from database version " + oldVersion + " to " + newVersion)
     }
 
-    override fun insertProposed(record: MemoryRecord, actorPrincipalId: String): MemoryRepositoryResult<Unit> {
-        if (record.validate().isNotEmpty() || record.lifecycle != MemoryLifecycle.PROPOSED) return failure(MemoryRepositoryFailure.INVALID_RECORD)
-        if (record.ownerPrincipalId != actorPrincipalId) return failure(MemoryRepositoryFailure.OWNER_MISMATCH)
-        val db = writableDatabase
+    override fun insertProposedBatch(
+        records: List<MemoryRecord>,
+        actorPrincipalId: String
+    ): MemoryRepositoryResult<Unit> {
+        ProposedMemoryBatchPolicy.validate(records, actorPrincipalId)?.let { return failure(it) }
         return try {
-            db.beginTransaction()
-            val existingBytes = db.query(
-                TABLE, arrayOf(COL_PAYLOAD), "$COL_ID = ?", arrayOf(record.id.value),
-                null, null, null
-            ).use { cursor -> if (cursor.moveToFirst()) cursor.getBlob(0) else null }
-
-            if (existingBytes != null) {
-                val existing = MemoryRecordCodec.decode(encryptor.decrypt(existingBytes, aad(record.id)))
-                when (MemoryProposalIdempotencyPolicy.evaluate(existing, record, actorPrincipalId)) {
-                    MemoryProposalReplayDecision.EXACT_REPLAY -> {
-                        db.setTransactionSuccessful()
-                        MemoryRepositoryResult.Success(Unit)
-                    }
-                    MemoryProposalReplayDecision.CONFLICTING_CONTENT ->
-                        failure(MemoryRepositoryFailure.DUPLICATE_ID)
-                    MemoryProposalReplayDecision.OWNER_MISMATCH ->
-                        failure(MemoryRepositoryFailure.OWNER_MISMATCH)
-                }
-            } else {
-                val encrypted = encryptor.encrypt(MemoryRecordCodec.encode(record), aad(record.id))
-                val values = ContentValues().apply {
+            // Encrypt all records before opening the transaction. Existing exact records are
+            // accepted as retries; conflicting IDs abort the complete batch.
+            val prepared = records.map { record ->
+                record to ContentValues().apply {
                     put(COL_ID, record.id.value)
-                    put(COL_PAYLOAD, encrypted)
+                    put(COL_PAYLOAD, encryptor.encrypt(MemoryRecordCodec.encode(record), aad(record.id)))
                     put(COL_CREATED, record.createdAt.toEpochMilli())
                 }
-                db.insertOrThrow(TABLE, null, values)
+            }
+            val db = writableDatabase
+            db.beginTransaction()
+            try {
+                for ((record, values) in prepared) {
+                    val existingBytes = db.query(
+                        TABLE, arrayOf(COL_PAYLOAD), "$COL_ID = ?", arrayOf(record.id.value),
+                        null, null, null
+                    ).use { cursor -> if (cursor.moveToFirst()) cursor.getBlob(0) else null }
+
+                    if (existingBytes != null) {
+                        val existing = MemoryRecordCodec.decode(encryptor.decrypt(existingBytes, aad(record.id)))
+                        when (MemoryProposalIdempotencyPolicy.evaluate(existing, record, actorPrincipalId)) {
+                            MemoryProposalReplayDecision.EXACT_REPLAY -> Unit
+                            MemoryProposalReplayDecision.CONFLICTING_CONTENT ->
+                                return failure(MemoryRepositoryFailure.DUPLICATE_ID)
+                            MemoryProposalReplayDecision.OWNER_MISMATCH ->
+                                return failure(MemoryRepositoryFailure.OWNER_MISMATCH)
+                        }
+                    } else {
+                        db.insertOrThrow(TABLE, null, values)
+                    }
+                }
                 db.setTransactionSuccessful()
                 MemoryRepositoryResult.Success(Unit)
+            } finally {
+                db.endTransaction()
             }
         } catch (_: Exception) {
             failure(MemoryRepositoryFailure.STORAGE_ERROR)
-        } finally {
-            if (db.inTransaction()) db.endTransaction()
         }
+    }
+
+    override fun insertProposed(record: MemoryRecord, actorPrincipalId: String): MemoryRepositoryResult<Unit> {
+        if (record.validate().isNotEmpty() || record.lifecycle != MemoryLifecycle.PROPOSED) return failure(MemoryRepositoryFailure.INVALID_RECORD)
+        if (record.ownerPrincipalId != actorPrincipalId) return failure(MemoryRepositoryFailure.OWNER_MISMATCH)
+        return insertProposedBatch(listOf(record), actorPrincipalId)
     }
 
     override fun activate(
@@ -158,7 +196,6 @@ class EncryptedMemoryRepository(
     } catch (_: Exception) {
         failure(MemoryRepositoryFailure.STORAGE_ERROR)
     }
-
 
     /** Explicit export path; callers cannot accidentally export through a READ request. */
     override fun exportReadable(request: MemoryAccessRequest): MemoryRepositoryResult<List<MemoryRecord>> {

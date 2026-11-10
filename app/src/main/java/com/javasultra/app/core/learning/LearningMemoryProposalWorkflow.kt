@@ -1,96 +1,98 @@
 package com.javasultra.app.core.learning
 
-import com.javasultra.app.core.memory.MemoryId
 import com.javasultra.app.core.memory.MemoryRecord
+import com.javasultra.app.core.memory.MemoryRepository
 import com.javasultra.app.core.memory.MemoryRepositoryFailure
 import com.javasultra.app.core.memory.MemoryRepositoryResult
 import java.time.Instant
 
-enum class LearningMemoryWorkflowStatus {
-    DENIED,
+enum class LearningProposalWorkflowDenial {
     REVIEW_REJECTED,
-    PERSISTED,
-    PARTIALLY_PERSISTED,
-    PERSISTENCE_FAILED
+    MAPPING_REJECTED,
+    EMPTY_PROPOSAL_SET,
+    PERSISTENCE_REJECTED
 }
 
-data class LearningMemoryWorkflowResult(
-    val status: LearningMemoryWorkflowStatus,
-    val reviewDenial: CreatorReviewDenial? = null,
-    val proposalDenial: LearningProposalDenial? = null,
-    val acceptedProposalIds: List<MemoryId> = emptyList(),
-    val failedProposalId: MemoryId? = null,
-    val persistenceFailure: MemoryRepositoryFailure? = null
-)
+sealed interface LearningProposalWorkflowResult {
+    data class Persisted(val proposedRecords: List<MemoryRecord>) : LearningProposalWorkflowResult
+    data class Rejected(
+        val reason: LearningProposalWorkflowDenial,
+        val reviewDenial: CreatorReviewDenial? = null,
+        val mappingDenial: LearningProposalDenial? = null,
+        val persistenceFailure: MemoryRepositoryFailure? = null
+    ) : LearningProposalWorkflowResult
+}
+
+/** Narrow port so orchestration can be tested without Android storage. */
+fun interface LearningProposalBatchWriter {
+    fun insertProposedBatch(
+        records: List<MemoryRecord>,
+        actorPrincipalId: String
+    ): MemoryRepositoryResult<Unit>
+}
+
+/** Production adapter; encrypted repository insertion remains the persistence boundary. */
+class MemoryRepositoryLearningProposalBatchWriter(
+    private val repository: MemoryRepository
+) : LearningProposalBatchWriter {
+    override fun insertProposedBatch(
+        records: List<MemoryRecord>,
+        actorPrincipalId: String
+    ): MemoryRepositoryResult<Unit> = repository.insertProposedBatch(records, actorPrincipalId)
+}
 
 /**
- * Coordinates the local learning-review -> proposal -> encrypted-repository boundary.
+ * Coordinates Creator review, evidence-to-proposal mapping and one atomic encrypted batch.
  *
- * The coordinator never activates memory. Every record remains PROPOSED after insertion.
- * It uses the same deterministic record ids on retry; MemoryRepository implementations
- * must accept exact-content retries and reject same-id/different-content collisions.
- *
- * This is client-side orchestration, not a trusted authorization service. Production must
- * derive principal ids from an authenticated session, persist/consume review ids atomically,
- * and repeat the review decision and owner checks on a trusted backend.
+ * The supplied consumed-review set is a local snapshot, not durable replay protection.
+ * Production must derive principal ids from a trusted session and atomically consume the
+ * review id and persist proposals on a trusted backend. This client workflow never activates
+ * memory or authorizes external actions.
  */
-object LearningMemoryProposalWorkflow {
-    fun approveAndStore(
+class LearningMemoryProposalWorkflow(
+    private val writer: LearningProposalBatchWriter
+) {
+    fun approveAndPersist(
         request: CreatorLearningReviewRequest,
         consumedReviewIds: Set<String>,
         claims: List<EvidenceClaim>,
         sources: List<ResearchSource>,
         creatorPrincipalId: String,
-        now: Instant,
-        insertProposed: (MemoryRecord, String) -> MemoryRepositoryResult<Unit>
-    ): LearningMemoryWorkflowResult {
-        val review = CreatorLearningReviewPolicy.evaluate(request, consumedReviewIds, now)
+        createdAt: Instant
+    ): LearningProposalWorkflowResult {
+        val review = CreatorLearningReviewPolicy.evaluate(request, consumedReviewIds, createdAt)
         if (review.denial != null) {
-            return LearningMemoryWorkflowResult(
-                status = LearningMemoryWorkflowStatus.DENIED,
+            return LearningProposalWorkflowResult.Rejected(
+                LearningProposalWorkflowDenial.REVIEW_REJECTED,
                 reviewDenial = review.denial
             )
         }
         if (review.outcome == CreatorReviewOutcome.REJECTED) {
-            return LearningMemoryWorkflowResult(status = LearningMemoryWorkflowStatus.REVIEW_REJECTED)
+            return LearningProposalWorkflowResult.Rejected(LearningProposalWorkflowDenial.REVIEW_REJECTED)
         }
 
-        val proposal = LearningMemoryProposalMapper.mapApprovedClaims(
-            request = request,
-            review = review,
-            claims = claims,
-            sources = sources,
-            creatorPrincipalId = creatorPrincipalId,
-            createdAt = now
+        val mapped = LearningMemoryProposalMapper.mapApprovedClaims(
+            request, review, claims, sources, creatorPrincipalId, createdAt
         )
-        if (proposal.denial != null || proposal.records.isEmpty()) {
-            return LearningMemoryWorkflowResult(
-                status = LearningMemoryWorkflowStatus.DENIED,
-                proposalDenial = proposal.denial ?: LearningProposalDenial.CLAIM_SET_MISMATCH
+        mapped.denial?.let {
+            return LearningProposalWorkflowResult.Rejected(
+                LearningProposalWorkflowDenial.MAPPING_REJECTED,
+                mappingDenial = it
             )
         }
-
-        val accepted = mutableListOf<MemoryId>()
-        for (record in proposal.records) {
-            when (val stored = insertProposed(record, creatorPrincipalId)) {
-                is MemoryRepositoryResult.Success -> accepted += record.id
-                is MemoryRepositoryResult.Failure -> {
-                    return LearningMemoryWorkflowResult(
-                        status = if (accepted.isEmpty()) {
-                            LearningMemoryWorkflowStatus.PERSISTENCE_FAILED
-                        } else {
-                            LearningMemoryWorkflowStatus.PARTIALLY_PERSISTED
-                        },
-                        acceptedProposalIds = accepted.toList(),
-                        failedProposalId = record.id,
-                        persistenceFailure = stored.reason
-                    )
-                }
-            }
+        if (mapped.records.isEmpty()) {
+            return LearningProposalWorkflowResult.Rejected(
+                LearningProposalWorkflowDenial.EMPTY_PROPOSAL_SET
+            )
         }
-        return LearningMemoryWorkflowResult(
-            status = LearningMemoryWorkflowStatus.PERSISTED,
-            acceptedProposalIds = accepted.toList()
-        )
+        return when (val persisted = writer.insertProposedBatch(mapped.records, creatorPrincipalId)) {
+            is MemoryRepositoryResult.Success ->
+                LearningProposalWorkflowResult.Persisted(mapped.records)
+            is MemoryRepositoryResult.Failure ->
+                LearningProposalWorkflowResult.Rejected(
+                    LearningProposalWorkflowDenial.PERSISTENCE_REJECTED,
+                    persistenceFailure = persisted.reason
+                )
+        }
     }
 }
