@@ -226,3 +226,16 @@ The latest fully completed PR head at the time of this update was `b4e478c58dd3f
 - The wrapper is still generated during CI and not committed. AND-01 remains In progress.
 
 The previous 123-test statement in the Phase 2 progress notes is superseded by this 125-test result. A further three factor-validation regression tests have since been added in commit `2635d366c043a564921a77d0548b263c3b25378e`; their CI result is pending and must be checked before calling them verified.
+
+
+## Latest branch-head verification — 2026-11-10
+
+PR head `f1c6df3c2d835ed955d6d809af70c07efe600eac` passed both push CI run [#124](https://github.com/atarahswiah-glitch/JAVAS-ULTRA/actions/runs/42768814096) and pull-request CI run [#125](https://github.com/atarahswiah-glitch/JAVAS-ULTRA/actions/runs/42768820442).
+
+- Both runs passed JDK 17, Gradle 8.13, Android SDK setup, clean-checkout wrapper generation, Gradle configuration verification, unit tests, debug APK assembly and artifact upload.
+- Each run passed **137 JVM tests**, with 0 failures, 0 errors and 0 skipped tests. The 17 JUnit XML suite reports in artifact `13741320266` were independently inspected and summed.
+- Run #124 debug APK: 11,846,872 bytes; SHA-256 `8d61b94623bc00c722b6d320458cc2ef5931a3bf780dbf54834e609316db1989`.
+- New coverage includes authentication-factor evidence validation and memory activation/replacement step-up policy. These are local domain safeguards, not a substitute for trusted-server enforcement.
+- The Gradle wrapper is still generated in CI and not committed; local clean-clone `./gradlew` verification remains open.
+
+The earlier 125-test pending statement is superseded by this 137-test result. Phase 1 remains open for committed-wrapper verification, Creator application-ID confirmation and physical-device acceptance. Phase 2 production identity, server authorization, provider integration and end-to-end runtime remain In progress.

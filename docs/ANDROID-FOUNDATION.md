@@ -101,3 +101,16 @@ PR head `b4e478c58dd3f0e4161179e579cfc50180bf5a36` passed both push CI run [#116
 The new identity-gate tests verify that local biometric proof cannot establish remote authentication and that impossible factor-count combinations are rejected. This remains client/domain preflight; trusted-server authentication and enforcement are still outstanding.
 
 Phase 1 remains CI-green but open pending committed wrapper/local clone verification, Creator application-ID confirmation and physical-device acceptance.
+
+
+## Latest branch-head verification — 2026-11-10
+
+The current PR head `f1c6df3c2d835ed955d6d809af70c07efe600eac` passed both independent GitHub Actions runs: [#124](https://github.com/atarahswiah-glitch/JAVAS-ULTRA/actions/runs/42768814096) and [#125](https://github.com/atarahswiah-glitch/JAVAS-ULTRA/actions/runs/42768820442).
+
+- JDK 17, Gradle 8.13, Android SDK setup, clean-checkout wrapper generation and Gradle configuration verification passed in both runs.
+- **137 JVM unit tests passed** in each run, with 0 failures, 0 errors and 0 skipped tests. The count was independently summed from all 17 JUnit XML suite reports in artifact `13741320266` (run #124).
+- Debug APK assembly and artifact upload passed in both runs. Run #124 APK: 11,846,872 bytes; SHA-256: `8d61b94623bc00c722b6d320458cc2ef5931a3bf780dbf54834e609316db1989`.
+- Both runs generated and verified the Gradle wrapper in their clean CI workspaces. The wrapper files are still not committed to the branch, so local `./gradlew` availability remains unverified.
+- This run includes the authentication-factor validation tests and memory activation policy tests, including step-up enforcement for highly sensitive memory activation/replacement.
+
+This is CI evidence for JVM domain/policy tests and debug packaging only. It does not establish production authentication, trusted-server enforcement, complete assistant runtime capability, or physical-device acceptance.
