@@ -153,14 +153,15 @@ class PracticeSandboxHostContractTest {
     }
 
     @Test fun completedStatusMustBindReceiptToSubmittedCodeAndRunner() {
+        val mismatchedReceipt = receipt().copy(codeSha256 = "e".repeat(64))
         assertEquals(
             PracticeSandboxHostContractDenial.INVALID_RECEIPT,
             PracticeSandboxHostContract.validateStatus(
                 submission,
                 status(
                     PracticeSandboxHostState.COMPLETED,
-                    receipt().copy(codeSha256 = "e".repeat(64)),
-                    attestation()
+                    mismatchedReceipt,
+                    attestation(signedReceipt = mismatchedReceipt)
                 ),
                 now
             )
