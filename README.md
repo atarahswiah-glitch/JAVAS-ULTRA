@@ -18,6 +18,7 @@ JAVAS ULTRA is being developed as a secure, memory-enabled, practical AI compani
 - [Master architecture](docs/MASTER-ARCHITECTURE.md)
 - [Integrated ten-phase roadmap](docs/ROADMAP.md)
 - [Requirements register](docs/REQUIREMENTS-REGISTER.md)
+- [Self-directed learning and capability environment](docs/SELF-DIRECTED-LEARNING-ENVIRONMENT.md)
 - [Security and privacy baseline](docs/SECURITY-AND-PRIVACY-BASELINE.md)
 - [Phase 2 identity and security contracts](docs/PHASE-2-IDENTITY-SECURITY-CONTRACTS.md)
 
