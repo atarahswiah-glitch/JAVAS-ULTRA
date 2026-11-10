@@ -95,7 +95,7 @@ class SkillAssessmentPolicyTest {
         assertEquals(SkillCompetenceLevel.UNKNOWN, result.level)
     }
 
-    @Test fun operationalCapabilityRequiresIntegrationExecutionAndPermission() {
+    @Test fun operationalEvidenceRequiresTrustedHostAttestation() {
         val result = SkillAssessmentPolicy.evaluate(request(
             evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
             evidence("explain", SkillEvidenceKind.EXPLANATION),
@@ -103,7 +103,7 @@ class SkillAssessmentPolicyTest {
             evidence("execution", SkillEvidenceKind.AUTHORIZED_EXECUTION),
             permission = true
         ))
-        assertEquals(SkillAssessmentDenial.TRUSTED_SANDBOX_VERIFIER_UNAVAILABLE, result.denial)
+        assertEquals(SkillAssessmentDenial.INVALID_OPERATIONAL_EVIDENCE, result.denial)
         assertEquals(SkillCompetenceLevel.UNKNOWN, result.level)
     }
 
