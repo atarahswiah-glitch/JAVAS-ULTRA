@@ -93,8 +93,12 @@ class PracticeSandboxPolicyTest {
 
     @Test fun requiresEveryAcceptanceTestToPass() {
         val r = request()
-        assertEquals(PracticeSandboxDenial.ACCEPTANCE_TESTS_FAILED,
-            PracticeSandboxPolicy.evaluateReceipt(r, receipt().copy(acceptanceTestsPassed = 4), now.plusSeconds(20)).denial)
+        val failed = PracticeSandboxPolicy.evaluateReceipt(
+            r, receipt().copy(acceptanceTestsPassed = 4), now.plusSeconds(20)
+        )
+        assertTrue(failed.accepted)
+        assertFalse(failed.passedAcceptanceCriteria)
+        assertNotNull(failed.evidenceReference)
         assertEquals(PracticeSandboxDenial.ACCEPTANCE_TESTS_FAILED,
             PracticeSandboxPolicy.evaluateReceipt(r, receipt().copy(acceptanceTestsRun = 0, acceptanceTestsPassed = 0), now.plusSeconds(20)).denial)
     }
