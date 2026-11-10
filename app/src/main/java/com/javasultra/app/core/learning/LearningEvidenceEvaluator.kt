@@ -6,6 +6,8 @@ import java.time.Instant
 enum class EvidenceEvaluationDenial {
     INVALID_TASK,
     INVALID_FRESHNESS_WINDOW,
+    DUPLICATE_SOURCE_ID,
+    INVALID_SOURCE,
     NO_CLAIMS,
     INVALID_CLAIM,
     CONTRADICTIONS_REQUIRE_REVIEW,
@@ -41,6 +43,12 @@ object LearningEvidenceEvaluator {
         }
         if (claims.isEmpty()) return denied(EvidenceEvaluationDenial.NO_CLAIMS)
 
+        if (sources.map { it.id }.toSet().size != sources.size) {
+            return denied(EvidenceEvaluationDenial.DUPLICATE_SOURCE_ID)
+        }
+        if (sources.any { it.id.isBlank() || it.title.isBlank() || it.trustScore !in 0.0..1.0 }) {
+            return denied(EvidenceEvaluationDenial.INVALID_SOURCE)
+        }
         val sourceMap = sources.associateBy { it.id }
         val knownIds = sourceMap.keys
         for (claim in claims) {
