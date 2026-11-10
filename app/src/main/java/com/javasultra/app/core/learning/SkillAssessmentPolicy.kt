@@ -59,8 +59,11 @@ data class SkillAssessmentDecision(
 )
 
 /**
- * Prevents reading or explaining a procedure from being misreported as practical skill.
- * Operational capability requires both verified integration evidence and authorized execution evidence.
+ * Separates study, explanation, practice and operational evidence.
+ *
+ * This client-side policy deliberately fails closed for practice and operational evidence
+ * until a cryptographic trusted-host verifier is integrated. Client booleans and local
+ * receipt-shaped objects are not accepted as proof of execution.
  */
 object SkillAssessmentPolicy {
     fun evaluate(request: SkillAssessmentRequest): SkillAssessmentDecision {
