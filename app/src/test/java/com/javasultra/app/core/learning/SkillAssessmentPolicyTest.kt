@@ -38,6 +38,17 @@ class SkillAssessmentPolicyTest {
         )
     }
 
+    private fun operationalEvidence(
+        id: String,
+        kind: SkillEvidenceKind
+    ) = SkillEvidence(
+        id, kind, true, now,
+        (if (kind == SkillEvidenceKind.INTEGRATION_VERIFICATION) "integration:" else "execution:") +
+            "trusted-host:" + "e".repeat(64),
+        "criteria-$id",
+        trustedAttestationVerifiedByHost = true
+    )
+
     private fun request(vararg evidence: SkillEvidence, permission: Boolean = false) =
         SkillAssessmentRequest("safe-web-research", evidence.toList(), now, hasOperationalPermission = permission)
 
@@ -78,8 +89,8 @@ class SkillAssessmentPolicyTest {
             evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
             evidence("explain", SkillEvidenceKind.EXPLANATION),
             sandboxEvidence("practice"),
-            evidence("integration", SkillEvidenceKind.INTEGRATION_VERIFICATION),
-            evidence("execution", SkillEvidenceKind.AUTHORIZED_EXECUTION)
+            operationalEvidence("integration", SkillEvidenceKind.INTEGRATION_VERIFICATION),
+            operationalEvidence("execution", SkillEvidenceKind.AUTHORIZED_EXECUTION)
         ))
         assertEquals(SkillCompetenceLevel.DEMONSTRATED_SKILL, result.level)
     }
