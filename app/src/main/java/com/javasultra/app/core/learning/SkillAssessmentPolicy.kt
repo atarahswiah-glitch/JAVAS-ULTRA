@@ -80,6 +80,7 @@ object SkillAssessmentPolicy {
                     sandboxRequest, sandboxReceipt, request.now
                 )
                 if (!sandboxDecision.accepted ||
+                    item.passed != sandboxDecision.passedAcceptanceCriteria ||
                     sandboxRequest.skillId != request.skillId ||
                     item.observedAt != sandboxReceipt.completedAt ||
                     item.acceptanceCriteriaId != sandboxReceipt.acceptanceSuiteSha256 ||
