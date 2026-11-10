@@ -5,6 +5,10 @@ import com.javasultra.app.core.memory.MemoryKind
 import com.javasultra.app.core.memory.MemoryLifecycle
 import com.javasultra.app.core.memory.MemoryProvenance
 import com.javasultra.app.core.memory.MemoryRecord
+import com.javasultra.app.core.memory.MemoryRetentionAction
+import com.javasultra.app.core.memory.MemoryRetentionCandidate
+import com.javasultra.app.core.memory.MemoryRetentionProposalFactory
+import com.javasultra.app.core.memory.MemoryRetentionType
 import com.javasultra.app.core.memory.MemorySensitivity
 import com.javasultra.app.core.memory.MemorySourceType
 import com.javasultra.app.core.memory.MemoryVerification
@@ -16,7 +20,8 @@ enum class LearningProposalDenial {
     CLAIM_SET_MISMATCH,
     DUPLICATE_SOURCE_ID,
     INVALID_CLAIM,
-    INSUFFICIENT_PROVENANCE
+    INSUFFICIENT_PROVENANCE,
+    RETENTION_POLICY_REJECTED
 }
 
 data class LearningProposalResult(
@@ -27,9 +32,10 @@ data class LearningProposalResult(
 /**
  * Converts only Creator-approved, supported research claims into PROPOSED memory records.
  *
- * This mapper does not persist, activate, complete tasks, or establish trusted identity.
- * Callers must pass a result produced by CreatorLearningReviewPolicy and must still use
- * the memory repository's owner-bound insertProposed operation.
+ * Retention is evaluated by the shared MemoryRetentionPolicy adapter before a record
+ * can leave this mapper. This mapper does not persist, activate, complete tasks, or
+ * establish trusted identity. Callers must still use owner-bound encrypted repository
+ * insertion, and the memory activation policy remains a separate gate.
  */
 object LearningMemoryProposalMapper {
     private val sha256Pattern = Regex("^[a-fA-F0-9]{64}$")
@@ -114,7 +120,25 @@ object LearningMemoryProposalMapper {
                 tags = setOf("learning", request.task.domain.name.lowercase())
             )
             if (record.validate().isNotEmpty()) return denied(LearningProposalDenial.INVALID_CLAIM)
-            records += record
+
+            // Creator approval authorizes a proposal only, not activation. Treat it as
+            // explicit permission to prepare a durable candidate and retain source provenance.
+            val retention = MemoryRetentionProposalFactory.prepare(
+                MemoryRetentionCandidate(
+                    type = MemoryRetentionType.RESEARCH_FINDING,
+                    futureUseLikelihood = 0.5,
+                    uniqueness = 0.5,
+                    reResearchCost = 0.5,
+                    sourceVerified = true,
+                    sourceReferenceAvailable = true,
+                    explicitlyRequestedToRetain = true
+                ),
+                record
+            )
+            if (retention.retention.action != MemoryRetentionAction.STORE_KNOWLEDGE ||
+                retention.recordToPropose == null
+            ) return denied(LearningProposalDenial.RETENTION_POLICY_REJECTED)
+            records += retention.recordToPropose
         }
         return LearningProposalResult(records = records)
     }

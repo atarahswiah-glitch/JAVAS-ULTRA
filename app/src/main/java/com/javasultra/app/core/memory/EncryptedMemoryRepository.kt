@@ -47,17 +47,41 @@ class EncryptedMemoryRepository(
     override fun insertProposed(record: MemoryRecord, actorPrincipalId: String): MemoryRepositoryResult<Unit> {
         if (record.validate().isNotEmpty() || record.lifecycle != MemoryLifecycle.PROPOSED) return failure(MemoryRepositoryFailure.INVALID_RECORD)
         if (record.ownerPrincipalId != actorPrincipalId) return failure(MemoryRepositoryFailure.OWNER_MISMATCH)
+        val db = writableDatabase
         return try {
-            val encrypted = encryptor.encrypt(MemoryRecordCodec.encode(record), aad(record.id))
-            val values = ContentValues().apply {
-                put(COL_ID, record.id.value)
-                put(COL_PAYLOAD, encrypted)
-                put(COL_CREATED, record.createdAt.toEpochMilli())
+            db.beginTransaction()
+            val existingBytes = db.query(
+                TABLE, arrayOf(COL_PAYLOAD), "$COL_ID = ?", arrayOf(record.id.value),
+                null, null, null
+            ).use { cursor -> if (cursor.moveToFirst()) cursor.getBlob(0) else null }
+
+            if (existingBytes != null) {
+                val existing = MemoryRecordCodec.decode(encryptor.decrypt(existingBytes, aad(record.id)))
+                when (MemoryProposalIdempotencyPolicy.evaluate(existing, record, actorPrincipalId)) {
+                    MemoryProposalReplayDecision.EXACT_REPLAY -> {
+                        db.setTransactionSuccessful()
+                        MemoryRepositoryResult.Success(Unit)
+                    }
+                    MemoryProposalReplayDecision.CONFLICTING_CONTENT ->
+                        failure(MemoryRepositoryFailure.DUPLICATE_ID)
+                    MemoryProposalReplayDecision.OWNER_MISMATCH ->
+                        failure(MemoryRepositoryFailure.OWNER_MISMATCH)
+                }
+            } else {
+                val encrypted = encryptor.encrypt(MemoryRecordCodec.encode(record), aad(record.id))
+                val values = ContentValues().apply {
+                    put(COL_ID, record.id.value)
+                    put(COL_PAYLOAD, encrypted)
+                    put(COL_CREATED, record.createdAt.toEpochMilli())
+                }
+                db.insertOrThrow(TABLE, null, values)
+                db.setTransactionSuccessful()
+                MemoryRepositoryResult.Success(Unit)
             }
-            val inserted = writableDatabase.insertWithOnConflict(TABLE, null, values, SQLiteDatabase.CONFLICT_IGNORE)
-            if (inserted == -1L) failure(MemoryRepositoryFailure.DUPLICATE_ID) else MemoryRepositoryResult.Success(Unit)
         } catch (_: Exception) {
             failure(MemoryRepositoryFailure.STORAGE_ERROR)
+        } finally {
+            if (db.inTransaction()) db.endTransaction()
         }
     }
 

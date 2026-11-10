@@ -117,6 +117,12 @@ Practice must have bounded time, compute, network, storage and financial budgets
 
 After practice, JAVAS evaluates the result against criteria established before the test. It records failures and uncertainty, changes one or more factors, and repeats only within a defined retry budget. Important skills should be periodically re-evaluated when dependencies, APIs, source material or environments change.
 
+### Initial practice-sandbox contract (implemented; runner pending)
+
+The current Kotlin `PracticeSandboxPolicy` validates a proposed practice run and its eventual receipt. The initial profile requires network disabled, an ephemeral workspace only, no secrets, no elevated privileges, strict runtime/memory/workspace/output/file limits and a maximum of three attempts. A receipt must match the exact request, source-code digest and runner-image digest; its attestation must have been verified by a trusted host; the complete acceptance suite must be reported; only a full pass can support demonstrated skill, while a verified failed run may be retained as failed practice evidence; no network connection may be established; and the workspace must be cleaned.
+
+This policy does not execute code and cannot make a client-supplied boolean or receipt trustworthy by itself. Skill assessment explicitly refuses to promote local receipt/boolean claims to demonstrated skill or operational capability while the trusted verifier is unavailable. A transport-neutral gateway port now describes submission of content-addressed code and acceptance-suite artifacts, idempotency keys, correlated host states and signed receipt metadata. It is not a live connection. A future backend must authenticate and authorize each submission, enforce quotas and idempotency, execute outside the Android process in an isolated OS/container boundary, sign canonical request/receipt digests, verify those signatures against a pinned trust root and independently enforce every request/receipt constraint before creating skill evidence. Until that trusted backend and runner exist, JAVAS must not claim that sandbox practice is available or that a practice result proves demonstrated skill.
+
 ## 8. Capability discovery and self-development
 
 When JAVAS identifies a missing capability, it should:
