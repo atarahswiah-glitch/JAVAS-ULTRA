@@ -68,6 +68,7 @@ enum class IdentityDenial {
     DEVICE_NOT_VERIFIED,
     AUTHENTICATION_MISSING,
     AUTHENTICATION_PRINCIPAL_MISMATCH,
+    LOCAL_ONLY_AUTHENTICATION,
     AUTHENTICATION_TOO_OLD,
     STEP_UP_REQUIRED
 }
@@ -114,6 +115,10 @@ object CreatorIdentityGate {
         }
         if (proof.principalId != request.principalId) {
             return denied(IdentityDenial.AUTHENTICATION_PRINCIPAL_MISMATCH)
+        }
+        // A local biometric can unlock local keys, but cannot authenticate a remote session.
+        if (proof.localOnly || proof.strength == AuthenticationStrength.LOCAL_BIOMETRIC_UNLOCK) {
+            return denied(IdentityDenial.LOCAL_ONLY_AUTHENTICATION)
         }
         if (now.isBefore(proof.authenticatedAt) ||
             Duration.between(proof.authenticatedAt, now) > request.maximumAuthenticationAge

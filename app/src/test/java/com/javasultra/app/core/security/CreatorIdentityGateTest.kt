@@ -88,13 +88,35 @@ class CreatorIdentityGateTest {
         )
     }
 
-    @Test fun localBiometricUnlockIsNotRemoteStepUp() {
+    @Test fun localBiometricUnlockCannotAuthenticateRemoteAccess() {
         assertEquals(
-            IdentityDenial.STEP_UP_REQUIRED,
+            IdentityDenial.LOCAL_ONLY_AUTHENTICATION,
             reason(CreatorIdentityGate.evaluate(
                 identity(), device(), session(),
                 proof(AuthenticationStrength.MULTI_FACTOR, 2, localOnly = true),
                 request(stepUp = true), now
+            ))
+        )
+    }
+
+    @Test fun localOnlyFlagCannotAuthenticateEvenWithTwoFactors() {
+        assertEquals(
+            IdentityDenial.LOCAL_ONLY_AUTHENTICATION,
+            reason(CreatorIdentityGate.evaluate(
+                identity(), device(), session(),
+                proof(AuthenticationStrength.MULTI_FACTOR, 2, localOnly = true),
+                request(), now
+            ))
+        )
+    }
+
+    @Test fun biometricStrengthCannotAuthenticateRemoteAccessWithoutLocalOnlyFlag() {
+        assertEquals(
+            IdentityDenial.LOCAL_ONLY_AUTHENTICATION,
+            reason(CreatorIdentityGate.evaluate(
+                identity(), device(), session(),
+                proof(AuthenticationStrength.LOCAL_BIOMETRIC_UNLOCK, 1, localOnly = false),
+                request(), now
             ))
         )
     }
