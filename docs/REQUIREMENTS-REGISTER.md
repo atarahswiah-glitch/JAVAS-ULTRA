@@ -107,7 +107,7 @@ The initial implementation contract is documented in [Phase 2 — Identity, Trus
 | AGT-02 | Tool-call, time and work-unit limits | Agent task envelope and runtime checks | In progress |
 | AGT-03 | External side effects require explicit Creator approval | Runtime preflight requires approval for side-effect/privileged tools | In progress |
 | AGT-04 | Multi-modal, retrieval, model gateway and orchestration | Architecture defined; adapters/services pending | Planned |
-| DEV-04 | Isolated code-experiment runner with test/rollback | Workspace policy defined; actual sandbox runner pending | Planned |
+| DEV-04 | Isolated code-experiment runner with test/rollback | Upgrade workspace policy plus bounded practice-sandbox policy; trusted isolated runner and rollback remain pending | In progress |
 | UX-01 | Inclusive, accessible, age-appropriate general companion | Product requirement recorded; UX implementation pending | Planned |
 
 Local policy classes are not a substitute for trusted execution-host enforcement. Website transport, domain/DNS safety, redirects, response size/time limits, robots/terms handling, malware/content isolation, encrypted persistence and server-side approval validation remain required before autonomous research is enabled in a release.
@@ -256,3 +256,14 @@ The earlier 125-test pending statement is superseded by this 137-test result. Ph
 | LRN-17 | JAVAS can use ordinary pre-authorized capabilities independently while high-impact actions remain approval-gated | 2, 4, 8 | Positive/negative action authorization and approval-bound execution tests | Planned |
 | LRN-18 | The learning environment remains bounded by least privilege, network/filesystem isolation, resource limits, audit and protected trust roots | 2, 8 | Adversarial boundary tests, sandbox escape tests and audit checks | Planned |
 | LRN-19 | JAVAS reports what it learned, practised, verified, retained and executed, distinguishing evidence from assumptions and unknowns | 3, 4, 8 | Learning report traceability and truthful capability-claim tests | Planned |
+
+
+## Practice-sandbox safety contract — 2026-11-10
+
+| ID | Requirement | Initial implementation evidence | Status |
+|---|---|---|---|
+| LRN-20 | Practice runs are isolated, offline, ephemeral, unprivileged and bounded by time, memory, workspace, output, file and retry limits | `PracticeSandboxPolicy` request validation and negative tests | Implemented; CI pending |
+| LRN-21 | Practice results count as evidence only when bound to the exact task/code/runner image and a trusted-runner attestation, successful exit, complete acceptance tests and cleanup | `PracticeSandboxPolicy` receipt validation and tests; trusted attestation verifier/runner not yet implemented | Contract implemented; trusted execution blocked |
+| LRN-22 | Practice submissions use content-addressed artifacts, idempotent requests, correlated host states and signed receipt metadata | `PracticeSandboxHostContract` protocol, gateway port and negative/positive contract tests | Protocol implemented; backend and runner not implemented |
+
+The policy is a local preflight and receipt-validation contract, not a sandbox implementation. The skill assessment path now fails closed: client-supplied `attestationVerifiedByTrustedHost` booleans and receipt-shaped data cannot establish demonstrated or operational skill until an authenticated cryptographic verifier is integrated. The Android process must not execute untrusted code directly. A transport-neutral `PracticeSandboxGateway` port and host protocol now define content-addressed code/test artifacts, idempotency, request/status correlation, lifecycle states and signed-attestation metadata. Local contract checks do not authenticate the host or verify signatures. A future authenticated backend must authorize the Creator/task, enforce idempotency and quotas, run code in an isolated OS/container boundary, sign canonical request/receipt digests, verify signatures against a pinned trust root, persist audit evidence and independently re-check all limits before skill evidence is accepted. No network access, host filesystem, Creator secrets or elevated privileges are permitted in the initial practice profile. The gateway has no production implementation yet.
