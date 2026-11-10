@@ -12,7 +12,9 @@ import java.time.Instant
 
 class LearningMemoryProposalWorkflowTest {
     private val now = Instant.parse("2026-11-10T12:00:00Z")
-    private val digest = "d".repeat(64)
+    private val digest: String by lazy(LazyThreadSafetyMode.NONE) {
+        LearningEvidenceDigest.computeSha256(listOf(claim()), sources())
+    }
     private val creator = "creator-1"
     private val journalEntryId = "journal-workflow-1"
 
