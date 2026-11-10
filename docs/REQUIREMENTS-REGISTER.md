@@ -193,3 +193,24 @@ The journal now has a dedicated encrypted SQLite append-only event store and ver
 - No production identity provider/trusted server, active model adapter, safe research transport, scheduled worker, action execution host or physical-device integration is enabled.
 - Latest CI run #100 (`42626623452`) on commit `ea1a2f55db31723675fc1620414a98d9d21b786b`: 122 JVM tests across 16 suites passed; debug APK assembly and upload passed. Downloaded APK archive was inspected; SHA-256 `ef727bde1d8c763bf7a541aa703143e8da0c98373d406a1e63cf8e2bae7a65e4`.
 - This remains an unsigned development APK; physical-device, production-authentication, provider, offline and privacy acceptance are pending.
+
+
+## Phase 1 verification update — 2026-11-09
+
+- Current PR head `a863f2369d8c1223332c9c99d28f4a18f081518c` passed Android CI run [#113](https://github.com/atarahswiah-glitch/JAVAS-ULTRA/actions/runs/42627694138).
+- 123 JVM unit tests passed with zero failures, errors or skips; debug APK assembly passed.
+- The CI workflow generated the Gradle wrapper in its clean workspace. The four wrapper files are present in the artifact but remain absent from the branch, so local wrapper-based clean-clone verification remains open.
+- AND-01 remains **In progress** until committed-wrapper verification and device installation acceptance are complete. A successful CI build alone is not a physical install test.
+
+## Phase 2 verification update — 2026-11-09
+
+The same run #113 includes the Creator identity-gate, capability authorisation, protected-action, learning, memory-policy, model-routing and development-workspace policy test suites. The complete 123-test suite passed. This upgrades the current branch's **local JVM policy/test evidence**, not production identity or security readiness.
+
+Still not implemented as production-connected capabilities:
+- A real Creator authentication provider and secure credential/account-recovery flow.
+- Trusted-server enforcement of identity, session, device and permission decisions.
+- Production device registration/revocation and lost-device recovery.
+- Server-side audit persistence and approval consumption.
+- End-to-end model-provider/research transport and autonomous execution.
+
+Do not mark ID-01, ID-02, SEC-03 or SEC-04 Verified on the basis of these local domain tests. Their production acceptance evidence remains outstanding.

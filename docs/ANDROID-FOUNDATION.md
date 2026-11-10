@@ -60,3 +60,29 @@ CI run `42587189930` completed successfully on commit `f16f7df9a07424fcdf7eba1d3
 - No user memory or personal data is collected by this shell.
 - No microphone, camera, location, contacts or background permissions are requested yet.
 - Debug APK is for technical verification only; it is not a release build.
+
+## Latest verification — 2026-11-09, PR head a863f236
+
+GitHub Actions Android CI run [#113](https://github.com/atarahswiah-glitch/JAVAS-ULTRA/actions/runs/42627694138) completed successfully for commit `a863f2369d8c1223332c9c99d28f4a18f081518c`.
+
+- JDK 17, Gradle 8.13 and Android SDK setup passed.
+- The clean-checkout workflow generated the Gradle wrapper and verified it with `./gradlew --version`.
+- All 123 JVM unit tests passed: 0 failures, 0 errors and 0 skipped tests. The count was independently summed from all 15 JUnit XML reports in the downloaded artifact.
+- `assembleDebug` passed. APK: `app-debug.apk`, 11,846,872 bytes; SHA-256 `91f4bb0a95b3d9ca5e2a62230b4ffd8dde8fb1d52c2960fac876b2de2c260c2e`.
+- Artifact `JAVAS-ULTRA-debug-and-test-reports`, ID `13679601486`, contains the APK, test reports and all four generated wrapper files.
+- The wrapper files are still generated during CI and are not committed. CI is reproducible from a clean checkout because it installs Gradle and generates the wrapper, but a local clone cannot yet invoke the repository wrapper directly.
+
+This validates the current JVM policy/domain tests and debug packaging only. It does not validate production authentication, trusted-server enforcement, real persistent-memory integration, research/model-provider transport, or physical-device behaviour.
+
+## Phase 1 exit checklist
+
+- [x] Native Android source/build skeleton exists.
+- [x] CI can build from a clean checkout using JDK 17, Gradle 8.13 and Android SDK.
+- [x] Current branch head has a successful full unit-test and debug-APK run (123/123).
+- [x] Requirements register and architecture/security contracts are present.
+- [ ] Commit the four generated wrapper files so local clean clones can run `./gradlew` without first installing a separate Gradle distribution.
+- [ ] Run CI using the committed wrapper rather than generating it in the workflow.
+- [ ] Creator confirms the provisional Android application ID before a public release identity is locked.
+- [ ] Complete real-device install, permission, lifecycle and recovery acceptance tests.
+
+Phase 1 is therefore **CI-green but not fully closed**. Device acceptance and Creator decisions remain distinct from remote CI evidence.
