@@ -1,0 +1,39 @@
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Android / local SDK configuration
+local.properties
+*.iml
+.idea/
+.externalNativeBuild/
+.cxx/
+captures/
+
+# Signing material and local credentials
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+secrets/
+credentials/
+service-account*.json
+
+# Kotlin / compiler output
+.kotlin/
+out/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Test and profiling output
+*.hprof
+*.prof
