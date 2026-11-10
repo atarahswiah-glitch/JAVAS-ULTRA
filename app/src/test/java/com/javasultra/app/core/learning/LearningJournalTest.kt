@@ -28,34 +28,23 @@ class LearningJournalTest {
         val started = LearningJournalPolicy.apply(entry(), event(LearningJournalEventType.TASK_STARTED))
         assertTrue(started.accepted)
         assertEquals(LearningJournalState.RUNNING, started.updatedEntry?.state)
-
-        val sourced = LearningJournalPolicy.apply(
-            started.updatedEntry!!,
-            event(LearningJournalEventType.SOURCE_RETRIEVED, now.plusSeconds(1), source = "source-1")
-        )
+        val sourced = LearningJournalPolicy.apply(started.updatedEntry!!,
+            event(LearningJournalEventType.SOURCE_RETRIEVED, now.plusSeconds(1), source = "source-1"))
         assertTrue(sourced.accepted)
         assertEquals(setOf("source-1"), sourced.updatedEntry?.sourceIds)
         assertEquals(LearningJournalState.SOURCE_REVIEW, sourced.updatedEntry?.state)
-
-        val reviewed = LearningJournalPolicy.apply(
-            sourced.updatedEntry!!,
-            event(LearningJournalEventType.CLAIM_REVIEWED, now.plusSeconds(2), claim = "claim-1")
-        )
+        val reviewed = LearningJournalPolicy.apply(sourced.updatedEntry!!,
+            event(LearningJournalEventType.CLAIM_REVIEWED, now.plusSeconds(2), claim = "claim-1"))
         assertTrue(reviewed.accepted)
         assertEquals(setOf("claim-1"), reviewed.updatedEntry?.claimIds)
     }
 
     @Test fun acceptsMultipleSourcesDuringSourceReview() {
-        val first = LearningJournalPolicy.apply(
-            entry(LearningJournalState.RUNNING),
-            event(LearningJournalEventType.SOURCE_RETRIEVED, now, source = "source-1")
-        )
+        val first = LearningJournalPolicy.apply(entry(LearningJournalState.RUNNING),
+            event(LearningJournalEventType.SOURCE_RETRIEVED, now, source = "source-1"))
         assertTrue(first.accepted)
-
-        val second = LearningJournalPolicy.apply(
-            first.updatedEntry!!,
-            event(LearningJournalEventType.SOURCE_RETRIEVED, now.plusSeconds(1), source = "source-2")
-        )
+        val second = LearningJournalPolicy.apply(first.updatedEntry!!,
+            event(LearningJournalEventType.SOURCE_RETRIEVED, now.plusSeconds(1), source = "source-2"))
         assertTrue(second.accepted)
         assertEquals(setOf("source-1", "source-2"), second.updatedEntry?.sourceIds)
         assertEquals(LearningJournalState.SOURCE_REVIEW, second.updatedEntry?.state)
@@ -83,12 +72,14 @@ class LearningJournalTest {
 
     @Test fun requiresClaimIdForClaimReviewEvent() {
         assertEquals(LearningJournalDenial.CLAIM_REQUIRED,
-            LearningJournalPolicy.validateEvent(entry(LearningJournalState.SOURCE_REVIEW), event(LearningJournalEventType.CLAIM_REVIEWED)))
+            LearningJournalPolicy.validateEvent(entry(LearningJournalState.SOURCE_REVIEW),
+                event(LearningJournalEventType.CLAIM_REVIEWED)))
     }
 
     @Test fun rejectsEventsForTerminalEntries() {
         assertEquals(LearningJournalDenial.TERMINAL_STATE,
-            LearningJournalPolicy.validateEvent(entry(LearningJournalState.COMPLETED), event(LearningJournalEventType.TASK_COMPLETED)))
+            LearningJournalPolicy.validateEvent(entry(LearningJournalState.COMPLETED),
+                event(LearningJournalEventType.TASK_COMPLETED)))
     }
 
     @Test fun rejectsDuplicateStateChangingEvents() {
@@ -97,28 +88,37 @@ class LearningJournalTest {
     }
 
     @Test fun permitsNonTransitioningEvidenceReviewEvent() {
-        val result = LearningJournalPolicy.apply(
-            entry(LearningJournalState.SOURCE_REVIEW),
-            event(LearningJournalEventType.CLAIM_REVIEWED, claim = "claim-2")
-        )
+        val result = LearningJournalPolicy.apply(entry(LearningJournalState.SOURCE_REVIEW),
+            event(LearningJournalEventType.CLAIM_REVIEWED, claim = "claim-2"))
         assertTrue(result.accepted)
         assertEquals(LearningJournalState.SOURCE_REVIEW, result.updatedEntry?.state)
     }
 
-    @Test fun sanitizesFailureDetailsBeforeStoringThemInEntry() {
+    @Test fun recordsProposalPersistenceWithoutCompletingTheLearningTask() {
         val result = LearningJournalPolicy.apply(
-            entry(LearningJournalState.RUNNING),
-            event(LearningJournalEventType.TASK_FAILED).copy(safeDetail = "NETWORK_TIMEOUT")
+            entry(LearningJournalState.KNOWLEDGE_PROPOSED),
+            event(LearningJournalEventType.MEMORY_PROPOSAL_PERSISTED)
         )
+        assertTrue(result.accepted)
+        assertEquals(LearningJournalState.KNOWLEDGE_PROPOSED, result.updatedEntry?.state)
+    }
+
+    @Test fun rejectsProposalReceiptBeforeKnowledgeHasBeenProposed() {
+        assertEquals(LearningJournalDenial.INVALID_TRANSITION,
+            LearningJournalPolicy.apply(entry(LearningJournalState.SOURCE_REVIEW),
+                event(LearningJournalEventType.MEMORY_PROPOSAL_PERSISTED)).denial)
+    }
+
+    @Test fun sanitizesFailureDetailsBeforeStoringThemInEntry() {
+        val result = LearningJournalPolicy.apply(entry(LearningJournalState.RUNNING),
+            event(LearningJournalEventType.TASK_FAILED).copy(safeDetail = "NETWORK_TIMEOUT"))
         assertTrue(result.accepted)
         assertEquals("NETWORK_TIMEOUT", result.updatedEntry?.failureCode)
     }
 
     @Test fun rejectsFreeTextFailureDetailsThatMayContainSecrets() {
-        val result = LearningJournalPolicy.apply(
-            entry(LearningJournalState.RUNNING),
-            event(LearningJournalEventType.TASK_FAILED).copy(safeDetail = "token=secret; network timeout!")
-        )
+        val result = LearningJournalPolicy.apply(entry(LearningJournalState.RUNNING),
+            event(LearningJournalEventType.TASK_FAILED).copy(safeDetail = "token=secret; network timeout!"))
         assertTrue(result.accepted)
         assertNull(result.updatedEntry?.failureCode)
     }

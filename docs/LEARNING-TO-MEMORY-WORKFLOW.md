@@ -13,7 +13,7 @@
 7. The encrypted repository validates a bounded batch (1–100 records), one matching owner, unique IDs and `PROPOSED` lifecycle. It encrypts all records before opening a single SQLite transaction.
 8. The batch is inserted atomically. Exact same-owner/same-content records already present are accepted as idempotent retries. A same-ID changed-content record or owner mismatch rejects the batch.
 9. If an interrupted earlier attempt left some exact records and some missing records, the next transaction skips the exact records and inserts the missing ones. Any conflicting record aborts and rolls back all new inserts.
-10. The result reports persistence success or the specific review, mapping or repository denial. Memory remains `PROPOSED`; activation is a separate Creator-authorized action.
+10. After the memory batch commits, the workflow appends a stable `MEMORY_PROPOSAL_PERSISTED` event to the learning journal. This is an observation-only receipt: it keeps the task in `KNOWLEDGE_PROPOSED` and does not complete the task.\n11. If memory commits but journal append fails, the workflow returns `PersistedJournalPending` with the exact event payload and stable event ID. Retrying the same review repeats the idempotent memory batch and appends the same journal event.\n12. The result reports persistence success, journal-pending success, or the specific review, mapping or repository denial. Memory remains `PROPOSED`; activation is a separate Creator-authorized action.
 
 ## Security boundaries
 
@@ -23,7 +23,7 @@
 - Creator approval permits proposal creation only. It does not activate memory or authorize high-impact actions.
 - No untrusted code is executed by this workflow or inside the Android process.
 - Android SQLite transactions and Android Keystore encryption require instrumentation and real-device tests. JVM tests do not establish platform storage correctness.
-- Learning-journal and memory storage remain separate stores; cross-store atomic completion is not claimed.
+- Learning-journal and memory storage remain separate stores; cross-store atomic completion is not claimed. The recoverable two-step sequence reports the important partial-success state and retries with deterministic IDs rather than hiding it.
 
 ## Acceptance tests
 
@@ -31,13 +31,13 @@ JVM tests cover:
 - approved review persists one Creator-owned batch of proposed records;
 - rejected, consumed or wrong-reviewer requests do not call persistence;
 - Creator-owner mismatch is rejected;
-- storage failure is surfaced without claiming success;
+- memory storage failure is surfaced without appending a journal receipt;\n- journal failure after memory success is reported as durable memory with a pending stable receipt;\n- retry after journal failure reuses the exact same event ID and payload;
 - batch size, unique IDs, owner consistency and proposed lifecycle are validated;
 - exact same-owner retries are accepted, while changed-content and cross-owner replays are rejected.
 
 ## Next dependencies
 
 1. Trusted backend identity and atomic review-ID consumption.
-2. Android instrumentation tests for encrypted batch insert, exact retry, mixed existing/new retry, collision rollback, interrupted transaction and Keystore failure.
+2. Android instrumentation tests for encrypted batch insert, exact retry, mixed existing/new retry, collision rollback, interrupted transaction, journal receipt idempotency and Keystore failure.
 3. Creator review UI and auditable proposal/activation controls.
 4. A separate authenticated practice-host service and cryptographic attestation verifier before sandbox evidence can count as demonstrated skill.

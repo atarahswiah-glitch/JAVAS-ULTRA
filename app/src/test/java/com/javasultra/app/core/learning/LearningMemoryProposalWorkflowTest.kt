@@ -14,6 +14,7 @@ class LearningMemoryProposalWorkflowTest {
     private val now = Instant.parse("2026-11-10T12:00:00Z")
     private val digest = "d".repeat(64)
     private val creator = "creator-1"
+    private val journalEntryId = "journal-workflow-1"
 
     private fun request(decision: CreatorLearningDecision = CreatorLearningDecision.APPROVE) =
         CreatorLearningReviewRequest(
@@ -56,11 +57,7 @@ class LearningMemoryProposalWorkflowTest {
         var calls = 0
         var records = emptyList<MemoryRecord>()
         var actor: String? = null
-
-        override fun insertProposedBatch(
-            records: List<MemoryRecord>,
-            actorPrincipalId: String
-        ): MemoryRepositoryResult<Unit> {
+        override fun insertProposedBatch(records: List<MemoryRecord>, actorPrincipalId: String): MemoryRepositoryResult<Unit> {
             calls++
             this.records = records
             actor = actorPrincipalId
@@ -68,77 +65,143 @@ class LearningMemoryProposalWorkflowTest {
         }
     }
 
-    @Test fun approvedClaimsArePersistedAsOneCreatorOwnedProposedBatch() {
-        val req = request()
+    private class RecordingJournalWriter(
+        var result: LearningJournalStoreResult<LearningJournalEntry>
+    ) : LearningJournalReceiptWriter {
+        var calls = 0
+        var event: LearningJournalEvent? = null
+        override fun append(event: LearningJournalEvent): LearningJournalStoreResult<LearningJournalEntry> {
+            calls++
+            this.event = event
+            return result
+        }
+    }
+
+    private fun journalWriter(
+        result: LearningJournalStoreResult<LearningJournalEntry> =
+            LearningJournalStoreResult.Success(
+                LearningJournalEntry(
+                    journalEntryId, "task-workflow-1", "Research a public science topic",
+                    LearningDomain.SCIENCE, LearningJournalState.KNOWLEDGE_PROPOSED,
+                    now.minusSeconds(120), now.minusSeconds(10)
+                )
+            )
+    ) = RecordingJournalWriter(result)
+
+    private fun execute(
+        req: CreatorLearningReviewRequest = request(),
+        writer: RecordingWriter = RecordingWriter(),
+        journal: RecordingJournalWriter = journalWriter(),
+        creatorId: String = creator,
+        entryId: String = journalEntryId,
+        consumed: Set<String> = emptySet()
+    ) = LearningMemoryProposalWorkflow(writer, journal).approveAndPersist(
+        req, consumed, listOf(claim()), sources(), creatorId, entryId, now
+    )
+
+    @Test fun approvedClaimsArePersistedAndJournaledAsOneProposedBatch() {
         val writer = RecordingWriter()
-        val result = LearningMemoryProposalWorkflow(writer).approveAndPersist(
-            req, emptySet(), listOf(claim()), sources(), creator, now
-        )
+        val journal = journalWriter()
+        val result = execute(writer = writer, journal = journal)
         assertTrue(result is LearningProposalWorkflowResult.Persisted)
         assertEquals(1, writer.calls)
         assertEquals(creator, writer.actor)
         assertEquals(1, writer.records.size)
         assertEquals(creator, writer.records.single().ownerPrincipalId)
         assertEquals(MemoryLifecycle.PROPOSED, writer.records.single().lifecycle)
+        assertEquals(1, journal.calls)
+        assertEquals(LearningJournalEventType.MEMORY_PROPOSAL_PERSISTED, journal.event?.type)
+        assertEquals("PROPOSAL_BATCH_PERSISTED", journal.event?.safeDetail)
     }
 
-    @Test fun rejectedCreatorReviewNeverCallsPersistence() {
-        val req = request(CreatorLearningDecision.REJECT)
+    @Test fun journalFailureReportsDurableMemoryAndReturnsStableReceiptForRetry() {
         val writer = RecordingWriter()
-        val result = LearningMemoryProposalWorkflow(writer).approveAndPersist(
-            req, emptySet(), listOf(claim()), sources(), creator, now
-        )
+        val journal = journalWriter(LearningJournalStoreResult.Failure(LearningJournalStoreFailure.STORAGE_ERROR))
+        val result = execute(writer = writer, journal = journal)
+        assertTrue(result is LearningProposalWorkflowResult.PersistedJournalPending)
+        val pending = result as LearningProposalWorkflowResult.PersistedJournalPending
+        assertEquals(1, writer.calls)
+        assertEquals(LearningJournalStoreFailure.STORAGE_ERROR, pending.journalFailure)
+        assertTrue(pending.receiptEvent.id.startsWith("proposal-receipt-"))
+        assertEquals(creator, pending.receiptEvent.actor)
+        assertEquals(journalEntryId, pending.receiptEvent.entryId)
+        assertEquals("PROPOSAL_BATCH_PERSISTED", pending.receiptEvent.safeDetail)
+    }
+
+    @Test fun retryAfterJournalFailureUsesTheSameReceiptEventId() {
+        val firstJournal = journalWriter(LearningJournalStoreResult.Failure(LearningJournalStoreFailure.STORAGE_ERROR))
+        val first = execute(journal = firstJournal) as LearningProposalWorkflowResult.PersistedJournalPending
+        val secondJournal = journalWriter()
+        val second = execute(journal = secondJournal)
+        assertTrue(second is LearningProposalWorkflowResult.Persisted)
+        assertEquals(first.receiptEvent.id, secondJournal.event?.id)
+        assertEquals(1, secondJournal.calls)
+    }
+
+    @Test fun invalidJournalEntryStopsBeforeMemoryPersistence() {
+        val writer = RecordingWriter()
+        val journal = journalWriter()
+        val result = execute(writer = writer, journal = journal, entryId = " ")
+        assertTrue(result is LearningProposalWorkflowResult.Rejected)
+        assertEquals(LearningProposalWorkflowDenial.JOURNAL_ENTRY_INVALID,
+            (result as LearningProposalWorkflowResult.Rejected).reason)
+        assertEquals(0, writer.calls)
+        assertEquals(0, journal.calls)
+    }
+
+    @Test fun rejectedCreatorReviewNeverCallsEitherStore() {
+        val writer = RecordingWriter()
+        val journal = journalWriter()
+        val result = execute(req = request(CreatorLearningDecision.REJECT), writer = writer, journal = journal)
         assertTrue(result is LearningProposalWorkflowResult.Rejected)
         assertEquals(LearningProposalWorkflowDenial.REVIEW_REJECTED, (result as LearningProposalWorkflowResult.Rejected).reason)
         assertEquals(0, writer.calls)
+        assertEquals(0, journal.calls)
     }
 
     @Test fun consumedReviewIdIsRejectedBeforePersistence() {
         val req = request()
         val writer = RecordingWriter()
-        val result = LearningMemoryProposalWorkflow(writer).approveAndPersist(
-            req, setOf(req.reviewId), listOf(claim()), sources(), creator, now
-        )
+        val journal = journalWriter()
+        val result = execute(req = req, writer = writer, journal = journal, consumed = setOf(req.reviewId))
         assertTrue(result is LearningProposalWorkflowResult.Rejected)
         assertEquals(CreatorReviewDenial.REVIEW_ALREADY_CONSUMED,
             (result as LearningProposalWorkflowResult.Rejected).reviewDenial)
         assertEquals(0, writer.calls)
+        assertEquals(0, journal.calls)
     }
 
     @Test fun wrongAuthenticatedReviewerIsRejectedBeforePersistence() {
         val req = request().copy(authenticatedReviewerPrincipalId = "other-user")
         val writer = RecordingWriter()
-        val result = LearningMemoryProposalWorkflow(writer).approveAndPersist(
-            req, emptySet(), listOf(claim()), sources(), creator, now
-        )
+        val journal = journalWriter()
+        val result = execute(req = req, writer = writer, journal = journal)
         assertTrue(result is LearningProposalWorkflowResult.Rejected)
         assertEquals(CreatorReviewDenial.INVALID_IDENTITY,
             (result as LearningProposalWorkflowResult.Rejected).reviewDenial)
         assertEquals(0, writer.calls)
+        assertEquals(0, journal.calls)
     }
 
     @Test fun creatorMismatchIsRejectedBeforePersistence() {
-        val req = request()
         val writer = RecordingWriter()
-        val result = LearningMemoryProposalWorkflow(writer).approveAndPersist(
-            req, emptySet(), listOf(claim()), sources(), "different-creator", now
-        )
+        val journal = journalWriter()
+        val result = execute(writer = writer, journal = journal, creatorId = "different-creator")
         assertTrue(result is LearningProposalWorkflowResult.Rejected)
-        assertEquals(LearningProposalWorkflowDenial.MAPPING_REJECTED,
-            (result as LearningProposalWorkflowResult.Rejected).reason)
+        assertEquals(LearningProposalWorkflowDenial.MAPPING_REJECTED, (result as LearningProposalWorkflowResult.Rejected).reason)
         assertEquals(0, writer.calls)
+        assertEquals(0, journal.calls)
         assertFalse(result is LearningProposalWorkflowResult.Persisted)
     }
 
-    @Test fun persistenceFailureIsSurfacedWithoutSuccessClaim() {
-        val req = request()
+    @Test fun memoryPersistenceFailureNeverAppendsJournalReceipt() {
         val writer = RecordingWriter(MemoryRepositoryResult.Failure(MemoryRepositoryFailure.STORAGE_ERROR))
-        val result = LearningMemoryProposalWorkflow(writer).approveAndPersist(
-            req, emptySet(), listOf(claim()), sources(), creator, now
-        )
+        val journal = journalWriter()
+        val result = execute(writer = writer, journal = journal)
         assertTrue(result is LearningProposalWorkflowResult.Rejected)
         assertEquals(MemoryRepositoryFailure.STORAGE_ERROR,
             (result as LearningProposalWorkflowResult.Rejected).persistenceFailure)
         assertEquals(1, writer.calls)
+        assertEquals(0, journal.calls)
     }
 }

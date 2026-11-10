@@ -9,16 +9,13 @@ enum class LearningJournalState {
 
 object LearningJournalSafeDetail {
     private val codePattern = Regex("[A-Z][A-Z0-9_]{0,63}")
-
-    /** Accept only stable error/event codes; arbitrary text may contain private data or secrets. */
-    fun normalize(value: String?): String? =
-        value?.takeIf { codePattern.matches(it) }
+    fun normalize(value: String?): String? = value?.takeIf { codePattern.matches(it) }
 }
 
 enum class LearningJournalEventType {
     SIGNAL_DETECTED, TASK_QUEUED, TASK_STARTED, SOURCE_RETRIEVED,
-    CLAIM_REVIEWED, KNOWLEDGE_PROPOSED, TASK_PAUSED, TASK_RESUMED,
-    TASK_COMPLETED, TASK_FAILED, TASK_CANCELLED
+    CLAIM_REVIEWED, KNOWLEDGE_PROPOSED, MEMORY_PROPOSAL_PERSISTED,
+    TASK_PAUSED, TASK_RESUMED, TASK_COMPLETED, TASK_FAILED, TASK_CANCELLED
 }
 
 data class LearningJournalEntry(
@@ -97,13 +94,12 @@ object LearningJournalPolicy {
         if (event.type == LearningJournalEventType.CLAIM_REVIEWED && event.claimId.isNullOrBlank()) {
             return LearningJournalDenial.CLAIM_REQUIRED
         }
+        if (event.type == LearningJournalEventType.MEMORY_PROPOSAL_PERSISTED &&
+            entry.state != LearningJournalState.KNOWLEDGE_PROPOSED
+        ) return LearningJournalDenial.INVALID_TRANSITION
         return null
     }
 
-    /**
-     * Applies a validated event to an entry. Persistence layers must append the event and
-     * replace the entry atomically; this pure policy function never writes storage.
-     */
     fun apply(entry: LearningJournalEntry, event: LearningJournalEvent): LearningJournalApplyResult {
         validateEntry(entry)?.let { return LearningJournalApplyResult(denial = it) }
         validateEvent(entry, event)?.let { return LearningJournalApplyResult(denial = it) }
@@ -111,38 +107,29 @@ object LearningJournalPolicy {
         val target = when (event.type) {
             LearningJournalEventType.SIGNAL_DETECTED ->
                 if (entry.state == LearningJournalState.DISCOVERED) entry.state else null
-            LearningJournalEventType.TASK_QUEUED ->
-                LearningJournalState.QUEUED
-            LearningJournalEventType.TASK_STARTED ->
-                LearningJournalState.RUNNING
-            LearningJournalEventType.SOURCE_RETRIEVED ->
-                LearningJournalState.SOURCE_REVIEW
+            LearningJournalEventType.TASK_QUEUED -> LearningJournalState.QUEUED
+            LearningJournalEventType.TASK_STARTED -> LearningJournalState.RUNNING
+            LearningJournalEventType.SOURCE_RETRIEVED -> LearningJournalState.SOURCE_REVIEW
             LearningJournalEventType.CLAIM_REVIEWED ->
                 if (entry.state == LearningJournalState.SOURCE_REVIEW) entry.state else null
-            LearningJournalEventType.KNOWLEDGE_PROPOSED ->
-                LearningJournalState.KNOWLEDGE_PROPOSED
-            LearningJournalEventType.TASK_PAUSED ->
-                LearningJournalState.PAUSED
+            LearningJournalEventType.KNOWLEDGE_PROPOSED -> LearningJournalState.KNOWLEDGE_PROPOSED
+            LearningJournalEventType.MEMORY_PROPOSAL_PERSISTED ->
+                if (entry.state == LearningJournalState.KNOWLEDGE_PROPOSED) entry.state else null
+            LearningJournalEventType.TASK_PAUSED -> LearningJournalState.PAUSED
             LearningJournalEventType.TASK_RESUMED ->
                 if (entry.state == LearningJournalState.PAUSED) LearningJournalState.QUEUED else null
-            LearningJournalEventType.TASK_COMPLETED ->
-                LearningJournalState.COMPLETED
-            LearningJournalEventType.TASK_FAILED ->
-                LearningJournalState.FAILED
-            LearningJournalEventType.TASK_CANCELLED ->
-                LearningJournalState.CANCELLED
+            LearningJournalEventType.TASK_COMPLETED -> LearningJournalState.COMPLETED
+            LearningJournalEventType.TASK_FAILED -> LearningJournalState.FAILED
+            LearningJournalEventType.TASK_CANCELLED -> LearningJournalState.CANCELLED
         } ?: return LearningJournalApplyResult(denial = LearningJournalDenial.INVALID_TRANSITION)
 
-        // A task may collect multiple independent sources and review multiple claims.
-        // These evidence events may repeat without advancing the task state.
         val observationOnlyEvent = event.type == LearningJournalEventType.SIGNAL_DETECTED ||
             event.type == LearningJournalEventType.SOURCE_RETRIEVED ||
-            event.type == LearningJournalEventType.CLAIM_REVIEWED
+            event.type == LearningJournalEventType.CLAIM_REVIEWED ||
+            event.type == LearningJournalEventType.MEMORY_PROPOSAL_PERSISTED
         if ((target == entry.state && !observationOnlyEvent) ||
             (target != entry.state && !canTransition(entry.state, target))
-        ) {
-            return LearningJournalApplyResult(denial = LearningJournalDenial.INVALID_TRANSITION)
-        }
+        ) return LearningJournalApplyResult(denial = LearningJournalDenial.INVALID_TRANSITION)
 
         val updated = entry.copy(
             state = target,
