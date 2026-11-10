@@ -141,6 +141,20 @@ class SkillAssessmentPolicyTest {
         assertEquals(SkillAssessmentDenial.INVALID_SANDBOX_EVIDENCE, result.denial)
     }
 
+
+    @Test fun arbitraryOperationalEvidenceCannotClaimOperationalCapability() {
+        val result = SkillAssessmentPolicy.evaluate(request(
+            evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
+            evidence("explain", SkillEvidenceKind.EXPLANATION),
+            sandboxEvidence("practice"),
+            evidence("integration", SkillEvidenceKind.INTEGRATION_VERIFICATION),
+            evidence("execution", SkillEvidenceKind.AUTHORIZED_EXECUTION),
+            permission = true
+        ))
+        assertEquals(SkillAssessmentDenial.INVALID_OPERATIONAL_EVIDENCE, result.denial)
+        assertEquals(SkillCompetenceLevel.UNKNOWN, result.level)
+    }
+
     @Test fun futureEvidenceIsRejected() {
         val result = SkillAssessmentPolicy.evaluate(request(evidence("future", SkillEvidenceKind.STUDY_MATERIAL, at = now.plusSeconds(1))))
         assertEquals(SkillAssessmentDenial.FUTURE_EVIDENCE, result.denial)
