@@ -121,6 +121,39 @@ class CreatorIdentityGateTest {
         )
     }
 
+    @Test fun rejectsPasswordProofWithImpossibleFactorCount() {
+        assertEquals(
+            IdentityDenial.INVALID_AUTHENTICATION_PROOF,
+            reason(CreatorIdentityGate.evaluate(
+                identity(), device(), session(),
+                proof(AuthenticationStrength.PASSWORD_OR_PIN, 2),
+                request(), now
+            ))
+        )
+    }
+
+    @Test fun rejectsMultiFactorProofWithOnlyOneVerifiedFactor() {
+        assertEquals(
+            IdentityDenial.INVALID_AUTHENTICATION_PROOF,
+            reason(CreatorIdentityGate.evaluate(
+                identity(), device(), session(),
+                proof(AuthenticationStrength.MULTI_FACTOR, 1),
+                request(), now
+            ))
+        )
+    }
+
+    @Test fun rejectsProofWithoutAnyVerifiedFactor() {
+        assertEquals(
+            IdentityDenial.INVALID_AUTHENTICATION_PROOF,
+            reason(CreatorIdentityGate.evaluate(
+                identity(), device(), session(),
+                proof(AuthenticationStrength.PASSWORD_OR_PIN, 0),
+                request(), now
+            ))
+        )
+    }
+
     @Test fun permitsFreshTwoFactorStepUp() {
         assertEquals(
             IdentityDecision.Allowed,

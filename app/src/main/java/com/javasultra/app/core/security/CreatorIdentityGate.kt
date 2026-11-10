@@ -68,6 +68,7 @@ enum class IdentityDenial {
     DEVICE_NOT_VERIFIED,
     AUTHENTICATION_MISSING,
     AUTHENTICATION_PRINCIPAL_MISMATCH,
+    INVALID_AUTHENTICATION_PROOF,
     LOCAL_ONLY_AUTHENTICATION,
     AUTHENTICATION_TOO_OLD,
     STEP_UP_REQUIRED
@@ -116,6 +117,12 @@ object CreatorIdentityGate {
         if (proof.principalId != request.principalId) {
             return denied(IdentityDenial.AUTHENTICATION_PRINCIPAL_MISMATCH)
         }
+        if (proof.verifiedFactorCount < 1 ||
+            (proof.strength == AuthenticationStrength.PASSWORD_OR_PIN && proof.verifiedFactorCount != 1) ||
+            (proof.strength == AuthenticationStrength.MULTI_FACTOR && proof.verifiedFactorCount < 2)
+        ) {
+            return denied(IdentityDenial.INVALID_AUTHENTICATION_PROOF)
+        }
         // A local biometric can unlock local keys, but cannot authenticate a remote session.
         if (proof.localOnly || proof.strength == AuthenticationStrength.LOCAL_BIOMETRIC_UNLOCK) {
             return denied(IdentityDenial.LOCAL_ONLY_AUTHENTICATION)
@@ -126,8 +133,7 @@ object CreatorIdentityGate {
             return denied(IdentityDenial.AUTHENTICATION_TOO_OLD)
         }
         if (request.requiresStepUp &&
-            (proof.localOnly ||
-                proof.strength != AuthenticationStrength.MULTI_FACTOR ||
+            (proof.strength != AuthenticationStrength.MULTI_FACTOR ||
                 proof.verifiedFactorCount < 2)
         ) {
             return denied(IdentityDenial.STEP_UP_REQUIRED)
