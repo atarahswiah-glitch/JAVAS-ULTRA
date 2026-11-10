@@ -24,7 +24,7 @@ class SkillAssessmentPolicyTest {
         val suite = "d".repeat(64)
         val sandboxRequest = PracticeSandboxRequest(
             id, "task-$id", "safe-web-research", code, image,
-            at.minusSeconds(5), at.plusSeconds(60), 1,
+            at.minusSeconds(5), at.plusSeconds(120), 1,
             PracticeSandboxLimits(60, 256, 64, 256, 100, 2)
         )
         val sandboxReceipt = PracticeSandboxReceipt(
@@ -77,7 +77,7 @@ class SkillAssessmentPolicyTest {
         val result = SkillAssessmentPolicy.evaluate(request(
             evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
             evidence("explain", SkillEvidenceKind.EXPLANATION),
-            evidence("practice", SkillEvidenceKind.SANDBOX_PRACTICE),
+            sandboxEvidence("practice"),
             evidence("integration", SkillEvidenceKind.INTEGRATION_VERIFICATION),
             evidence("execution", SkillEvidenceKind.AUTHORIZED_EXECUTION)
         ))
@@ -120,7 +120,7 @@ class SkillAssessmentPolicyTest {
 
     @Test fun sandboxReceiptForAnotherSkillCannotBeReused() {
         val practiceEvidence = sandboxEvidence("practice").copy(
-            sandboxRequest = sandboxEvidence("other").sandboxRequest
+            sandboxRequest = sandboxEvidence("other").sandboxRequest?.copy(skillId = "different-skill")
         )
         val result = SkillAssessmentPolicy.evaluate(request(
             evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
