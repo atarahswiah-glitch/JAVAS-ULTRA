@@ -2,9 +2,9 @@ name: Android CI
 
 on:
   push:
-    branches: [docs/phase-1-architecture-foundation]
+    branches: [docs/phase-1-architecture-foundation, "feature/**"]
   pull_request:
-    branches: [main]
+    branches: [main, docs/phase-1-architecture-foundation, "feature/**"]
   workflow_dispatch:
 
 permissions:
