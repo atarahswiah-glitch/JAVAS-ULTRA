@@ -16,7 +16,8 @@ class SkillAssessmentPolicyTest {
 
     private fun sandboxEvidence(
         id: String,
-        at: Instant = now
+        at: Instant = now,
+        passed: Boolean = true
     ): SkillEvidence {
         val code = "a".repeat(64)
         val image = "b".repeat(64)
@@ -28,11 +29,11 @@ class SkillAssessmentPolicyTest {
         )
         val sandboxReceipt = PracticeSandboxReceipt(
             id, code, image, "trusted-runner", at, "c".repeat(64), true,
-            0, false, false, false, false, 0, true, suite, 5, 5
+            0, false, false, false, false, 0, true, suite, 5, if (passed) 5 else 4
         )
         val decision = PracticeSandboxPolicy.evaluateReceipt(sandboxRequest, sandboxReceipt, now)
         return SkillEvidence(
-            id, SkillEvidenceKind.SANDBOX_PRACTICE, true, at,
+            id, SkillEvidenceKind.SANDBOX_PRACTICE, passed, at,
             requireNotNull(decision.evidenceReference), suite, sandboxRequest, sandboxReceipt
         )
     }
@@ -101,7 +102,7 @@ class SkillAssessmentPolicyTest {
             evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
             evidence("explain", SkillEvidenceKind.EXPLANATION),
             sandboxEvidence("practice-pass", at = now.minusSeconds(60)),
-            sandboxEvidence("practice-fail")
+            sandboxEvidence("practice-fail", passed = false)
         ))
         assertEquals(SkillCompetenceLevel.UNDERSTANDING, result.level)
     }
@@ -118,13 +119,13 @@ class SkillAssessmentPolicyTest {
     }
 
     @Test fun sandboxReceiptForAnotherSkillCannotBeReused() {
-        val evidence = sandboxEvidence("practice").copy(
+        val practiceEvidence = sandboxEvidence("practice").copy(
             sandboxRequest = sandboxEvidence("other").sandboxRequest
         )
         val result = SkillAssessmentPolicy.evaluate(request(
             evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
             evidence("explain", SkillEvidenceKind.EXPLANATION),
-            evidence
+            practiceEvidence
         ))
         assertEquals(SkillAssessmentDenial.INVALID_SANDBOX_EVIDENCE, result.denial)
     }
