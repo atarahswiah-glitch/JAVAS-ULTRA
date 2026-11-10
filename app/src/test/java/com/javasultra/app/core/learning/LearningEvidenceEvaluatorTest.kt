@@ -64,6 +64,24 @@ class LearningEvidenceEvaluatorTest {
         assertEquals(EvidenceEvaluationDenial.INSUFFICIENT_INDEPENDENT_SOURCES, decision.denial)
     }
 
+    @Test fun duplicateSourceIdentifiersAreRejectedInsteadOfSilentlyOverwriting() {
+        val duplicate = source("a", "Publisher B")
+        val decision = LearningEvidenceEvaluator.evaluate(
+            task(), listOf(source("a", "Publisher A"), duplicate, source("b", "Publisher C")),
+            listOf(claim(setOf("a", "b"))), now
+        )
+        assertEquals(EvidenceEvaluationDenial.DUPLICATE_SOURCE_ID, decision.denial)
+    }
+
+    @Test fun malformedSourceMetadataIsRejected() {
+        val invalid = source("a", "Publisher A").copy(trustScore = 1.5)
+        val decision = LearningEvidenceEvaluator.evaluate(
+            task(), listOf(invalid, source("b", "Publisher B")),
+            listOf(claim(setOf("a", "b"))), now
+        )
+        assertEquals(EvidenceEvaluationDenial.INVALID_SOURCE, decision.denial)
+    }
+
     @Test fun taskMustBeInEvaluationState() {
         val decision = LearningEvidenceEvaluator.evaluate(
             task(LearningTaskState.APPROVED),
