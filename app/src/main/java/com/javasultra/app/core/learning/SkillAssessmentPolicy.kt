@@ -25,7 +25,9 @@ data class SkillEvidence(
     val passed: Boolean,
     val observedAt: Instant,
     val evidenceReference: String,
-    val acceptanceCriteriaId: String
+    val acceptanceCriteriaId: String,
+    val sandboxRequest: PracticeSandboxRequest? = null,
+    val sandboxReceipt: PracticeSandboxReceipt? = null
 )
 
 data class SkillAssessmentRequest(
@@ -42,7 +44,8 @@ enum class SkillAssessmentDenial {
     DUPLICATE_EVIDENCE_ID,
     INVALID_EVIDENCE,
     FUTURE_EVIDENCE,
-    STALE_EVIDENCE
+    STALE_EVIDENCE,
+    INVALID_SANDBOX_EVIDENCE
 }
 
 data class SkillAssessmentDecision(
@@ -67,6 +70,25 @@ object SkillAssessmentPolicy {
         if (request.evidence.any {
                 it.id.isBlank() || it.evidenceReference.isBlank() || it.acceptanceCriteriaId.isBlank()
             }) return denied(SkillAssessmentDenial.INVALID_EVIDENCE)
+        for (item in request.evidence) {
+            if (item.kind == SkillEvidenceKind.SANDBOX_PRACTICE) {
+                val sandboxRequest = item.sandboxRequest
+                    ?: return denied(SkillAssessmentDenial.INVALID_SANDBOX_EVIDENCE)
+                val sandboxReceipt = item.sandboxReceipt
+                    ?: return denied(SkillAssessmentDenial.INVALID_SANDBOX_EVIDENCE)
+                val sandboxDecision = PracticeSandboxPolicy.evaluateReceipt(
+                    sandboxRequest, sandboxReceipt, request.now
+                )
+                if (!sandboxDecision.accepted ||
+                    sandboxRequest.skillId != request.skillId ||
+                    item.observedAt != sandboxReceipt.completedAt ||
+                    item.acceptanceCriteriaId != sandboxReceipt.acceptanceSuiteSha256 ||
+                    item.evidenceReference != sandboxDecision.evidenceReference
+                ) return denied(SkillAssessmentDenial.INVALID_SANDBOX_EVIDENCE)
+            } else if (item.sandboxRequest != null || item.sandboxReceipt != null) {
+                return denied(SkillAssessmentDenial.INVALID_EVIDENCE)
+            }
+        }
         if (request.evidence.any { it.observedAt.isAfter(request.now) }) {
             return denied(SkillAssessmentDenial.FUTURE_EVIDENCE)
         }
