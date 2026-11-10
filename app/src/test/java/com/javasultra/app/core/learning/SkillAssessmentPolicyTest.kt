@@ -14,6 +14,29 @@ class SkillAssessmentPolicyTest {
         at: Instant = now
     ) = SkillEvidence(id, kind, passed, at, "test://$id", "criteria-$id")
 
+    private fun sandboxEvidence(
+        id: String,
+        at: Instant = now
+    ): SkillEvidence {
+        val code = "a".repeat(64)
+        val image = "b".repeat(64)
+        val suite = "d".repeat(64)
+        val sandboxRequest = PracticeSandboxRequest(
+            id, "task-$id", "safe-web-research", code, image,
+            at.minusSeconds(5), at.plusSeconds(60), 1,
+            PracticeSandboxLimits(60, 256, 64, 256, 100, 2)
+        )
+        val sandboxReceipt = PracticeSandboxReceipt(
+            id, code, image, "trusted-runner", at, "c".repeat(64), true,
+            0, false, false, false, false, 0, true, suite, 5, 5
+        )
+        val decision = PracticeSandboxPolicy.evaluateReceipt(sandboxRequest, sandboxReceipt, now)
+        return SkillEvidence(
+            id, SkillEvidenceKind.SANDBOX_PRACTICE, true, at,
+            requireNotNull(decision.evidenceReference), suite, sandboxRequest, sandboxReceipt
+        )
+    }
+
     private fun request(vararg evidence: SkillEvidence, permission: Boolean = false) =
         SkillAssessmentRequest("safe-web-research", evidence.toList(), now, hasOperationalPermission = permission)
 
@@ -44,7 +67,7 @@ class SkillAssessmentPolicyTest {
             SkillAssessmentPolicy.evaluate(request(
                 evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
                 evidence("explain", SkillEvidenceKind.EXPLANATION),
-                evidence("practice", SkillEvidenceKind.SANDBOX_PRACTICE)
+                sandboxEvidence("practice")
             )).level
         )
     }
@@ -77,10 +100,33 @@ class SkillAssessmentPolicyTest {
         val result = SkillAssessmentPolicy.evaluate(request(
             evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
             evidence("explain", SkillEvidenceKind.EXPLANATION),
-            evidence("practice-pass", SkillEvidenceKind.SANDBOX_PRACTICE, at = now.minusSeconds(60)),
-            evidence("practice-fail", SkillEvidenceKind.SANDBOX_PRACTICE, passed = false, at = now)
+            sandboxEvidence("practice-pass", at = now.minusSeconds(60)),
+            sandboxEvidence("practice-fail")
         ))
         assertEquals(SkillCompetenceLevel.UNDERSTANDING, result.level)
+    }
+
+
+    @Test fun arbitraryPracticeReferenceCannotEstablishDemonstratedSkill() {
+        val result = SkillAssessmentPolicy.evaluate(request(
+            evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
+            evidence("explain", SkillEvidenceKind.EXPLANATION),
+            evidence("practice", SkillEvidenceKind.SANDBOX_PRACTICE)
+        ))
+        assertEquals(SkillAssessmentDenial.INVALID_SANDBOX_EVIDENCE, result.denial)
+        assertEquals(SkillCompetenceLevel.UNKNOWN, result.level)
+    }
+
+    @Test fun sandboxReceiptForAnotherSkillCannotBeReused() {
+        val evidence = sandboxEvidence("practice").copy(
+            sandboxRequest = sandboxEvidence("other").sandboxRequest
+        )
+        val result = SkillAssessmentPolicy.evaluate(request(
+            evidence("read", SkillEvidenceKind.STUDY_MATERIAL),
+            evidence("explain", SkillEvidenceKind.EXPLANATION),
+            evidence
+        ))
+        assertEquals(SkillAssessmentDenial.INVALID_SANDBOX_EVIDENCE, result.denial)
     }
 
     @Test fun futureEvidenceIsRejected() {
