@@ -162,6 +162,7 @@ class LearningCycleCoordinator(
         now: Instant
     ): LearningCycleAuthorizationResult {
         if (request.task != packet.task ||
+            request.creatorPrincipalId != creatorPrincipalId ||
             request.claimIds != packet.claims.map { it.id }.toSet() ||
             !request.expectedEvidenceDigestSha256.equals(packet.evidenceDigestSha256, true) ||
             !request.submittedEvidenceDigestSha256.equals(packet.evidenceDigestSha256, true)
