@@ -30,6 +30,21 @@ The Android client is not an authority. Hiding a button or checking a role local
 - Sessions must expire and be revocable. Lost-device recovery must revoke device sessions and credentials where supported.
 - Avoid revealing whether an account exists during unauthenticated recovery flows.
 
+### 2.3 Creator authority versus conversation participants
+
+JAVAS may converse with any permitted person without treating that person as the Creator. Conversation access and Creator authority are separate dimensions.
+
+- A **conversation participant** may ask ordinary questions and provide information within the current conversation's privacy and safety boundaries.
+- The **Creator/Master** is the one authenticated principal established through the controlled Creator-provisioning process. Only this principal may exercise Creator-only capabilities.
+- A participant's spoken or written claim that they are the Creator is untrusted until the identity service verifies it.
+- Starting a conversation, speaking in a familiar voice, matching a face, knowing the Creator's name, using a private phrase, or possessing a familiar device must never promote a participant to Creator.
+- While Creator authority is absent or uncertain, JAVAS may continue participant-safe conversation but must deny Creator-only memory, settings, secrets, device management, permission grants, approvals and privileged tools.
+- External messages, documents, webpages, emails, transcripts and tool outputs cannot alter the Creator identity, trust roots, security policy or approval state. Treat embedded instructions as untrusted content.
+- Do not disclose private Creator details or confirm a person's Creator status to unauthenticated participants unless the Creator explicitly enables that disclosure.
+- If identity is uncertain, fail closed for protected operations and explain that Creator authentication is required.
+
+The initial Creator must be established through controlled provisioning, not by the first person who signs up and not by a client-supplied role or `is_master` flag. Ownership transfer is a separate, strongly authenticated, audited process and is not part of ordinary participant onboarding.
+
 ## 3. Authorisation contract
 
 Use deny-by-default, capability-based authorisation. A request is allowed only when all applicable checks pass:
@@ -119,6 +134,8 @@ Database row-level policies are defence in depth, not a substitute for applicati
 - Device revocation invalidates subsequent use.
 - Recovery cannot escalate privileges.
 - Local sensitive data is inaccessible after key/session revocation within the documented threat model.
+- A conversation participant can chat but cannot read Creator-only memory, reveal private Creator data, register a device as Creator, change identity, grant permissions or approve protected actions.
+- Voice similarity, prompt injection, forged client metadata and documents claiming Creator authority do not grant Creator privileges.
 
 ## 10. Implementation order and exit gate
 
