@@ -141,6 +141,45 @@ class LearningCycleCoordinatorTest {
         assertTrue(workflow is LearningProposalWorkflowResult.PersistedJournalPending)
     }
 
+
+    @Test fun privateDataIsRejectedBeforeAnyGapOrResourceAdapterRuns() {
+        var inspectionCalls = 0
+        var discoveryCalls = 0
+        val privateSignal = signal.copy(involvesPrivateData = true)
+        val guarded = LearningCycleCoordinator(
+            LearningGapInspectionPort {
+                inspectionCalls++
+                LearningGapInspection(true, "should never run")
+            },
+            LearningResourceDiscoveryPort { _, _ ->
+                discoveryCalls++
+                LearningResearchBundle(sources, claims)
+            },
+            LearningMemoryProposalWorkflow(NoopWriter(), NoopJournal())
+        )
+        val result = guarded.inspectPlanResearchAndEvaluate(privateSignal, settings, now, 0)
+        val denied = result as LearningCycleResult.Denied
+        assertEquals(LearningCycleDenial.PLANNING_REJECTED, denied.reason)
+        assertEquals(PlanningDenial.PRIVATE_DATA, denied.planningDenial)
+        assertEquals(0, inspectionCalls)
+        assertEquals(0, discoveryCalls)
+    }
+
+    @Test fun noGapDoesNotStartResourceDiscovery() {
+        var discoveryCalls = 0
+        val guarded = LearningCycleCoordinator(
+            LearningGapInspectionPort { LearningGapInspection(false, "No gap") },
+            LearningResourceDiscoveryPort { _, _ ->
+                discoveryCalls++
+                LearningResearchBundle(sources, claims)
+            },
+            LearningMemoryProposalWorkflow(NoopWriter(), NoopJournal())
+        )
+        val result = guarded.inspectPlanResearchAndEvaluate(signal, settings, now, 0)
+        assertEquals(LearningCycleDenial.NOT_A_KNOWLEDGE_GAP, (result as LearningCycleResult.Denied).reason)
+        assertEquals(0, discoveryCalls)
+    }
+
     @Test fun doesNotMarkUntrustedSandboxOrOperationalPracticeAsVerified() {
         val decision = SkillAssessmentPolicy.evaluate(
             SkillAssessmentRequest("moon-phases", emptyList(), now)
