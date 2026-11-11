@@ -13,7 +13,9 @@ import java.time.Instant
 
 class LearningMemoryProposalMapperTest {
     private val now = Instant.parse("2026-11-10T12:00:00Z")
-    private val digest = "c".repeat(64)
+    private val digest: String by lazy(LazyThreadSafetyMode.NONE) {
+        LearningEvidenceDigest.computeSha256(listOf(claim()), sources())
+    }
     private val creator = "creator-1"
 
     private fun request() = CreatorLearningReviewRequest(
@@ -62,6 +64,28 @@ class LearningMemoryProposalMapperTest {
         assertTrue(record.provenance.notes!!.contains("review=review-1"))
     }
 
+    @Test fun changedClaimContentCannotReuseTheCreatorReviewedDigest() {
+        val req = request()
+        val changed = claim().copy(statement = "An altered statement with the same claim ID")
+        val result = LearningMemoryProposalMapper.mapApprovedClaims(
+            req, approvedReview(req), listOf(changed), sources(), creator, now
+        )
+        assertEquals(LearningProposalDenial.EVIDENCE_DIGEST_MISMATCH, result.denial)
+        assertTrue(result.records.isEmpty())
+    }
+
+    @Test fun changedSourceMetadataCannotReuseTheCreatorReviewedDigest() {
+        val req = request()
+        val changedSources = sources().map {
+            if (it.id == "source-a") it.copy(publisher = "Unverified publisher") else it
+        }
+        val result = LearningMemoryProposalMapper.mapApprovedClaims(
+            req, approvedReview(req), listOf(claim()), changedSources, creator, now
+        )
+        assertEquals(LearningProposalDenial.EVIDENCE_DIGEST_MISMATCH, result.denial)
+        assertTrue(result.records.isEmpty())
+    }
+
     @Test fun rejectedReviewCannotCreateMemoryProposal() {
         val req = request().copy(decision = CreatorLearningDecision.REJECT)
         val review = CreatorLearningReviewPolicy.evaluate(req, emptySet(), now)
@@ -90,8 +114,15 @@ class LearningMemoryProposalMapperTest {
 
     @Test fun unsupportedOrDuplicateSourceEvidenceIsRejected() {
         val req = request()
+        val unsupportedClaim = claim(ClaimStatus.CANDIDATE)
+        val unsupportedDigest = LearningEvidenceDigest.computeSha256(listOf(unsupportedClaim), sources())
+        val unsupportedRequest = req.copy(
+            expectedEvidenceDigestSha256 = unsupportedDigest,
+            submittedEvidenceDigestSha256 = unsupportedDigest
+        )
         val unsupported = LearningMemoryProposalMapper.mapApprovedClaims(
-            req, approvedReview(req), listOf(claim(ClaimStatus.CANDIDATE)), sources(), creator, now
+            unsupportedRequest, approvedReview(unsupportedRequest),
+            listOf(unsupportedClaim), sources(), creator, now
         )
         assertEquals(LearningProposalDenial.INVALID_CLAIM, unsupported.denial)
 
@@ -102,10 +133,14 @@ class LearningMemoryProposalMapperTest {
     }
 
     @Test fun modelOutputCannotBeUsedAsMemoryEvidence() {
-        val req = request()
         val modelSources = sources().map {
             if (it.id == "source-a") it.copy(kind = EvidenceSourceKind.MODEL_OUTPUT) else it
         }
+        val modelDigest = LearningEvidenceDigest.computeSha256(listOf(claim()), modelSources)
+        val req = request().copy(
+            expectedEvidenceDigestSha256 = modelDigest,
+            submittedEvidenceDigestSha256 = modelDigest
+        )
         val result = LearningMemoryProposalMapper.mapApprovedClaims(
             req, approvedReview(req), listOf(claim()), modelSources, creator, now
         )

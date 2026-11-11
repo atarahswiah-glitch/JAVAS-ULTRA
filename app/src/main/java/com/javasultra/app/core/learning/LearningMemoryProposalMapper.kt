@@ -21,7 +21,9 @@ enum class LearningProposalDenial {
     DUPLICATE_SOURCE_ID,
     INVALID_CLAIM,
     INSUFFICIENT_PROVENANCE,
-    RETENTION_POLICY_REJECTED
+    RETENTION_POLICY_REJECTED,
+    INVALID_SOURCE,
+    EVIDENCE_DIGEST_MISMATCH
 }
 
 data class LearningProposalResult(
@@ -77,6 +79,20 @@ object LearningMemoryProposalMapper {
         if (sourceIds.size != sourceIds.toSet().size) {
             return denied(LearningProposalDenial.DUPLICATE_SOURCE_ID)
         }
+
+        if (sources.any { it.id.isBlank() || it.title.isBlank() || it.trustScore !in 0.0..1.0 }) {
+            return denied(LearningProposalDenial.INVALID_SOURCE)
+        }
+        // Bind the Creator's digest to the actual evidence payload, not merely to two
+        // caller-supplied strings that happen to match each other.
+        val actualEvidenceDigest = try {
+            LearningEvidenceDigest.computeSha256(claims, sources)
+        } catch (_: IllegalArgumentException) {
+            return denied(LearningProposalDenial.EVIDENCE_DIGEST_MISMATCH)
+        }
+        if (!actualEvidenceDigest.equals(request.expectedEvidenceDigestSha256, ignoreCase = true) ||
+            !actualEvidenceDigest.equals(request.submittedEvidenceDigestSha256, ignoreCase = true)
+        ) return denied(LearningProposalDenial.EVIDENCE_DIGEST_MISMATCH)
         val sourceMap = sources.associateBy { it.id }
         val records = mutableListOf<MemoryRecord>()
 

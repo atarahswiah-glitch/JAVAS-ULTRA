@@ -1,96 +1,191 @@
 package com.javasultra.app.core.learning
 
-import com.javasultra.app.core.memory.MemoryId
 import com.javasultra.app.core.memory.MemoryRecord
+import com.javasultra.app.core.memory.MemoryOutboxItem
+import com.javasultra.app.core.memory.MemoryOutboxStore
+import com.javasultra.app.core.memory.MemoryRepository
 import com.javasultra.app.core.memory.MemoryRepositoryFailure
 import com.javasultra.app.core.memory.MemoryRepositoryResult
+import java.security.MessageDigest
 import java.time.Instant
 
-enum class LearningMemoryWorkflowStatus {
-    DENIED,
+enum class LearningProposalWorkflowDenial {
     REVIEW_REJECTED,
-    PERSISTED,
-    PARTIALLY_PERSISTED,
-    PERSISTENCE_FAILED
+    MAPPING_REJECTED,
+    EMPTY_PROPOSAL_SET,
+    PERSISTENCE_REJECTED,
+    JOURNAL_ENTRY_INVALID
 }
 
-data class LearningMemoryWorkflowResult(
-    val status: LearningMemoryWorkflowStatus,
-    val reviewDenial: CreatorReviewDenial? = null,
-    val proposalDenial: LearningProposalDenial? = null,
-    val acceptedProposalIds: List<MemoryId> = emptyList(),
-    val failedProposalId: MemoryId? = null,
-    val persistenceFailure: MemoryRepositoryFailure? = null
-)
+sealed interface LearningProposalWorkflowResult {
+    data class Persisted(
+        val proposedRecords: List<MemoryRecord>,
+        val journalEntry: LearningJournalEntry
+    ) : LearningProposalWorkflowResult
+
+    /** Memory is durable, but its journal receipt needs an idempotent retry. */
+    data class PersistedJournalPending(
+        val proposedRecords: List<MemoryRecord>,
+        val receiptEvent: LearningJournalEvent,
+        val journalFailure: LearningJournalStoreFailure
+    ) : LearningProposalWorkflowResult
+
+    data class Rejected(
+        val reason: LearningProposalWorkflowDenial,
+        val reviewDenial: CreatorReviewDenial? = null,
+        val mappingDenial: LearningProposalDenial? = null,
+        val persistenceFailure: MemoryRepositoryFailure? = null
+    ) : LearningProposalWorkflowResult
+}
+
+fun interface LearningProposalBatchWriter {
+    fun insertProposedBatch(
+        records: List<MemoryRecord>,
+        actorPrincipalId: String
+    ): MemoryRepositoryResult<Unit>
+}
+
+class MemoryRepositoryLearningProposalBatchWriter(
+    private val repository: MemoryRepository
+) : LearningProposalBatchWriter, LearningProposalOutboxBatchWriter {
+    override fun insertProposedBatch(
+        records: List<MemoryRecord>,
+        actorPrincipalId: String
+    ): MemoryRepositoryResult<Unit> = repository.insertProposedBatch(records, actorPrincipalId)
+
+    override fun insertProposedBatchWithOutbox(
+        records: List<MemoryRecord>,
+        outboxItem: MemoryOutboxItem,
+        actorPrincipalId: String
+    ): MemoryRepositoryResult<Unit> {
+        val store = repository as? MemoryOutboxStore
+            ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.STORAGE_ERROR)
+        return store.insertProposedBatchWithOutbox(records, outboxItem, actorPrincipalId)
+    }
+}
+
+interface LearningProposalOutboxBatchWriter {
+    fun insertProposedBatchWithOutbox(
+        records: List<MemoryRecord>,
+        outboxItem: MemoryOutboxItem,
+        actorPrincipalId: String
+    ): MemoryRepositoryResult<Unit>
+}
+
+fun interface LearningJournalReceiptWriter {
+    fun append(event: LearningJournalEvent, expectedTaskId: String): LearningJournalStoreResult<LearningJournalEntry>
+}
+
+class EncryptedLearningJournalReceiptWriter(
+    private val store: EncryptedLearningJournalStore
+) : LearningJournalReceiptWriter {
+    override fun append(event: LearningJournalEvent, expectedTaskId: String): LearningJournalStoreResult<LearningJournalEntry> =
+        store.append(event, expectedTaskId)
+}
 
 /**
- * Coordinates the local learning-review -> proposal -> encrypted-repository boundary.
+ * Coordinates Creator review, evidence mapping, encrypted proposal persistence and a journal receipt.
  *
- * The coordinator never activates memory. Every record remains PROPOSED after insertion.
- * It uses the same deterministic record ids on retry; MemoryRepository implementations
- * must accept exact-content retries and reject same-id/different-content collisions.
+ * The two stores cannot share a SQLite transaction. If proposal insertion succeeds but journal
+ * append fails, this returns PersistedJournalPending with a stable event ID. Retrying the same
+ * review safely replays the memory batch and appends the exact same journal event.
  *
- * This is client-side orchestration, not a trusted authorization service. Production must
- * derive principal ids from an authenticated session, persist/consume review ids atomically,
- * and repeat the review decision and owner checks on a trusted backend.
+ * The supplied consumed-review set is a local snapshot, not durable replay protection. Production
+ * must consume review IDs, enforce authenticated identity, persist proposals and audit atomically
+ * on a trusted backend. This workflow never activates memory or authorizes external actions.
  */
-object LearningMemoryProposalWorkflow {
-    fun approveAndStore(
+class LearningMemoryProposalWorkflow(
+    private val writer: LearningProposalBatchWriter,
+    private val journalWriter: LearningJournalReceiptWriter,
+    private val outboxDispatcher: LearningMemoryProposalOutboxDispatcher? = null
+) {
+    fun approveAndPersist(
         request: CreatorLearningReviewRequest,
         consumedReviewIds: Set<String>,
         claims: List<EvidenceClaim>,
         sources: List<ResearchSource>,
         creatorPrincipalId: String,
-        now: Instant,
-        insertProposed: (MemoryRecord, String) -> MemoryRepositoryResult<Unit>
-    ): LearningMemoryWorkflowResult {
-        val review = CreatorLearningReviewPolicy.evaluate(request, consumedReviewIds, now)
+        journalEntryId: String,
+        createdAt: Instant
+    ): LearningProposalWorkflowResult {
+        if (journalEntryId.isBlank()) {
+            return LearningProposalWorkflowResult.Rejected(LearningProposalWorkflowDenial.JOURNAL_ENTRY_INVALID)
+        }
+        val review = CreatorLearningReviewPolicy.evaluate(request, consumedReviewIds, createdAt)
         if (review.denial != null) {
-            return LearningMemoryWorkflowResult(
-                status = LearningMemoryWorkflowStatus.DENIED,
+            return LearningProposalWorkflowResult.Rejected(
+                LearningProposalWorkflowDenial.REVIEW_REJECTED,
                 reviewDenial = review.denial
             )
         }
         if (review.outcome == CreatorReviewOutcome.REJECTED) {
-            return LearningMemoryWorkflowResult(status = LearningMemoryWorkflowStatus.REVIEW_REJECTED)
+            return LearningProposalWorkflowResult.Rejected(LearningProposalWorkflowDenial.REVIEW_REJECTED)
         }
 
-        val proposal = LearningMemoryProposalMapper.mapApprovedClaims(
-            request = request,
-            review = review,
-            claims = claims,
-            sources = sources,
-            creatorPrincipalId = creatorPrincipalId,
-            createdAt = now
+        val mapped = LearningMemoryProposalMapper.mapApprovedClaims(
+            request, review, claims, sources, creatorPrincipalId, createdAt
         )
-        if (proposal.denial != null || proposal.records.isEmpty()) {
-            return LearningMemoryWorkflowResult(
-                status = LearningMemoryWorkflowStatus.DENIED,
-                proposalDenial = proposal.denial ?: LearningProposalDenial.CLAIM_SET_MISMATCH
+        mapped.denial?.let {
+            return LearningProposalWorkflowResult.Rejected(
+                LearningProposalWorkflowDenial.MAPPING_REJECTED,
+                mappingDenial = it
             )
         }
+        if (mapped.records.isEmpty()) {
+            return LearningProposalWorkflowResult.Rejected(LearningProposalWorkflowDenial.EMPTY_PROPOSAL_SET)
+        }
 
-        val accepted = mutableListOf<MemoryId>()
-        for (record in proposal.records) {
-            when (val stored = insertProposed(record, creatorPrincipalId)) {
-                is MemoryRepositoryResult.Success -> accepted += record.id
-                is MemoryRepositoryResult.Failure -> {
-                    return LearningMemoryWorkflowResult(
-                        status = if (accepted.isEmpty()) {
-                            LearningMemoryWorkflowStatus.PERSISTENCE_FAILED
-                        } else {
-                            LearningMemoryWorkflowStatus.PARTIALLY_PERSISTED
-                        },
-                        acceptedProposalIds = accepted.toList(),
-                        failedProposalId = record.id,
-                        persistenceFailure = stored.reason
+        val receipt = LearningJournalEvent(
+            id = stableReceiptEventId(request.reviewId),
+            entryId = journalEntryId,
+            type = LearningJournalEventType.MEMORY_PROPOSAL_PERSISTED,
+            occurredAt = request.reviewedAt,
+            actor = creatorPrincipalId,
+            safeDetail = "PROPOSAL_BATCH_PERSISTED"
+        )
+
+        val outboxWriter = writer as? LearningProposalOutboxBatchWriter
+        if (outboxWriter != null && outboxDispatcher != null) {
+            val envelope = LearningJournalReceiptEnvelopeCodec.encode(
+                LearningJournalReceiptEnvelope(request.task.id, receipt)
+            )
+            val item = MemoryOutboxItem(receipt.id, creatorPrincipalId, envelope, createdAt)
+            when (val persisted = outboxWriter.insertProposedBatchWithOutbox(mapped.records, item, creatorPrincipalId)) {
+                is MemoryRepositoryResult.Failure ->
+                    return LearningProposalWorkflowResult.Rejected(
+                        LearningProposalWorkflowDenial.PERSISTENCE_REJECTED,
+                        persistenceFailure = persisted.reason
                     )
-                }
+                is MemoryRepositoryResult.Success -> Unit
+            }
+            return when (val delivered = outboxDispatcher.dispatch(item, creatorPrincipalId)) {
+                is LearningJournalStoreResult.Success ->
+                    LearningProposalWorkflowResult.Persisted(mapped.records, delivered.value)
+                is LearningJournalStoreResult.Failure ->
+                    LearningProposalWorkflowResult.PersistedJournalPending(mapped.records, receipt, delivered.reason)
             }
         }
-        return LearningMemoryWorkflowResult(
-            status = LearningMemoryWorkflowStatus.PERSISTED,
-            acceptedProposalIds = accepted.toList()
-        )
+
+        when (val persisted = writer.insertProposedBatch(mapped.records, creatorPrincipalId)) {
+            is MemoryRepositoryResult.Failure ->
+                return LearningProposalWorkflowResult.Rejected(
+                    LearningProposalWorkflowDenial.PERSISTENCE_REJECTED,
+                    persistenceFailure = persisted.reason
+                )
+            is MemoryRepositoryResult.Success -> Unit
+        }
+        return when (val journal = journalWriter.append(receipt, request.task.id)) {
+            is LearningJournalStoreResult.Success ->
+                LearningProposalWorkflowResult.Persisted(mapped.records, journal.value)
+            is LearningJournalStoreResult.Failure ->
+                LearningProposalWorkflowResult.PersistedJournalPending(mapped.records, receipt, journal.reason)
+        }
+    }
+
+    private fun stableReceiptEventId(reviewId: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(reviewId.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+        return "proposal-receipt-$digest"
     }
 }
