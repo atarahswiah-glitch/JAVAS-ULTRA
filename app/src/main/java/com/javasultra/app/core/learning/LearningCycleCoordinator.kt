@@ -81,9 +81,8 @@ class LearningCycleCoordinator(
         tasksCreatedToday: Int,
         existingSignalIds: Set<String> = emptySet()
     ): LearningCycleResult {
-        val inspection = gapInspector.inspect(signal)
-        if (!inspection.isGap) return LearningCycleResult.Denied(LearningCycleDenial.NOT_A_KNOWLEDGE_GAP)
-
+        // Apply privacy, permission, pause and resource-budget policy before inspecting
+        // a signal. In particular, private-data signals must not reach an adapter.
         val planning = AutonomousLearningPlanner.evaluate(
             signal = signal,
             settings = settings,
@@ -97,6 +96,9 @@ class LearningCycleCoordinator(
                 planningDenial = planning.denial
             )
         }
+
+        val inspection = gapInspector.inspect(signal)
+        if (!inspection.isGap) return LearningCycleResult.Denied(LearningCycleDenial.NOT_A_KNOWLEDGE_GAP)
 
         val task = LearningTask(
             id = signal.id,
