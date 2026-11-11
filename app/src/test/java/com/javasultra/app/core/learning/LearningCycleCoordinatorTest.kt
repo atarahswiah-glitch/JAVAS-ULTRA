@@ -161,7 +161,8 @@ class LearningCycleCoordinatorTest {
     }
 
     @Test fun creatorApprovalSubmitsOnlyTheExactEvaluatedPacketToProposalWorkflow() {
-        val packet = coordinator().inspectPlanResearchAndEvaluate(signal, settings, now, 0)
+        val cycle = coordinator()
+        val packet = cycle.inspectPlanResearchAndEvaluate(signal, settings, now, 0)
             as LearningCycleResult.ReadyForCreatorReview
         val creator = "creator-1"
         val request = CreatorLearningReviewRequest(
@@ -176,7 +177,7 @@ class LearningCycleCoordinatorTest {
             reviewedAt = now,
             stepUpAuthenticated = true
         )
-        val result = coordinator().authorizeAndPropose(
+        val result = cycle.authorizeAndPropose(
             packet, request, emptySet(), creator, packet.journalEntryId, now
         )
         assertTrue(result is LearningCycleAuthorizationResult.ProposalResult)
@@ -186,7 +187,8 @@ class LearningCycleCoordinatorTest {
 
 
     @Test fun reviewPrincipalMustMatchThePrincipalUsedForPersistence() {
-        val packet = coordinator().inspectPlanResearchAndEvaluate(signal, settings, now, 0)
+        val cycle = coordinator()
+        val packet = cycle.inspectPlanResearchAndEvaluate(signal, settings, now, 0)
             as LearningCycleResult.ReadyForCreatorReview
         val requestPrincipal = "creator-authenticated"
         val persistencePrincipal = "different-principal"
@@ -202,7 +204,7 @@ class LearningCycleCoordinatorTest {
             reviewedAt = now,
             stepUpAuthenticated = true
         )
-        val result = coordinator().authorizeAndPropose(
+        val result = cycle.authorizeAndPropose(
             packet, request, emptySet(), persistencePrincipal, packet.journalEntryId, now
         )
         assertTrue(result is LearningCycleAuthorizationResult.Denied)
