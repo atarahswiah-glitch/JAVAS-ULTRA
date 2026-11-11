@@ -147,6 +147,32 @@ class LearningCycleCoordinatorTest {
     }
 
 
+    @Test fun reviewPrincipalMustMatchThePrincipalUsedForPersistence() {
+        val packet = coordinator().inspectPlanResearchAndEvaluate(signal, settings, now, 0)
+            as LearningCycleResult.ReadyForCreatorReview
+        val requestPrincipal = "creator-authenticated"
+        val persistencePrincipal = "different-principal"
+        val request = CreatorLearningReviewRequest(
+            task = packet.task,
+            creatorPrincipalId = requestPrincipal,
+            authenticatedReviewerPrincipalId = requestPrincipal,
+            reviewId = "review-principal-mismatch",
+            decision = CreatorLearningDecision.APPROVE,
+            expectedEvidenceDigestSha256 = packet.evidenceDigestSha256,
+            submittedEvidenceDigestSha256 = packet.evidenceDigestSha256,
+            claimIds = packet.claims.map { it.id }.toSet(),
+            reviewedAt = now,
+            stepUpAuthenticated = true
+        )
+        val result = coordinator().authorizeAndPropose(
+            packet, request, emptySet(), persistencePrincipal, "journal-principal-mismatch", now
+        )
+        assertTrue(result is LearningCycleAuthorizationResult.Denied)
+        assertEquals(
+            LearningCycleDenial.REVIEW_PACKET_MISMATCH,
+            (result as LearningCycleAuthorizationResult.Denied).reason
+        )
+    }
     @Test fun privateDataIsRejectedBeforeAnyGapOrResourceAdapterRuns() {
         var inspectionCalls = 0
         var discoveryCalls = 0
