@@ -115,7 +115,7 @@ class LearningCycleCoordinatorTest {
             stepUpAuthenticated = true
         )
         val result = coordinator().authorizeAndPropose(
-            packet, request, emptySet(), "creator-1", "journal-1", now
+            packet, request, emptySet(), "creator-1", packet.journalEntryId, now
         )
         assertTrue(result is LearningCycleAuthorizationResult.Denied)
         assertEquals(LearningCycleDenial.REVIEW_PACKET_MISMATCH,
@@ -139,7 +139,7 @@ class LearningCycleCoordinatorTest {
             stepUpAuthenticated = true
         )
         val result = coordinator().authorizeAndPropose(
-            packet, request, emptySet(), creator, "journal-accepted", now
+            packet, request, emptySet(), creator, packet.journalEntryId, now
         )
         assertTrue(result is LearningCycleAuthorizationResult.ProposalResult)
         val workflow = (result as LearningCycleAuthorizationResult.ProposalResult).result
@@ -165,7 +165,7 @@ class LearningCycleCoordinatorTest {
             stepUpAuthenticated = true
         )
         val result = coordinator().authorizeAndPropose(
-            packet, request, emptySet(), persistencePrincipal, "journal-principal-mismatch", now
+            packet, request, emptySet(), persistencePrincipal, packet.journalEntryId, now
         )
         assertTrue(result is LearningCycleAuthorizationResult.Denied)
         assertEquals(
@@ -209,6 +209,30 @@ class LearningCycleCoordinatorTest {
         val result = guarded.inspectPlanResearchAndEvaluate(signal, settings, now, 0)
         assertEquals(LearningCycleDenial.NOT_A_KNOWLEDGE_GAP, (result as LearningCycleResult.Denied).reason)
         assertEquals(0, discoveryCalls)
+    }
+
+
+    @Test fun successfulResearchStagesArePersistedInTheEncryptedJournalPort() {
+        val journal = InMemoryLearningCycleJournalPort()
+        val wired = LearningCycleCoordinator(
+            LearningGapInspectionPort { LearningGapInspection(true, "Gap confirmed") },
+            LearningResourceDiscoveryPort { _, _ -> LearningResearchBundle(sources, claims) },
+            LearningMemoryProposalWorkflow(NoopWriter(), NoopJournal()),
+            journal
+        )
+        val result = wired.inspectPlanResearchAndEvaluate(signal, settings, now, 0)
+            as LearningCycleResult.ReadyForCreatorReview
+        val entry = journal.entry(result.journalEntryId)
+        assertEquals(LearningJournalState.SOURCE_REVIEW, entry?.state)
+        assertEquals(setOf("source-a", "source-b"), entry?.sourceIds)
+        assertEquals(setOf("claim-a"), entry?.claimIds)
+        assertTrue(journal.eventTypes().containsAll(listOf(
+            LearningJournalEventType.SIGNAL_DETECTED,
+            LearningJournalEventType.TASK_QUEUED,
+            LearningJournalEventType.TASK_STARTED,
+            LearningJournalEventType.SOURCE_RETRIEVED,
+            LearningJournalEventType.CLAIM_REVIEWED
+        )))
     }
 
     @Test fun doesNotMarkUntrustedSandboxOrOperationalPracticeAsVerified() {
