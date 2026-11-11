@@ -45,11 +45,14 @@ class LearningCycleCoordinatorTest {
             LearningJournalStoreResult.Failure(LearningJournalStoreFailure.STORAGE_ERROR)
     }
 
-    private class InMemoryLearningCycleJournalPort : LearningCycleJournalPort {
+    private class InMemoryLearningCycleJournalPort(
+        private val failCreate: Boolean = false
+    ) : LearningCycleJournalPort {
         private val entries = mutableMapOf<String, LearningJournalEntry>()
         private val events = mutableMapOf<String, LearningJournalEvent>()
 
         override fun create(entry: LearningJournalEntry): LearningJournalStoreResult<Unit> {
+            if (failCreate) return LearningJournalStoreResult.Failure(LearningJournalStoreFailure.STORAGE_ERROR)
             if (entry.id in entries || LearningJournalPolicy.validateEntry(entry) != null) {
                 return LearningJournalStoreResult.Failure(LearningJournalStoreFailure.INVALID_ENTRY)
             }
@@ -253,6 +256,35 @@ class LearningCycleCoordinatorTest {
         assertEquals(0, discoveryCalls)
     }
 
+
+    @Test fun journalCreationFailureStopsBeforeResourceDiscovery() {
+        var discoveryCalls = 0
+        val guarded = LearningCycleCoordinator(
+            LearningGapInspectionPort { LearningGapInspection(true, "Gap confirmed") },
+            LearningResourceDiscoveryPort { _, _ ->
+                discoveryCalls++
+                LearningResearchBundle(sources, claims)
+            },
+            LearningMemoryProposalWorkflow(NoopWriter(), NoopJournal()),
+            InMemoryLearningCycleJournalPort(failCreate = true)
+        )
+        val result = guarded.inspectPlanResearchAndEvaluate(signal, settings, now, 0)
+        assertEquals(
+            LearningCycleDenial.JOURNAL_PERSISTENCE_FAILED,
+            (result as LearningCycleResult.Denied).reason
+        )
+        assertEquals(0, discoveryCalls)
+    }
+
+    @Test fun invalidSourceIdentifiersAreRejectedByEvidenceGateBeforeJournalAppend() {
+        val invalidSources = listOf(sources.first().copy(id = ""))
+        val invalidBundle = LearningResearchBundle(invalidSources, claims)
+        val result = coordinator(bundle = invalidBundle)
+            .inspectPlanResearchAndEvaluate(signal, settings, now, 0)
+        val denied = result as LearningCycleResult.Denied
+        assertEquals(LearningCycleDenial.EVIDENCE_REJECTED, denied.reason)
+        assertEquals(EvidenceEvaluationDenial.INVALID_SOURCE, denied.evidenceDenial)
+    }
 
     @Test fun successfulResearchStagesArePersistedInTheEncryptedJournalPort() {
         val journal = InMemoryLearningCycleJournalPort()
