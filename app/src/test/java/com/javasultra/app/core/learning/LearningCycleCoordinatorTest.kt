@@ -45,13 +45,50 @@ class LearningCycleCoordinatorTest {
             LearningJournalStoreResult.Failure(LearningJournalStoreFailure.STORAGE_ERROR)
     }
 
+    private class InMemoryLearningCycleJournalPort : LearningCycleJournalPort {
+        private val entries = mutableMapOf<String, LearningJournalEntry>()
+        private val events = mutableMapOf<String, LearningJournalEvent>()
+
+        override fun create(entry: LearningJournalEntry): LearningJournalStoreResult<Unit> {
+            if (entry.id in entries || LearningJournalPolicy.validateEntry(entry) != null) {
+                return LearningJournalStoreResult.Failure(LearningJournalStoreFailure.INVALID_ENTRY)
+            }
+            entries[entry.id] = entry
+            return LearningJournalStoreResult.Success(Unit)
+        }
+
+        override fun append(event: LearningJournalEvent, expectedTaskId: String): LearningJournalStoreResult<LearningJournalEntry> {
+            events[event.id]?.let { prior ->
+                val current = entries[event.entryId]
+                    ?: return LearningJournalStoreResult.Failure(LearningJournalStoreFailure.NOT_FOUND)
+                return if (prior == event && current.taskId == expectedTaskId) {
+                    LearningJournalStoreResult.Success(current)
+                } else LearningJournalStoreResult.Failure(LearningJournalStoreFailure.EVENT_ID_COLLISION)
+            }
+            val current = entries[event.entryId]
+                ?: return LearningJournalStoreResult.Failure(LearningJournalStoreFailure.NOT_FOUND)
+            if (current.taskId != expectedTaskId) {
+                return LearningJournalStoreResult.Failure(LearningJournalStoreFailure.TASK_MISMATCH)
+            }
+            val updated = LearningJournalPolicy.apply(current, event).updatedEntry
+                ?: return LearningJournalStoreResult.Failure(LearningJournalStoreFailure.INVALID_TRANSITION)
+            events[event.id] = event
+            entries[event.entryId] = updated
+            return LearningJournalStoreResult.Success(updated)
+        }
+
+        fun entry(id: String) = entries[id]
+        fun eventTypes() = events.values.map { it.type }
+    }
+
     private fun coordinator(
         isGap: Boolean = true,
         bundle: LearningResearchBundle = LearningResearchBundle(sources, claims)
     ) = LearningCycleCoordinator(
         LearningGapInspectionPort { LearningGapInspection(isGap, "No verified knowledge found for this objective") },
         LearningResourceDiscoveryPort { _, _ -> bundle },
-        LearningMemoryProposalWorkflow(NoopWriter(), NoopJournal())
+        LearningMemoryProposalWorkflow(NoopWriter(), NoopJournal()),
+        InMemoryLearningCycleJournalPort()
     )
 
     @Test fun completesInspectPlanResearchAndEvidenceEvaluationStages() {
