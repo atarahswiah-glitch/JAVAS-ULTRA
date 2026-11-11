@@ -248,7 +248,7 @@ The earlier 125-test pending statement is superseded by this 137-test result. Ph
 | LRN-09 | JAVAS inspects and maintains an evidence-backed self-model of installed modules, versions, capabilities, dependencies, permissions and limitations | 2, 4, 8 | Self-model accuracy tests against installed/configured/authorized/verified states | Planned |
 | LRN-10 | JAVAS discovers available knowledge, model, work, practice and evaluation resources through a registry rather than a hard-coded subject catalogue | 4, 8 | Resource discovery tests and capability metadata validation | Planned |
 | LRN-11 | JAVAS follows a goal-driven loop to inspect itself, identify gaps, select resources, learn, practise, evaluate, apply and report | 3, 4, 8 | End-to-end learning-cycle evaluation across unrelated tasks | Planned |
-| LRN-12 | Durable memory is selective and justified by future usefulness, uniqueness, recurrence, re-research cost, freshness, sensitivity and Creator instruction | 3 | Retention policy, canonical claim/source digest binding, approved-claim mapping and atomic encrypted proposal batch; Android instrumentation compiled but runtime/device verification and trusted review consumption remain outstanding | Partially implemented; client workflow only |
+| LRN-12 | Durable memory is selective and justified by future usefulness, uniqueness, recurrence, re-research cost, freshness, sensitivity and Creator instruction | 3 | Retention policy, canonical evidence digest, approved-claim mapping, atomic encrypted proposal+outbox transaction, idempotent journal delivery and restart-replay tests; trusted review consumption and device execution remain outstanding | Partially implemented; local client workflow |
 | LRN-13 | JAVAS distinguishes awareness, understanding, demonstrated skill and operational capability | 3, 4, 8 | Skill-level policy tests; trusted practice and operational evidence remain blocked pending host verification | Policy implemented; trusted evidence integration outstanding |
 | LRN-14 | JAVAS can practise newly learned skills in sandboxed or simulated environments with bounded resources and synthetic data | 4, 8 | Practice isolation, resource-limit and evaluation tests | Planned |
 | LRN-15 | JAVAS evaluates learning outcomes against explicit criteria, diagnoses failures and retries only within bounded budgets | 4, 8 | Deterministic pass/fail, retry-budget and failure-report tests | Planned |
@@ -278,3 +278,14 @@ After memory persistence, the coordinator appends a stable, idempotent `MEMORY_P
 JVM tests cover approval/rejection/replay, wrong reviewer/Creator, atomic batch validation, memory failure (which must not append a journal receipt), journal failure after successful memory persistence, stable receipt retry and the non-terminal journal receipt event. The two SQLite stores cannot share one local transaction; this is a recoverable two-step workflow, not cross-store atomicity.
 
 Android SQLite/Keystore behaviour still requires instrumentation/device testing. The client coordinator and supplied consumed-review snapshot are not a trusted one-time authorization store: production must derive identity from an authenticated session and atomically consume review IDs, enforce tenant ownership, persist proposals and write trusted audit evidence on a backend. Creator approval authorizes proposal creation only, never activation.
+
+
+## Durable learning-memory outbox — implementation increment
+
+- Added a version-2 migration for the encrypted memory database. Existing memory records are preserved while the owner-scoped outbox table and index are added.
+- Proposal batches and encrypted receipt envelopes now have a same-database transaction boundary through `MemoryOutboxStore`.
+- Outbox payload encryption binds the item ID and owner principal using AES-GCM associated data. The lookup column stores a SHA-256 owner hash rather than a clear principal ID.
+- The dispatcher retries the exact journal event and acknowledges only after journal append succeeds. Replaying after a crash between append and acknowledgement relies on the journal's stable event-ID idempotency.
+- JVM tests cover codec integrity, owner binding, delivery, journal failure, and acknowledgement failure/replay. Android instrumentation tests cover encryption, owner isolation, transaction rollback and exact replay; CI compilation is not device execution.
+- The workflow uses this path only when the outbox-aware repository writer and dispatcher are configured. The compatibility writer-only route remains available and is not crash-recovery equivalent.
+- No trusted server review consumption, cross-device key recovery or remote audit atomicity is claimed.

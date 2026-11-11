@@ -1,6 +1,8 @@
 package com.javasultra.app.core.learning
 
 import com.javasultra.app.core.memory.MemoryRecord
+import com.javasultra.app.core.memory.MemoryOutboxItem
+import com.javasultra.app.core.memory.MemoryOutboxStore
 import com.javasultra.app.core.memory.MemoryRepository
 import com.javasultra.app.core.memory.MemoryRepositoryFailure
 import com.javasultra.app.core.memory.MemoryRepositoryResult
@@ -45,11 +47,29 @@ fun interface LearningProposalBatchWriter {
 
 class MemoryRepositoryLearningProposalBatchWriter(
     private val repository: MemoryRepository
-) : LearningProposalBatchWriter {
+) : LearningProposalBatchWriter, LearningProposalOutboxBatchWriter {
     override fun insertProposedBatch(
         records: List<MemoryRecord>,
         actorPrincipalId: String
     ): MemoryRepositoryResult<Unit> = repository.insertProposedBatch(records, actorPrincipalId)
+
+    override fun insertProposedBatchWithOutbox(
+        records: List<MemoryRecord>,
+        outboxItem: MemoryOutboxItem,
+        actorPrincipalId: String
+    ): MemoryRepositoryResult<Unit> {
+        val store = repository as? MemoryOutboxStore
+            ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.STORAGE_ERROR)
+        return store.insertProposedBatchWithOutbox(records, outboxItem, actorPrincipalId)
+    }
+}
+
+interface LearningProposalOutboxBatchWriter {
+    fun insertProposedBatchWithOutbox(
+        records: List<MemoryRecord>,
+        outboxItem: MemoryOutboxItem,
+        actorPrincipalId: String
+    ): MemoryRepositoryResult<Unit>
 }
 
 fun interface LearningJournalReceiptWriter {
@@ -76,7 +96,8 @@ class EncryptedLearningJournalReceiptWriter(
  */
 class LearningMemoryProposalWorkflow(
     private val writer: LearningProposalBatchWriter,
-    private val journalWriter: LearningJournalReceiptWriter
+    private val journalWriter: LearningJournalReceiptWriter,
+    private val outboxDispatcher: LearningMemoryProposalOutboxDispatcher? = null
 ) {
     fun approveAndPersist(
         request: CreatorLearningReviewRequest,
@@ -114,15 +135,6 @@ class LearningMemoryProposalWorkflow(
             return LearningProposalWorkflowResult.Rejected(LearningProposalWorkflowDenial.EMPTY_PROPOSAL_SET)
         }
 
-        when (val persisted = writer.insertProposedBatch(mapped.records, creatorPrincipalId)) {
-            is MemoryRepositoryResult.Failure ->
-                return LearningProposalWorkflowResult.Rejected(
-                    LearningProposalWorkflowDenial.PERSISTENCE_REJECTED,
-                    persistenceFailure = persisted.reason
-                )
-            is MemoryRepositoryResult.Success -> Unit
-        }
-
         val receipt = LearningJournalEvent(
             id = stableReceiptEventId(request.reviewId),
             entryId = journalEntryId,
@@ -131,13 +143,42 @@ class LearningMemoryProposalWorkflow(
             actor = creatorPrincipalId,
             safeDetail = "PROPOSAL_BATCH_PERSISTED"
         )
+
+        val outboxWriter = writer as? LearningProposalOutboxBatchWriter
+        if (outboxWriter != null && outboxDispatcher != null) {
+            val envelope = LearningJournalReceiptEnvelopeCodec.encode(
+                LearningJournalReceiptEnvelope(request.task.id, receipt)
+            )
+            val item = MemoryOutboxItem(receipt.id, creatorPrincipalId, envelope, createdAt)
+            when (val persisted = outboxWriter.insertProposedBatchWithOutbox(mapped.records, item, creatorPrincipalId)) {
+                is MemoryRepositoryResult.Failure ->
+                    return LearningProposalWorkflowResult.Rejected(
+                        LearningProposalWorkflowDenial.PERSISTENCE_REJECTED,
+                        persistenceFailure = persisted.reason
+                    )
+                is MemoryRepositoryResult.Success -> Unit
+            }
+            return when (val delivered = outboxDispatcher.dispatch(item, creatorPrincipalId)) {
+                is LearningJournalStoreResult.Success ->
+                    LearningProposalWorkflowResult.Persisted(mapped.records, delivered.value)
+                is LearningJournalStoreResult.Failure ->
+                    LearningProposalWorkflowResult.PersistedJournalPending(mapped.records, receipt, delivered.reason)
+            }
+        }
+
+        when (val persisted = writer.insertProposedBatch(mapped.records, creatorPrincipalId)) {
+            is MemoryRepositoryResult.Failure ->
+                return LearningProposalWorkflowResult.Rejected(
+                    LearningProposalWorkflowDenial.PERSISTENCE_REJECTED,
+                    persistenceFailure = persisted.reason
+                )
+            is MemoryRepositoryResult.Success -> Unit
+        }
         return when (val journal = journalWriter.append(receipt, request.task.id)) {
             is LearningJournalStoreResult.Success ->
                 LearningProposalWorkflowResult.Persisted(mapped.records, journal.value)
             is LearningJournalStoreResult.Failure ->
-                LearningProposalWorkflowResult.PersistedJournalPending(
-                    mapped.records, receipt, journal.reason
-                )
+                LearningProposalWorkflowResult.PersistedJournalPending(mapped.records, receipt, journal.reason)
         }
     }
 

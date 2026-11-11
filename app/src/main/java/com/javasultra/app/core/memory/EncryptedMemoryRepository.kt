@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import java.time.Instant
+import java.security.MessageDigest
 
 sealed interface MemoryRepositoryResult<out T> {
     data class Success<T>(val value: T) : MemoryRepositoryResult<T>
@@ -55,7 +56,7 @@ interface MemoryRepository {
 class EncryptedMemoryRepository(
     context: Context,
     private val encryptor: MemoryEncryptor = AndroidKeystoreMemoryEncryptor()
-) : SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION), MemoryRepository {
+) : SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION), MemoryRepository, MemoryOutboxStore {
 
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)
@@ -64,25 +65,62 @@ class EncryptedMemoryRepository(
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE $TABLE ($COL_ID TEXT PRIMARY KEY NOT NULL, $COL_PAYLOAD BLOB NOT NULL, $COL_CREATED INTEGER NOT NULL)")
+        createOutboxTable(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        throw IllegalStateException("No migration path from database version " + oldVersion + " to " + newVersion)
+        if (oldVersion < 2) createOutboxTable(db)
+        if (newVersion > DATABASE_VERSION) {
+            throw IllegalStateException("Unsupported memory database version " + newVersion)
+        }
+    }
+
+    private fun createOutboxTable(db: SQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS $OUTBOX_TABLE (" +
+                "$OUTBOX_ID TEXT PRIMARY KEY NOT NULL, " +
+                "$OUTBOX_OWNER_HASH TEXT NOT NULL, " +
+                "$OUTBOX_PAYLOAD BLOB NOT NULL, " +
+                "$OUTBOX_CREATED INTEGER NOT NULL)"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS $OUTBOX_OWNER_CREATED ON $OUTBOX_TABLE ($OUTBOX_OWNER_HASH, $OUTBOX_CREATED)")
     }
 
     override fun insertProposedBatch(
         records: List<MemoryRecord>,
         actorPrincipalId: String
+    ): MemoryRepositoryResult<Unit> = persistBatch(records, null, actorPrincipalId)
+
+    override fun insertProposedBatchWithOutbox(
+        records: List<MemoryRecord>,
+        outboxItem: MemoryOutboxItem,
+        actorPrincipalId: String
+    ): MemoryRepositoryResult<Unit> {
+        if (!outboxItem.validate()) return failure(MemoryRepositoryFailure.INVALID_RECORD)
+        if (outboxItem.ownerPrincipalId != actorPrincipalId) return failure(MemoryRepositoryFailure.OWNER_MISMATCH)
+        return persistBatch(records, outboxItem, actorPrincipalId)
+    }
+
+    private fun persistBatch(
+        records: List<MemoryRecord>,
+        outboxItem: MemoryOutboxItem?,
+        actorPrincipalId: String
     ): MemoryRepositoryResult<Unit> {
         ProposedMemoryBatchPolicy.validate(records, actorPrincipalId)?.let { return failure(it) }
         return try {
-            // Encrypt all records before opening the transaction. Existing exact records are
-            // accepted as retries; conflicting IDs abort the complete batch.
             val prepared = records.map { record ->
                 record to ContentValues().apply {
                     put(COL_ID, record.id.value)
                     put(COL_PAYLOAD, encryptor.encrypt(MemoryRecordCodec.encode(record), aad(record.id)))
                     put(COL_CREATED, record.createdAt.toEpochMilli())
+                }
+            }
+            val preparedOutbox = outboxItem?.let { item ->
+                ContentValues().apply {
+                    put(OUTBOX_ID, item.id)
+                    put(OUTBOX_OWNER_HASH, ownerHash(actorPrincipalId))
+                    put(OUTBOX_PAYLOAD, encryptor.encrypt(item.payload, outboxAad(item.id, actorPrincipalId)))
+                    put(OUTBOX_CREATED, item.createdAt.toEpochMilli())
                 }
             }
             val db = writableDatabase
@@ -93,7 +131,6 @@ class EncryptedMemoryRepository(
                         TABLE, arrayOf(COL_PAYLOAD), "$COL_ID = ?", arrayOf(record.id.value),
                         null, null, null
                     ).use { cursor -> if (cursor.moveToFirst()) cursor.getBlob(0) else null }
-
                     if (existingBytes != null) {
                         val existing = MemoryRecordCodec.decode(encryptor.decrypt(existingBytes, aad(record.id)))
                         when (MemoryProposalIdempotencyPolicy.evaluate(existing, record, actorPrincipalId)) {
@@ -107,6 +144,27 @@ class EncryptedMemoryRepository(
                         db.insertOrThrow(TABLE, null, values)
                     }
                 }
+                if (outboxItem != null && preparedOutbox != null) {
+                    val existing = db.query(
+                        OUTBOX_TABLE,
+                        arrayOf(OUTBOX_OWNER_HASH, OUTBOX_PAYLOAD, OUTBOX_CREATED),
+                        "$OUTBOX_ID = ?", arrayOf(outboxItem.id), null, null, null
+                    ).use { cursor ->
+                        if (!cursor.moveToFirst()) null
+                        else Triple(cursor.getString(0), cursor.getBlob(1), cursor.getLong(2))
+                    }
+                    if (existing != null) {
+                        if (existing.first != ownerHash(actorPrincipalId)) {
+                            return failure(MemoryRepositoryFailure.OWNER_MISMATCH)
+                        }
+                        val clear = encryptor.decrypt(existing.second, outboxAad(outboxItem.id, actorPrincipalId))
+                        if (!clear.contentEquals(outboxItem.payload) ||
+                            existing.third != outboxItem.createdAt.toEpochMilli()
+                        ) return failure(MemoryRepositoryFailure.DUPLICATE_ID)
+                    } else {
+                        db.insertOrThrow(OUTBOX_TABLE, null, preparedOutbox)
+                    }
+                }
                 db.setTransactionSuccessful()
                 MemoryRepositoryResult.Success(Unit)
             } finally {
@@ -116,6 +174,67 @@ class EncryptedMemoryRepository(
             failure(MemoryRepositoryFailure.STORAGE_ERROR)
         }
     }
+
+    override fun pendingOutbox(
+        actorPrincipalId: String,
+        limit: Int
+    ): MemoryOutboxResult<List<MemoryOutboxItem>> {
+        if (actorPrincipalId.isBlank() || limit !in 1..100) {
+            return MemoryOutboxResult.Failure(MemoryRepositoryFailure.INVALID_RECORD)
+        }
+        return try {
+            val result = mutableListOf<MemoryOutboxItem>()
+            readableDatabase.query(
+                OUTBOX_TABLE,
+                arrayOf(OUTBOX_ID, OUTBOX_PAYLOAD, OUTBOX_CREATED),
+                "$OUTBOX_OWNER_HASH = ?",
+                arrayOf(ownerHash(actorPrincipalId)),
+                null, null, "$OUTBOX_CREATED ASC", limit.toString()
+            ).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val id = cursor.getString(0)
+                    val payload = encryptor.decrypt(cursor.getBlob(1), outboxAad(id, actorPrincipalId))
+                    result += MemoryOutboxItem(id, actorPrincipalId, payload, Instant.ofEpochMilli(cursor.getLong(2)))
+                }
+            }
+            MemoryOutboxResult.Success(result)
+        } catch (_: Exception) {
+            MemoryOutboxResult.Failure(MemoryRepositoryFailure.DECRYPTION_FAILED)
+        }
+    }
+
+    override fun acknowledgeOutbox(id: String, actorPrincipalId: String): MemoryOutboxResult<Unit> {
+        if (id.isBlank() || actorPrincipalId.isBlank()) {
+            return MemoryOutboxResult.Failure(MemoryRepositoryFailure.INVALID_RECORD)
+        }
+        return try {
+            val db = writableDatabase
+            db.beginTransaction()
+            try {
+                val storedOwnerHash = db.query(
+                    OUTBOX_TABLE, arrayOf(OUTBOX_OWNER_HASH),
+                    "$OUTBOX_ID = ?", arrayOf(id), null, null, null
+                ).use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+                if (storedOwnerHash != null && storedOwnerHash != ownerHash(actorPrincipalId)) {
+                    return MemoryOutboxResult.Failure(MemoryRepositoryFailure.OWNER_MISMATCH)
+                }
+                if (storedOwnerHash != null) db.delete(OUTBOX_TABLE, "$OUTBOX_ID = ?", arrayOf(id))
+                db.setTransactionSuccessful()
+                MemoryOutboxResult.Success(Unit)
+            } finally {
+                db.endTransaction()
+            }
+        } catch (_: Exception) {
+            MemoryOutboxResult.Failure(MemoryRepositoryFailure.STORAGE_ERROR)
+        }
+    }
+
+    private fun ownerHash(owner: String): String =
+        MessageDigest.getInstance("SHA-256").digest(owner.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+
+    private fun outboxAad(id: String, owner: String) =
+        ("javas-memory-outbox-v1:" + id + ":" + owner).toByteArray(Charsets.UTF_8)
 
     override fun insertProposed(record: MemoryRecord, actorPrincipalId: String): MemoryRepositoryResult<Unit> {
         if (record.validate().isNotEmpty() || record.lifecycle != MemoryLifecycle.PROPOSED) return failure(MemoryRepositoryFailure.INVALID_RECORD)
@@ -275,8 +394,14 @@ class EncryptedMemoryRepository(
 
     private companion object {
         const val DATABASE_NAME = "javas_encrypted_memory.db"
-        const val DATABASE_VERSION = 1
+        const val DATABASE_VERSION = 2
         const val TABLE = "memory_records"
+        const val OUTBOX_TABLE = "memory_outbox"
+        const val OUTBOX_ID = "outbox_id"
+        const val OUTBOX_OWNER_HASH = "owner_hash"
+        const val OUTBOX_PAYLOAD = "encrypted_payload"
+        const val OUTBOX_CREATED = "created_at"
+        const val OUTBOX_OWNER_CREATED = "idx_memory_outbox_owner_created"
         const val COL_ID = "record_id"
         const val COL_PAYLOAD = "encrypted_payload"
         const val COL_CREATED = "created_at"

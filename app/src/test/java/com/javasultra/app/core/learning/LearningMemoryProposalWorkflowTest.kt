@@ -1,6 +1,9 @@
 package com.javasultra.app.core.learning
 
 import com.javasultra.app.core.memory.MemoryLifecycle
+import com.javasultra.app.core.memory.MemoryOutboxItem
+import com.javasultra.app.core.memory.MemoryOutboxResult
+import com.javasultra.app.core.memory.MemoryOutboxStore
 import com.javasultra.app.core.memory.MemoryRecord
 import com.javasultra.app.core.memory.MemoryRepositoryFailure
 import com.javasultra.app.core.memory.MemoryRepositoryResult
@@ -234,5 +237,76 @@ class LearningMemoryProposalWorkflowTest {
             (result as LearningProposalWorkflowResult.Rejected).persistenceFailure)
         assertEquals(1, writer.calls)
         assertEquals(0, journal.calls)
+    }
+
+    private class FakeOutboxStore : MemoryOutboxStore {
+        val pending = linkedMapOf<String, MemoryOutboxItem>()
+        override fun insertProposedBatchWithOutbox(
+            records: List<MemoryRecord>, outboxItem: MemoryOutboxItem, actorPrincipalId: String
+        ): MemoryRepositoryResult<Unit> {
+            if (outboxItem.ownerPrincipalId != actorPrincipalId) {
+                return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.OWNER_MISMATCH)
+            }
+            pending.putIfAbsent(outboxItem.id, outboxItem)
+            return MemoryRepositoryResult.Success(Unit)
+        }
+        override fun pendingOutbox(actorPrincipalId: String, limit: Int): MemoryOutboxResult<List<MemoryOutboxItem>> =
+            MemoryOutboxResult.Success(pending.values.filter { it.ownerPrincipalId == actorPrincipalId }.take(limit))
+        override fun acknowledgeOutbox(id: String, actorPrincipalId: String): MemoryOutboxResult<Unit> {
+            val item = pending[id] ?: return MemoryOutboxResult.Success(Unit)
+            if (item.ownerPrincipalId != actorPrincipalId) {
+                return MemoryOutboxResult.Failure(MemoryRepositoryFailure.OWNER_MISMATCH)
+            }
+            pending.remove(id)
+            return MemoryOutboxResult.Success(Unit)
+        }
+    }
+
+    private class OutboxAwareWriter(private val store: FakeOutboxStore) :
+        LearningProposalBatchWriter, LearningProposalOutboxBatchWriter {
+        var atomicCalls = 0
+        override fun insertProposedBatch(
+            records: List<MemoryRecord>, actorPrincipalId: String
+        ): MemoryRepositoryResult<Unit> = MemoryRepositoryResult.Success(Unit)
+        override fun insertProposedBatchWithOutbox(
+            records: List<MemoryRecord>, outboxItem: MemoryOutboxItem, actorPrincipalId: String
+        ): MemoryRepositoryResult<Unit> {
+            atomicCalls++
+            return store.insertProposedBatchWithOutbox(records, outboxItem, actorPrincipalId)
+        }
+    }
+
+    @Test fun durableOutboxPathCommitsProposalAndReceiptBeforeJournalDispatch() {
+        val store = FakeOutboxStore()
+        val writer = OutboxAwareWriter(store)
+        val journal = journalWriter()
+        val dispatcher = LearningMemoryProposalOutboxDispatcher(store, journal)
+        val workflow = LearningMemoryProposalWorkflow(writer, journal, dispatcher)
+        val result = workflow.approveAndPersist(
+            request(), emptySet(), listOf(claim()), sources(), creator, journalEntryId, now
+        )
+        assertTrue(result is LearningProposalWorkflowResult.Persisted)
+        assertEquals(1, writer.atomicCalls)
+        assertEquals(1, journal.calls)
+        assertTrue(store.pending.isEmpty())
+    }
+
+    @Test fun durableOutboxKeepsReceiptForRestartWhenJournalWriteFails() {
+        val store = FakeOutboxStore()
+        val writer = OutboxAwareWriter(store)
+        val journal = journalWriter(
+            LearningJournalStoreResult.Failure(LearningJournalStoreFailure.STORAGE_ERROR)
+        )
+        val dispatcher = LearningMemoryProposalOutboxDispatcher(store, journal)
+        val workflow = LearningMemoryProposalWorkflow(writer, journal, dispatcher)
+        val result = workflow.approveAndPersist(
+            request(), emptySet(), listOf(claim()), sources(), creator, journalEntryId, now
+        )
+        assertTrue(result is LearningProposalWorkflowResult.PersistedJournalPending)
+        assertEquals(1, store.pending.size)
+        journal.result = journalWriter().result
+        val replay = dispatcher.dispatchPending(creator).single()
+        assertTrue(replay.result is LearningJournalStoreResult.Success)
+        assertTrue(store.pending.isEmpty())
     }
 }

@@ -41,3 +41,20 @@ JVM tests cover:
 2. Android instrumentation tests for encrypted batch insert, exact retry, mixed existing/new retry, collision rollback, interrupted transaction, journal receipt idempotency and Keystore failure.
 3. Creator review UI and auditable proposal/activation controls.
 4. A separate authenticated practice-host service and cryptographic attestation verifier before sandbox evidence can count as demonstrated skill.
+
+
+## Durable encrypted outbox — implementation increment
+
+The memory SQLite database now has a version-2 migration that creates an owner-scoped `memory_outbox` table without replacing existing memory records. Proposal records and the journal receipt envelope can be encrypted and inserted in the **same SQLite transaction** through `MemoryOutboxStore.insertProposedBatchWithOutbox`.
+
+- Outbox payloads are AES-GCM encrypted with associated data binding both the outbox ID and owner principal.
+- The owner lookup column stores a SHA-256 owner hash, not the clear principal ID.
+- Batch validation, proposal idempotency and outbox collision checks happen in the same transaction; a conflicting proposal rolls back both new records and the outbox item.
+- Exact same-ID/same-owner/same-payload replay is idempotent. Conflicting payloads and cross-owner access are rejected.
+- `LearningJournalReceiptEnvelopeCodec` stores a versioned, bounded envelope containing the expected task ID and canonical journal event.
+- `LearningMemoryProposalOutboxDispatcher` replays pending receipts, appends to the journal, then acknowledges the outbox. A crash after append but before acknowledgement is safe because the journal event ID is stable and replay-protected.
+- The workflow selects this durable path when configured with the outbox-aware repository writer and dispatcher. The older writer-only path remains as a compatibility fallback and is not crash-recovery equivalent.
+
+JVM coverage now exercises envelope validation, owner mismatch, delivery, journal failure with pending retention, and append-success/ack-failure replay. Android instrumentation coverage exercises encrypted outbox payloads, owner isolation, exact replay, acknowledgement, and transaction rollback. These instrumentation tests are compiled by CI; device execution is still required.
+
+This remains local device storage. It does not provide cross-device recovery, trusted backend review consumption, or server-side audit atomicity.
