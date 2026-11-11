@@ -8,9 +8,10 @@ JAVAS ULTRA is being developed as a secure, memory-enabled, practical AI compani
 
 - Current work: architecture and security foundations, encrypted local memory and learning-journal modules, provider-neutral model/tool contracts, and native Android build delivery.
 - The Android UI is still a foundation screen; domain modules are not yet integrated into a complete interactive assistant.
-- The latest checked GitHub Actions runs for draft PR #5 and draft PR #6 completed successfully: JVM tests passed, Android instrumentation test APKs compiled, and debug APKs assembled. Instrumentation tests have not yet been executed on a physical device.
+- The latest checked GitHub Actions runs for draft PR #5, #6 and #7 completed successfully. JVM tests passed on the code-bearing branches, Android instrumentation test APKs compiled, and debug APKs were assembled. Instrumentation tests have not yet been executed on a physical device or emulator.
+- A dedicated JAVAS-only Supabase project has been provisioned and verified healthy. It is currently empty: no public tables, migrations or Edge Functions. The Android app is not connected to it; no production Auth, RLS policies or backend APIs are implemented.
 - A Codemagic workflow is committed at the repository root for the Creator's existing account. The Codemagic app connection and first build still require confirmation in the Codemagic dashboard.
-- No production authentication, live model-provider connection, autonomous web research, dedicated JAVAS backend or signed release is claimed.
+- No production authentication, live model-provider connection, autonomous web research, production backend integration or signed release is claimed.
 - Draft PRs remain unmerged.
 
 ## Start here
@@ -22,6 +23,7 @@ JAVAS ULTRA is being developed as a secure, memory-enabled, practical AI compani
 - [Self-directed learning and capability environment](docs/SELF-DIRECTED-LEARNING-ENVIRONMENT.md)
 - [Security and privacy baseline](docs/SECURITY-AND-PRIVACY-BASELINE.md)
 - [Phase 2 identity and security contracts](docs/PHASE-2-IDENTITY-SECURITY-CONTRACTS.md)
+- [Dedicated JAVAS backend decision](docs/decisions/ADR-0002-BACKEND-ISOLATION.md)
 
 ## Build and delivery
 
@@ -48,4 +50,4 @@ Use focused branches and reviewable pull requests. Material changes to identity,
 
 ## Current product status
 
-JAVAS ULTRA is currently a native Android foundation build, not yet a functional AI companion. The launcher screen is a foundation message. Identity, memory, learning, research, model routing and tool permission modules exist as local domain/storage foundations, but are not wired into a usable conversation or controls on the phone. There is no active model connection, production authentication backend, live research transport, scheduled learning worker or enabled device-action tool. The next milestone is Creator identity/session setup followed by a real encrypted memory manager and conversation UI.
+JAVAS ULTRA is currently a native Android foundation build, not yet a functional AI companion. The launcher has a compact companion globe and local voice/image preference references, but no live conversation runtime. Identity, memory, learning, research, model routing and tool permission modules exist as local domain/storage foundations, but are not wired into a usable conversation or controls on the phone. There is no active model connection, production authentication backend, live research transport, scheduled learning worker, or enabled device-action tool. The next milestone is to implement and verify the dedicated backend's identity/session boundary, then connect it to the Android app and build a usable memory/conversation experience.
