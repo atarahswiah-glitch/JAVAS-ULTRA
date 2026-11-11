@@ -1,12 +1,8 @@
 package com.javasultra.app.core.learning
 
+import java.security.MessageDigest
 import java.time.Instant
 
-/**
- * Adapter that inspects existing capability/knowledge evidence and confirms whether
- * a signal represents a real gap. Implementations must not infer competence from
- * unverified model output.
- */
 fun interface LearningGapInspectionPort {
     fun inspect(signal: LearningSignal): LearningGapInspection
 }
@@ -14,13 +10,9 @@ fun interface LearningGapInspectionPort {
 data class LearningGapInspection(
     val isGap: Boolean,
     val rationale: String
-)
+}
 
-/**
- * Adapter over the existing public research/discovery architecture. Implementations
- * must enforce PublicResearchGateway, domain allowlists, redirect/IP checks, byte/time
- * limits, robots policy and content validation. This coordinator performs no networking.
- */
+/** Implementations must enforce the public-research gateway's network and privacy policy. */
 fun interface LearningResourceDiscoveryPort {
     fun discover(task: LearningTask, maxSources: Int): LearningResearchBundle
 }
@@ -37,7 +29,8 @@ enum class LearningCycleDenial {
     RESEARCH_EMPTY,
     RESEARCH_BUDGET_EXCEEDED,
     EVIDENCE_REJECTED,
-    REVIEW_PACKET_MISMATCH
+    REVIEW_PACKET_MISMATCH,
+    JOURNAL_PERSISTENCE_FAILED
 }
 
 sealed interface LearningCycleResult {
@@ -46,7 +39,8 @@ sealed interface LearningCycleResult {
         val rationale: String,
         val sources: List<ResearchSource>,
         val claims: List<EvidenceClaim>,
-        val evidenceDigestSha256: String
+        val evidenceDigestSha256: String,
+        val journalEntryId: String
     ) : LearningCycleResult
 
     data class Denied(
@@ -62,17 +56,15 @@ sealed interface LearningCycleAuthorizationResult {
 }
 
 /**
- * First end-to-end orchestration boundary for inspect -> plan -> discover -> evaluate
- * -> Creator authorize -> propose memory.
- *
- * Research and gap inspection are injected adapters, not fake implementations. This
- * class never fetches the network, executes practice code, activates memory, or treats
- * model output as evidence. Creator review remains an explicit second call.
+ * Orchestrates inspect -> plan -> discover -> evaluate -> Creator authorize -> propose.
+ * Every accepted cycle stage is recorded in the encrypted journal before it is exposed
+ * as ready for review. This class never performs networking or practice execution.
  */
 class LearningCycleCoordinator(
     private val gapInspector: LearningGapInspectionPort,
     private val resourceDiscovery: LearningResourceDiscoveryPort,
-    private val proposalWorkflow: LearningMemoryProposalWorkflow
+    private val proposalWorkflow: LearningMemoryProposalWorkflow,
+    private val journal: LearningCycleJournalPort
 ) {
     fun inspectPlanResearchAndEvaluate(
         signal: LearningSignal,
@@ -81,8 +73,6 @@ class LearningCycleCoordinator(
         tasksCreatedToday: Int,
         existingSignalIds: Set<String> = emptySet()
     ): LearningCycleResult {
-        // Apply privacy, permission, pause and resource-budget policy before inspecting
-        // a signal. In particular, private-data signals must not reach an adapter.
         val planning = AutonomousLearningPlanner.evaluate(
             signal = signal,
             settings = settings,
@@ -115,12 +105,53 @@ class LearningCycleCoordinator(
             return LearningCycleResult.Denied(LearningCycleDenial.INVALID_TASK)
         }
 
-        val bundle = resourceDiscovery.discover(task, settings.maxSourcesPerTask)
+        val journalEntryId = signal.id
+        val entry = LearningJournalEntry(
+            id = journalEntryId,
+            taskId = task.id,
+            objective = task.objective,
+            domain = task.domain,
+            state = LearningJournalState.DISCOVERED,
+            createdAt = now,
+            updatedAt = now
+        )
+        if (journal.create(entry) !is LearningJournalStoreResult.Success) {
+            return LearningCycleResult.Denied(LearningCycleDenial.JOURNAL_PERSISTENCE_FAILED)
+        }
+        if (!record(journalEntryId, signal.id, "signal", LearningJournalEventType.SIGNAL_DETECTED, now) ||
+            !record(journalEntryId, signal.id, "queued", LearningJournalEventType.TASK_QUEUED, now) ||
+            !record(journalEntryId, signal.id, "started", LearningJournalEventType.TASK_STARTED, now)
+        ) return LearningCycleResult.Denied(LearningCycleDenial.JOURNAL_PERSISTENCE_FAILED)
+
+        val bundle = try {
+            resourceDiscovery.discover(task, settings.maxSourcesPerTask)
+        } catch (_: Exception) {
+            failTask(journalEntryId, task.id, "RESEARCH_ADAPTER_FAILED", now)
+            return LearningCycleResult.Denied(LearningCycleDenial.RESEARCH_EMPTY)
+        }
+
         if (bundle.sources.isEmpty() || bundle.claims.isEmpty()) {
+            failTask(journalEntryId, task.id, "RESEARCH_EMPTY", now)
             return LearningCycleResult.Denied(LearningCycleDenial.RESEARCH_EMPTY)
         }
         if (bundle.sources.size > settings.maxSourcesPerTask) {
+            failTask(journalEntryId, task.id, "SOURCE_BUDGET_EXCEEDED", now)
             return LearningCycleResult.Denied(LearningCycleDenial.RESEARCH_BUDGET_EXCEEDED)
+        }
+
+        for (source in bundle.sources) {
+            if (!record(
+                    journalEntryId, task.id, "source-${stableId(source.id)}",
+                    LearningJournalEventType.SOURCE_RETRIEVED, now, sourceId = source.id
+                )
+            ) return LearningCycleResult.Denied(LearningCycleDenial.JOURNAL_PERSISTENCE_FAILED)
+        }
+        for (claim in bundle.claims) {
+            if (!record(
+                    journalEntryId, task.id, "claim-${stableId(claim.id)}",
+                    LearningJournalEventType.CLAIM_REVIEWED, now, claimId = claim.id
+                )
+            ) return LearningCycleResult.Denied(LearningCycleDenial.JOURNAL_PERSISTENCE_FAILED)
         }
 
         val evidence = LearningEvidenceEvaluator.evaluate(
@@ -130,6 +161,7 @@ class LearningCycleCoordinator(
             now = now
         )
         if (!evidence.readyForCreatorReview) {
+            failTask(journalEntryId, task.id, "EVIDENCE_REJECTED", now)
             return LearningCycleResult.Denied(
                 LearningCycleDenial.EVIDENCE_REJECTED,
                 evidenceDenial = evidence.denial
@@ -143,16 +175,11 @@ class LearningCycleCoordinator(
             rationale = inspection.rationale,
             sources = bundle.sources,
             claims = bundle.claims,
-            evidenceDigestSha256 = digest
+            evidenceDigestSha256 = digest,
+            journalEntryId = journalEntryId
         )
     }
 
-    /**
-     * A review packet is bound to the exact task, claim IDs and evidence digest produced
-     * by this coordinator. The existing workflow performs Creator identity/step-up
-     * preflight and persists PROPOSED records only. Trusted server-side authorization
-     * and atomic replay protection remain production requirements.
-     */
     fun authorizeAndPropose(
         packet: LearningCycleResult.ReadyForCreatorReview,
         request: CreatorLearningReviewRequest,
@@ -165,19 +192,69 @@ class LearningCycleCoordinator(
             request.creatorPrincipalId != creatorPrincipalId ||
             request.claimIds != packet.claims.map { it.id }.toSet() ||
             !request.expectedEvidenceDigestSha256.equals(packet.evidenceDigestSha256, true) ||
-            !request.submittedEvidenceDigestSha256.equals(packet.evidenceDigestSha256, true)
+            !request.submittedEvidenceDigestSha256.equals(packet.evidenceDigestSha256, true) ||
+            journalEntryId != packet.journalEntryId
         ) return LearningCycleAuthorizationResult.Denied(LearningCycleDenial.REVIEW_PACKET_MISMATCH)
 
-        return LearningCycleAuthorizationResult.ProposalResult(
-            proposalWorkflow.approveAndPersist(
-                request = request,
-                consumedReviewIds = consumedReviewIds,
-                claims = packet.claims,
-                sources = packet.sources,
-                creatorPrincipalId = creatorPrincipalId,
-                journalEntryId = journalEntryId,
-                createdAt = now
-            )
+        val review = CreatorLearningReviewPolicy.evaluate(request, consumedReviewIds, now)
+        if (review.denial == null && review.outcome == CreatorReviewOutcome.APPROVED_FOR_PROPOSAL_ONLY) {
+            if (!record(
+                    packet.journalEntryId, packet.task.id, "knowledge-proposed",
+                    LearningJournalEventType.KNOWLEDGE_PROPOSED, now
+                )
+            ) return LearningCycleAuthorizationResult.Denied(LearningCycleDenial.JOURNAL_PERSISTENCE_FAILED)
+        } else if (review.denial == null && review.outcome == CreatorReviewOutcome.REJECTED) {
+            if (!failTask(packet.journalEntryId, packet.task.id, "CREATOR_REJECTED", now)) {
+                return LearningCycleAuthorizationResult.Denied(LearningCycleDenial.JOURNAL_PERSISTENCE_FAILED)
+            }
+        }
+
+        val result = proposalWorkflow.approveAndPersist(
+            request = request,
+            consumedReviewIds = consumedReviewIds,
+            claims = packet.claims,
+            sources = packet.sources,
+            creatorPrincipalId = creatorPrincipalId,
+            journalEntryId = journalEntryId,
+            createdAt = now
         )
+        if (result is LearningProposalWorkflowResult.Rejected &&
+            review.outcome == CreatorReviewOutcome.APPROVED_FOR_PROPOSAL_ONLY
+        ) {
+            failTask(packet.journalEntryId, packet.task.id, "PROPOSAL_PERSISTENCE_FAILED", now)
+        }
+        return LearningCycleAuthorizationResult.ProposalResult(result)
+    }
+
+    private fun record(
+        entryId: String,
+        taskId: String,
+        stage: String,
+        type: LearningJournalEventType,
+        at: Instant,
+        sourceId: String? = null,
+        claimId: String? = null
+    ): Boolean {
+        val event = LearningJournalEvent(
+            id = "cycle-${stableId(entryId)}-$stage",
+            entryId = entryId,
+            type = type,
+            occurredAt = at,
+            actor = SYSTEM_ACTOR,
+            sourceId = sourceId,
+            claimId = claimId
+        )
+        return journal.append(event, taskId) is LearningJournalStoreResult.Success
+    }
+
+    private fun failTask(entryId: String, taskId: String, code: String, at: Instant): Boolean =
+        record(entryId, taskId, "failed-$code", LearningJournalEventType.TASK_FAILED, at)
+    
+    private fun stableId(value: String): String =
+        MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
+            .take(12).joinToString("") { "%02x".format(it) }
+
+    private companion object {
+        const val SYSTEM_ACTOR = "JAVAS_LEARNING_ENGINE"
     }
 }
