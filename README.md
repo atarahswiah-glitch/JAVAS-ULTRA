@@ -8,14 +8,15 @@ JAVAS ULTRA is being developed as a secure, memory-enabled, practical AI compani
 
 - Current work: architecture and security foundations, encrypted local memory and learning-journal modules, provider-neutral model/tool contracts, and native Android build delivery.
 - The Android UI is still a foundation screen; domain modules are not yet integrated into a complete interactive assistant.
-- GitHub Actions run #82 on commit 497e213104fceb8adaf9641d1dd90fa0515a6da8 passed all 117 JVM unit tests, assembled the debug APK and uploaded the APK plus test reports. Artifact: JAVAS-ULTRA-debug-and-test-reports (11,474,739 bytes; expires 2026-11-23). APK SHA-256: 60d7391bb884b8c792ebeb89234d488d92844fed8037f36c375a7fc6869f2187. A later public-research-gateway hardening change is undergoing its own CI verification.
+- The latest checked GitHub Actions runs for draft PR #5 and draft PR #6 completed successfully: JVM tests passed, Android instrumentation test APKs compiled, and debug APKs assembled. Instrumentation tests have not yet been executed on a physical device.
 - A Codemagic workflow is committed at the repository root for the Creator's existing account. The Codemagic app connection and first build still require confirmation in the Codemagic dashboard.
 - No production authentication, live model-provider connection, autonomous web research, dedicated JAVAS backend or signed release is claimed.
-- Draft PR #1 remains open and unmerged.
+- Draft PRs remain unmerged.
 
 ## Start here
 
 - [Master architecture](docs/MASTER-ARCHITECTURE.md)
+- [Integrated implementation blueprint](docs/INTEGRATED-IMPLEMENTATION-BLUEPRINT.md)
 - [Integrated ten-phase roadmap](docs/ROADMAP.md)
 - [Requirements register](docs/REQUIREMENTS-REGISTER.md)
 - [Self-directed learning and capability environment](docs/SELF-DIRECTED-LEARNING-ENVIRONMENT.md)
