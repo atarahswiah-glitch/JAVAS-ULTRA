@@ -89,7 +89,12 @@ class LearningCycleCoordinatorTest {
     }
 
     @Test fun resourceDiscoveryCannotExceedTheConfiguredSourceBudget() {
-        val oversized = LearningResearchBundle(sources + sources.map { it.copy(id = it.id + "-extra") }, claims)
+        val oversized = LearningResearchBundle(
+            sources +
+                sources.map { it.copy(id = it.id + "-extra") } +
+                sources.map { it.copy(id = it.id + "-extra-2") },
+            claims
+        )
         val result = coordinator(bundle = oversized).inspectPlanResearchAndEvaluate(signal, settings, now, 0)
         assertEquals(LearningCycleDenial.RESEARCH_BUDGET_EXCEEDED, (result as LearningCycleResult.Denied).reason)
     }
