@@ -71,8 +71,9 @@ class LearningCycleCoordinatorTest {
     @Test fun plannerDenialStopsTheCycleBeforeResearch() {
         val disabled = settings.copy(enabled = false)
         val result = coordinator().inspectPlanResearchAndEvaluate(signal, disabled, now, 0)
-        assertEquals(LearningCycleDenial.PLANNING_REJECTED, (result as LearningCycleResult.Denied).reason)
-        assertEquals(PlanningDenial.DISABLED, result.planningDenial)
+        val denied = result as LearningCycleResult.Denied
+        assertEquals(LearningCycleDenial.PLANNING_REJECTED, denied.reason)
+        assertEquals(PlanningDenial.DISABLED, denied.planningDenial)
     }
 
     @Test fun insufficientIndependentSourcesCannotReachCreatorReview() {
@@ -82,8 +83,9 @@ class LearningCycleCoordinatorTest {
                 supportingSourceIds = setOf("source-a")))
         )
         val result = coordinator(bundle = oneSource).inspectPlanResearchAndEvaluate(signal, settings, now, 0)
-        assertEquals(LearningCycleDenial.EVIDENCE_REJECTED, (result as LearningCycleResult.Denied).reason)
-        assertEquals(EvidenceEvaluationDenial.INSUFFICIENT_INDEPENDENT_SOURCES, result.evidenceDenial)
+        val denied = result as LearningCycleResult.Denied
+        assertEquals(LearningCycleDenial.EVIDENCE_REJECTED, denied.reason)
+        assertEquals(EvidenceEvaluationDenial.INSUFFICIENT_INDEPENDENT_SOURCES, denied.evidenceDenial)
     }
 
     @Test fun resourceDiscoveryCannotExceedTheConfiguredSourceBudget() {
@@ -113,6 +115,30 @@ class LearningCycleCoordinatorTest {
         assertTrue(result is LearningCycleAuthorizationResult.Denied)
         assertEquals(LearningCycleDenial.REVIEW_PACKET_MISMATCH,
             (result as LearningCycleAuthorizationResult.Denied).reason)
+    }
+
+    @Test fun creatorApprovalSubmitsOnlyTheExactEvaluatedPacketToProposalWorkflow() {
+        val packet = coordinator().inspectPlanResearchAndEvaluate(signal, settings, now, 0)
+            as LearningCycleResult.ReadyForCreatorReview
+        val creator = "creator-1"
+        val request = CreatorLearningReviewRequest(
+            task = packet.task,
+            creatorPrincipalId = creator,
+            authenticatedReviewerPrincipalId = creator,
+            reviewId = "review-accepted",
+            decision = CreatorLearningDecision.APPROVE,
+            expectedEvidenceDigestSha256 = packet.evidenceDigestSha256,
+            submittedEvidenceDigestSha256 = packet.evidenceDigestSha256,
+            claimIds = packet.claims.map { it.id }.toSet(),
+            reviewedAt = now,
+            stepUpAuthenticated = true
+        )
+        val result = coordinator().authorizeAndPropose(
+            packet, request, emptySet(), creator, "journal-accepted", now
+        )
+        assertTrue(result is LearningCycleAuthorizationResult.ProposalResult)
+        val workflow = (result as LearningCycleAuthorizationResult.ProposalResult).result
+        assertTrue(workflow is LearningProposalWorkflowResult.PersistedJournalPending)
     }
 
     @Test fun doesNotMarkUntrustedSandboxOrOperationalPracticeAsVerified() {
