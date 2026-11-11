@@ -245,7 +245,8 @@ class LearningCycleCoordinatorTest {
                 discoveryCalls++
                 LearningResearchBundle(sources, claims)
             },
-            LearningMemoryProposalWorkflow(NoopWriter(), NoopJournal())
+            LearningMemoryProposalWorkflow(NoopWriter(), NoopJournal()),
+            InMemoryLearningCycleJournalPort()
         )
         val result = guarded.inspectPlanResearchAndEvaluate(signal, settings, now, 0)
         assertEquals(LearningCycleDenial.NOT_A_KNOWLEDGE_GAP, (result as LearningCycleResult.Denied).reason)
