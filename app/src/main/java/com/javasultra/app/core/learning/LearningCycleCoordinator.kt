@@ -10,7 +10,7 @@ fun interface LearningGapInspectionPort {
 data class LearningGapInspection(
     val isGap: Boolean,
     val rationale: String
-}
+)
 
 /** Implementations must enforce the public-research gateway's network and privacy policy. */
 fun interface LearningResourceDiscoveryPort {
@@ -139,6 +139,21 @@ class LearningCycleCoordinator(
             return LearningCycleResult.Denied(LearningCycleDenial.RESEARCH_BUDGET_EXCEEDED)
         }
 
+        val evidence = LearningEvidenceEvaluator.evaluate(
+            task = task,
+            sources = bundle.sources,
+            claims = bundle.claims,
+            now = now
+        )
+        if (!evidence.readyForCreatorReview) {
+            failTask(journalEntryId, task.id, "EVIDENCE_REJECTED", now)
+            return LearningCycleResult.Denied(
+                LearningCycleDenial.EVIDENCE_REJECTED,
+                evidenceDenial = evidence.denial
+            )
+        }
+
+        // Only journal source and claim identifiers after the evidence gate has validated them.
         for (source in bundle.sources) {
             if (!record(
                     journalEntryId, task.id, "source-${stableId(source.id)}",
@@ -152,20 +167,6 @@ class LearningCycleCoordinator(
                     LearningJournalEventType.CLAIM_REVIEWED, now, claimId = claim.id
                 )
             ) return LearningCycleResult.Denied(LearningCycleDenial.JOURNAL_PERSISTENCE_FAILED)
-        }
-
-        val evidence = LearningEvidenceEvaluator.evaluate(
-            task = task,
-            sources = bundle.sources,
-            claims = bundle.claims,
-            now = now
-        )
-        if (!evidence.readyForCreatorReview) {
-            failTask(journalEntryId, task.id, "EVIDENCE_REJECTED", now)
-            return LearningCycleResult.Denied(
-                LearningCycleDenial.EVIDENCE_REJECTED,
-                evidenceDenial = evidence.denial
-            )
         }
 
         val reviewTask = task.copy(state = LearningTaskState.READY_FOR_REVIEW)
