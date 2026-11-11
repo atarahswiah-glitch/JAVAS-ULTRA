@@ -137,7 +137,8 @@ class LearningCycleCoordinatorTest {
     }
 
     @Test fun creatorReviewMustMatchTheExactEvaluatedTaskAndEvidenceDigest() {
-        val packet = coordinator().inspectPlanResearchAndEvaluate(signal, settings, now, 0)
+        val cycle = coordinator()
+        val packet = cycle.inspectPlanResearchAndEvaluate(signal, settings, now, 0)
             as LearningCycleResult.ReadyForCreatorReview
         val request = CreatorLearningReviewRequest(
             task = packet.task.copy(objective = "different objective"),
@@ -151,7 +152,7 @@ class LearningCycleCoordinatorTest {
             reviewedAt = now,
             stepUpAuthenticated = true
         )
-        val result = coordinator().authorizeAndPropose(
+        val result = cycle.authorizeAndPropose(
             packet, request, emptySet(), "creator-1", packet.journalEntryId, now
         )
         assertTrue(result is LearningCycleAuthorizationResult.Denied)
@@ -223,7 +224,8 @@ class LearningCycleCoordinatorTest {
                 discoveryCalls++
                 LearningResearchBundle(sources, claims)
             },
-            LearningMemoryProposalWorkflow(NoopWriter(), NoopJournal())
+            LearningMemoryProposalWorkflow(NoopWriter(), NoopJournal()),
+            InMemoryLearningCycleJournalPort()
         )
         val result = guarded.inspectPlanResearchAndEvaluate(privateSignal, settings, now, 0)
         val denied = result as LearningCycleResult.Denied
