@@ -294,3 +294,14 @@ Android SQLite/Keystore behaviour still requires instrumentation/device testing.
 ## Proposal approval versus retention consent — 2026-11-24
 
 Creator approval of a learning result authorizes creation of a local `PROPOSED` candidate only. It is not an explicit request to retain the knowledge as durable memory and does not activate the record. Until a separate retention-consent step is implemented, the learning mapper uses conservative retention scores, sets `explicitlyRequestedToRetain=false`, and follows the source-reference path. The candidate remains `PROPOSED`; a later, separately authorized retention/activation workflow must make and audit any durable-memory decision. Existing JVM tests cover the proposal lifecycle and the conservative source-reference policy; this change still requires a fresh branch-head CI run.
+
+
+## Memory retention policy refinement
+
+| ID | Requirement | Evidence | Status |
+|---|---|---|---|
+| MEM-07 | Score recurrence, freshness, change likelihood, uniqueness, future usefulness, re-research cost and source confidence as separate numeric signals | Weighted seven-signal retention score and unit tests | Implemented; branch CI pending |
+| MEM-08 | Keep verification, contradiction, provenance completeness, independent-source count, evidence validity and evidence age as separate veto gates | Independent evidence-gate decisions and negative tests | Implemented; branch CI pending |
+| MEM-09 | Explicit retention consent cannot override failed evidence gates; Creator approval to prepare a proposal is not consent to activate durable knowledge | Shared policy and learning mapper retain source-reference-only proposals absent separate consent | In progress; CI and workflow integration pending |
+
+These additions are local decision policy only. They do not replace Creator review, trusted backend authorization, repository encryption or separate activation consent.
