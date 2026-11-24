@@ -58,3 +58,17 @@ The memory SQLite database now has a version-2 migration that creates an owner-s
 JVM coverage now exercises envelope validation, owner mismatch, delivery, journal failure with pending retention, and append-success/ack-failure replay. Android instrumentation coverage exercises encrypted outbox payloads, owner isolation, exact replay, acknowledgement, and transaction rollback. These instrumentation tests are compiled by CI; device execution is still required.
 
 This remains local device storage. It does not provide cross-device recovery, trusted backend review consumption, or server-side audit atomicity.
+
+
+## Evidence-backed learning cycle coordinator
+
+The local `LearningCycleCoordinator` connects the existing planning, task, research-provider, evidence-evaluation, evidence-digest and encrypted-journal contracts.
+
+1. The planner rejects disabled/paused learning, duplicate signals, private-data use, missing permission, invalid domain policy and exhausted daily limits before creating a journal entry or invoking research.
+2. An accepted signal receives stable task and journal IDs. Queue and start events are appended to the encrypted journal.
+3. An injected `LearningResearchProvider` receives the task plus allowed-domain, source-count and time budgets. Its output is untrusted.
+4. The coordinator enforces the source-count budget and invokes `LearningEvidenceEvaluator`. Invalid, stale, contradictory, model-output or insufficiently independent evidence is rejected.
+5. Source and reviewed-claim references are recorded in the journal. A canonical SHA-256 evidence digest is produced for the Creator review handoff.
+6. A successful cycle returns a `READY_FOR_REVIEW` task and deliberately leaves the journal in `SOURCE_REVIEW`. The separate Creator review/proposal workflow must make the next decision.
+
+The provider is an interface only in this increment. No production HTTP transport, claim-extraction model, scheduler, Android UI or background worker is implemented. Provider implementations must enforce the supplied limits and the existing HTTPS, public-only, GET-only, robots, redirect/DNS/IP, timeout and byte-limit requirements. The coordinator does not persist or activate memory and cannot authorize external actions.
