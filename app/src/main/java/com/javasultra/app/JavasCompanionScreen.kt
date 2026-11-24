@@ -191,14 +191,12 @@ internal fun JavasCompanionScreen(activity: ComponentActivity) {
                         shape = RoundedCornerShape(18.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Ready for your direction", color = Color(0xFFE7FAFF), fontWeight = FontWeight.SemiBold)
-                            Text(
-                                "Conversation, live model connection and device actions are not connected yet.",
-                                color = Color(0xFF9CB7C5),
-                                fontSize = 12.sp
-                            )
-                            TextButton(onClick = { expanded = false }) { Text("Close companion view") }
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            ConversationPanel()
+                            TextButton(
+                                onClick = { expanded = false },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Close companion view") }
                         }
                     }
                 }
