@@ -3,6 +3,8 @@ package com.javasultra.app.core.learning
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.concurrent.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 
 /** Research output is untrusted until it passes LearningEvidenceEvaluator. */
 data class LearningResearchBundle(
@@ -16,7 +18,7 @@ data class LearningResearchBundle(
  * access private data, authenticate to sites, bypass paywalls, or perform write actions.
  */
 fun interface LearningResearchProvider {
-    fun research(
+    suspend fun research(
         task: LearningTask,
         allowedDomains: Set<String>,
         maxSources: Int,
@@ -48,6 +50,7 @@ enum class LearningCycleDenial {
     JOURNAL_CREATE_FAILED,
     JOURNAL_EVENT_FAILED,
     RESEARCH_FAILED,
+    RESEARCH_TIMEOUT,
     SOURCE_BUDGET_EXCEEDED,
     EVIDENCE_REJECTED
 }
@@ -81,7 +84,7 @@ class LearningCycleCoordinator(
     private val researchProvider: LearningResearchProvider,
     private val journal: LearningCycleJournal
 ) {
-    fun run(
+    suspend fun run(
         signal: LearningSignal,
         settings: AutonomousLearningSettings,
         now: Instant,
@@ -164,23 +167,33 @@ class LearningCycleCoordinator(
             return LearningCycleResult.Rejected(it, journalFailure = journalFailure)
         }
 
-        val bundle = try {
-            researchProvider.research(
-                task,
-                settings.allowedDomains,
-                settings.maxSourcesPerTask,
-                task.timeBudgetSeconds
-            ).getOrElse {
-                return fail(task, currentEntry, now, "RESEARCH_FAILED", LearningCycleDenial.RESEARCH_FAILED)
+        val researchResult = try {
+            withTimeout(task.timeBudgetSeconds * 1_000L) {
+                researchProvider.research(
+                    task,
+                    settings.allowedDomains.toSet(),
+                    settings.maxSourcesPerTask,
+                    task.timeBudgetSeconds
+                )
             }
+        } catch (_: TimeoutCancellationException) {
+            return fail(task, currentEntry, now, "RESEARCH_TIMEOUT", LearningCycleDenial.RESEARCH_TIMEOUT)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
             return fail(task, currentEntry, now, "RESEARCH_FAILED", LearningCycleDenial.RESEARCH_FAILED)
         }
+        val bundle = researchResult.getOrElse {
+            return fail(task, currentEntry, now, "RESEARCH_FAILED", LearningCycleDenial.RESEARCH_FAILED)
+        }
 
         if (bundle.sources.size > task.sourceBudget) {
             return fail(task, currentEntry, now, "SOURCE_BUDGET_EXCEEDED", LearningCycleDenial.SOURCE_BUDGET_EXCEEDED)
+        }
+        if (bundle.sources.any { it.id.isBlank() } ||
+            bundle.sources.map { it.id }.toSet().size != bundle.sources.size
+        ) {
+            return fail(task, currentEntry, now, "EVIDENCE_REJECTED", LearningCycleDenial.EVIDENCE_REJECTED)
         }
         for (source in bundle.sources) {
             append(
