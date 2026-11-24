@@ -112,8 +112,8 @@ class LearningCycleCoordinatorTest {
         val journal = FakeJournal()
         val provider = LearningResearchProvider { _, _, _, _ -> Result.success(bundle(sourceCount = 6)) }
 
-        val result = LearningCycleCoordinator(provider, journal)
-            .run(signal, settings, now, tasksCreatedToday = 0)
+        val result = runBlocking { LearningCycleCoordinator(provider, journal)
+            .run(signal, settings, now, tasksCreatedToday = 0) }
 
         assertEquals(
             LearningCycleDenial.SOURCE_BUDGET_EXCEEDED,
@@ -128,8 +128,8 @@ class LearningCycleCoordinatorTest {
             Result.failure(IllegalStateException("transport unavailable"))
         }
 
-        val result = LearningCycleCoordinator(provider, journal)
-            .run(signal, settings, now, tasksCreatedToday = 0)
+        val result = runBlocking { LearningCycleCoordinator(provider, journal)
+            .run(signal, settings, now, tasksCreatedToday = 0) }
 
         assertEquals(
             LearningCycleDenial.RESEARCH_FAILED,
