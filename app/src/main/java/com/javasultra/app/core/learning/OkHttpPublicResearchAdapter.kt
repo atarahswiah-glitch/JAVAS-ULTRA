@@ -111,6 +111,7 @@ class OkHttpPublicResearchAdapter(
                                 response.close()
                                 return@withContext Result.failure(IllegalStateException("Unsupported or empty research content"))
                             }
+                            val charset = body.contentType()?.charset(Charsets.UTF_8) ?: Charsets.UTF_8
                             val raw = try {
                                 readBounded(body.byteStream(), MAX_PAGE_BYTES)
                             } finally {
@@ -120,7 +121,7 @@ class OkHttpPublicResearchAdapter(
                                 return@withContext Result.failure(IllegalStateException("Empty research response"))
                             }
 
-                            val decoded = String(raw, body.contentType()?.charset(Charsets.UTF_8) ?: Charsets.UTF_8)
+                            val decoded = String(raw, charset)
                             val title: String
                             val extracted: String
                             if (contentType == "text/html") {
