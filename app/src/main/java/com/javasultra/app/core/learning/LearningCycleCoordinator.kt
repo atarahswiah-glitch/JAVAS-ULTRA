@@ -108,7 +108,7 @@ class LearningCycleCoordinator(
             state = LearningTaskState.RESEARCHING,
             requestedByCreator = false,
             sourceBudget = settings.maxSourcesPerTask,
-            timeBudgetSeconds = settings.maxTaskDuration.seconds.coerceAtLeast(1),
+            timeBudgetSeconds = (settings.maxTaskDuration.seconds + if (settings.maxTaskDuration.nano > 0) 1 else 0).coerceAtLeast(1),
             privacySafe = true
         )
         if (LearningTaskPolicy.validate(task) != null) {
@@ -190,6 +190,10 @@ class LearningCycleCoordinator(
             )?.let {
                 return LearningCycleResult.Rejected(it, journalFailure = journalFailure)
             }
+        }
+
+        if (bundle.claims.size !in 1..500 || bundle.claims.map { it.id }.toSet().size != bundle.claims.size) {
+            return fail(task, currentEntry, now, "EVIDENCE_REJECTED", LearningCycleDenial.EVIDENCE_REJECTED)
         }
 
         val evaluatingTask = task.copy(state = LearningTaskState.EVALUATING)
