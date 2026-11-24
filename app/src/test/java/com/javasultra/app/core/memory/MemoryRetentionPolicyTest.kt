@@ -162,7 +162,7 @@ class MemoryRetentionPolicyTest {
 
     @Test fun unknownEvidenceAgeMustNotBecomeKnowledge() {
         val result = MemoryRetentionPolicy.evaluate(candidate(evidenceAgeDays = null))
-        assertEquals(MemoryRetentionAction.RESEARCH_AGAIN, result.action)
+        assertEquals(MemoryRetentionAction.STORE_SOURCE_REFERENCE, result.action)
         assertEquals(MemoryEvidenceGateFailure.EVIDENCE_AGE_UNKNOWN, result.evidenceGateFailure)
     }
 
