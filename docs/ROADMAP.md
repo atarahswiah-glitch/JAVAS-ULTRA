@@ -172,3 +172,18 @@ Not yet complete:
 - No APK has been installed.
 
 The next planned vertical slice is wiring the Creator session lifecycle into a safe application shell and then building the Creator-controlled memory-management interface. Production activation remains blocked on the trusted identity provider/backend and its security review.
+
+
+## Build-ahead increment — evidence-based memory retention (not yet verified)
+
+On branch `feature/evidence-based-memory-retention`:
+- Replaced the three-signal retention heuristic with a seven-signal weighted score: recurrence, freshness, change likelihood, uniqueness, future usefulness, re-research cost and source confidence.
+- Kept evidence gates independent of the score: validity, contradiction/dispute status, publication age, provenance completeness, verification status, independent publisher count and minimum source confidence.
+- Explicit retention consent cannot bypass evidence gates. Unknown publication age allows only a source-reference proposal; stale evidence requires fresh research; contradictions/invalid evidence require Creator review.
+- Updated the learning mapper to pass source confidence, independent publisher count, provenance and publication age into the shared policy. Missing publication dates remain unknown.
+- Added focused JVM tests for score calculation and each evidence gate, including explicit-retention attempts to bypass gates.
+
+Not yet complete:
+- Tests have been written but not executed; no Gradle build or CI run has been started for this branch.
+- This remains local policy and mapper logic, not trusted backend enforcement or a user-facing memory manager.
+- Creator approval for a proposal remains separate from consent to retain or activate durable knowledge.
