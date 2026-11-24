@@ -233,7 +233,7 @@ object MemoryRetentionPolicy {
                 failure
             )
         MemoryEvidenceGateFailure.EVIDENCE_AGE_UNKNOWN ->
-            decision(MemoryRetentionAction.RESEARCH_AGAIN, MemoryRetentionReason.EVIDENCE_AGE_UNKNOWN, score, failure)
+            referenceOrResearch(candidate, score, MemoryRetentionReason.EVIDENCE_AGE_UNKNOWN, failure)
         MemoryEvidenceGateFailure.EVIDENCE_STALE ->
             decision(MemoryRetentionAction.RESEARCH_AGAIN, MemoryRetentionReason.EVIDENCE_IS_STALE, score, failure)
         MemoryEvidenceGateFailure.PROVENANCE_INCOMPLETE ->
