@@ -28,7 +28,7 @@ data class CreatorSessionCredential(
             accessToken.isBlank() || accessToken.length > MAX_TOKEN_CHARS ||
             refreshToken?.let { it.isBlank() || it.length > MAX_TOKEN_CHARS } == true ||
             !expiresAt.isAfter(issuedAt) ||
-            authenticatedAt.isBefore(issuedAt) ||
+            authenticatedAt.isAfter(issuedAt) ||
             authenticatedAt.isAfter(expiresAt) ||
             verifiedFactorCount !in 1..3
         ) return false
