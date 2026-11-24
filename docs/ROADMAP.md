@@ -152,3 +152,23 @@ Not yet complete:
 - No Android installation or device testing has been performed.
 
 Next integrated work remains Creator identity/session and memory-management UI, followed by approved discovery/extraction adapters and trusted backend enforcement. Device-only checks remain deferred until the Creator requests testing.
+
+
+## Build-ahead increment — Creator session foundation (not yet verified)
+
+On branch `feature/creator-session-foundation`:
+- Added a versioned, bounded Creator session credential codec.
+- Added an AES-GCM Android Keystore-backed session vault storing only ciphertext in private SharedPreferences.
+- Added provider/account gateway contracts and session orchestration for sign-in, account/device checks, session restore, refresh-token rotation and sign-out.
+- Added a random app-scoped device UUID provider; it is not a hardware identifier or cryptographic device attestation.
+- Added JVM tests for credential encoding, identity/device gating, token refresh and local sign-out behaviour.
+- Documented missing production provider, server-side device challenge, recovery/MFA, audit, and Android instrumentation dependencies.
+
+Not yet complete:
+- No production authentication/account gateway is connected.
+- No UI or app-startup integration uses this coordinator yet.
+- Device UUID registration is not proof of device possession.
+- No tests/build/CI/device validation have been executed for this branch.
+- No APK has been installed.
+
+The next planned vertical slice is wiring the Creator session lifecycle into a safe application shell and then building the Creator-controlled memory-management interface. Production activation remains blocked on the trusted identity provider/backend and its security review.
