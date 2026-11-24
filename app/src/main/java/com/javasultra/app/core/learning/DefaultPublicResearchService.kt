@@ -25,7 +25,7 @@ class DefaultPublicResearchService(
             adapter.retrieve(request).getOrElse { return Result.failure(it) }
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (failure: Throwable) {
+        } catch (failure: Exception) {
             return Result.failure(failure)
         }
 
