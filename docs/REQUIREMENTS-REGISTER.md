@@ -289,3 +289,8 @@ Android SQLite/Keystore behaviour still requires instrumentation/device testing.
 - JVM tests cover codec integrity, owner binding, delivery, journal failure, and acknowledgement failure/replay. Android instrumentation tests cover encryption, owner isolation, transaction rollback and exact replay; CI compilation is not device execution.
 - The workflow uses this path only when the outbox-aware repository writer and dispatcher are configured. The compatibility writer-only route remains available and is not crash-recovery equivalent.
 - No trusted server review consumption, cross-device key recovery or remote audit atomicity is claimed.
+
+
+## Proposal approval versus retention consent — 2026-11-24
+
+Creator approval of a learning result authorizes creation of a local `PROPOSED` candidate only. It is not an explicit request to retain the knowledge as durable memory and does not activate the record. Until a separate retention-consent step is implemented, the learning mapper uses conservative retention scores, sets `explicitlyRequestedToRetain=false`, and follows the source-reference path. The candidate remains `PROPOSED`; a later, separately authorized retention/activation workflow must make and audit any durable-memory decision. Existing JVM tests cover the proposal lifecycle and the conservative source-reference policy; this change still requires a fresh branch-head CI run.
