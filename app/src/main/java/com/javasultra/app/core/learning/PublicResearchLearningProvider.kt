@@ -134,7 +134,7 @@ class PublicResearchLearningProvider(
         )
         return candidate.id.isNotBlank() &&
             candidate.publisher.isNotBlank() &&
-            candidate.trustScore in 0.0..1.0 &&
+            candidate.trustScore in 0.5..1.0 &&
             permittedKind &&
             domainAllowed &&
             candidate.request.declaredPublic &&
