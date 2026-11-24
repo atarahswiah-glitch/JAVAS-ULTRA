@@ -226,6 +226,8 @@ class CreatorSessionCoordinator(
                 return CreatorSessionResult.Denied(CreatorSessionDenial.IDENTITY_POLICY_DENIED)
             }
             if (vault.write(refreshedCredential) is CreatorSessionVaultResult.Failure) {
+                revokeQuietly(refreshed.accessToken, refreshed.refreshToken)
+                vault.clear()
                 return CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_VAULT_WRITE_FAILED)
             }
             credential = refreshedCredential
