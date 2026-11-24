@@ -29,7 +29,7 @@ class LearningCycleCoordinatorTest {
                 kind = EvidenceSourceKind.OFFICIAL_DOCUMENTATION,
                 title = "Astronomy reference $index",
                 publisher = if (index == 1) "NASA" else "ESA",
-                uri = "https://example-$index.org/reference",
+                uri = if (index == 1) "https://nasa.gov/reference" else "https://esa.int/reference",
                 publishedAt = now.minusSeconds(60),
                 retrievedAt = now,
                 trustScore = 0.95
