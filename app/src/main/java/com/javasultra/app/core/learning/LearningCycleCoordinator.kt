@@ -2,6 +2,7 @@ package com.javasultra.app.core.learning
 
 import java.security.MessageDigest
 import java.time.Instant
+import java.util.concurrent.CancellationException
 
 /** Research output is untrusted until it passes LearningEvidenceEvaluator. */
 data class LearningResearchBundle(
@@ -133,6 +134,7 @@ class LearningCycleCoordinator(
         }
 
         var currentEntry = initialEntry
+        var journalFailure: LearningJournalStoreFailure? = null
         fun append(type: LearningJournalEventType, suffix: String, sourceId: String? = null, claimId: String? = null): LearningCycleDenial? {
             val event = LearningJournalEvent(
                 id = stableId("event", "${task.id}:$suffix"),
@@ -155,7 +157,6 @@ class LearningCycleCoordinator(
             }
         }
 
-        var journalFailure: LearningJournalStoreFailure? = null
         append(LearningJournalEventType.TASK_QUEUED, "queued")?.let {
             return LearningCycleResult.Rejected(it, journalFailure = journalFailure)
         }
@@ -172,6 +173,8 @@ class LearningCycleCoordinator(
             ).getOrElse {
                 return fail(task, currentEntry, now, "RESEARCH_FAILED", LearningCycleDenial.RESEARCH_FAILED)
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             return fail(task, currentEntry, now, "RESEARCH_FAILED", LearningCycleDenial.RESEARCH_FAILED)
         }
