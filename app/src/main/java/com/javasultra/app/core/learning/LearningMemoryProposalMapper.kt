@@ -13,6 +13,7 @@ import com.javasultra.app.core.memory.MemorySensitivity
 import com.javasultra.app.core.memory.MemorySourceType
 import com.javasultra.app.core.memory.MemoryVerification
 import java.time.Instant
+import java.time.Duration
 
 enum class LearningProposalDenial {
     INVALID_REVIEW,
@@ -109,7 +110,11 @@ object LearningMemoryProposalMapper {
                 it.publisher?.trim()?.lowercase()?.takeIf(String::isNotEmpty)
             }.toSet()
             if (supporting.size < 2 || publishers.size < 2 ||
-                supporting.any { it.kind == EvidenceSourceKind.MODEL_OUTPUT || it.retrievedAt.isAfter(createdAt) }
+                supporting.any {
+                    it.kind == EvidenceSourceKind.MODEL_OUTPUT ||
+                        it.retrievedAt.isAfter(createdAt) ||
+                        it.publishedAt?.isAfter(createdAt) == true
+                }
             ) return denied(LearningProposalDenial.INSUFFICIENT_PROVENANCE)
 
             val sourceReference = "javas-learning:${request.task.id}:${claim.id}:" +
@@ -140,15 +145,29 @@ object LearningMemoryProposalMapper {
             // Approval authorizes this PROPOSED candidate only. It is not consent to
             // retain the knowledge as durable memory. Until a separate retention decision
             // exists, use conservative scores and preserve only the source-reference path.
+            val oldestEvidenceDate = supporting.minOfOrNull { it.publishedAt ?: it.retrievedAt }
+            val evidenceAgeDays = oldestEvidenceDate?.let { Duration.between(it, createdAt).toDays() }
+            val sourceConfidence = supporting.minOfOrNull { it.trustScore } ?: 0.0
+            val sourceVerified = publishers.size >= 2 && sourceConfidence >= 0.5
             val retention = MemoryRetentionProposalFactory.prepare(
                 MemoryRetentionCandidate(
                     type = MemoryRetentionType.RESEARCH_FINDING,
                     futureUseLikelihood = 0.0,
                     uniqueness = 0.0,
                     reResearchCost = 0.0,
-                    sourceVerified = true,
+                    sourceVerified = sourceVerified,
                     sourceReferenceAvailable = true,
-                    explicitlyRequestedToRetain = false
+                    explicitlyRequestedToRetain = false,
+                    recurrence = 0.0,
+                    freshness = evidenceAgeDays?.let { (1.0 - it.toDouble() / 365.0).coerceIn(0.0, 1.0) } ?: 0.0,
+                    changeLikelihood = 0.0,
+                    sourceConfidence = sourceConfidence,
+                    verificationStatus = if (sourceVerified) MemoryVerification.CORROBORATED else MemoryVerification.UNVERIFIED,
+                    independentSourceCount = publishers.size,
+                    provenanceComplete = true,
+                    evidenceValid = supporting.all { it.trustScore in 0.0..1.0 },
+                    evidenceAgeDays = evidenceAgeDays,
+                    maximumEvidenceAgeDays = 365
                 ),
                 record
             )
