@@ -14,7 +14,16 @@ class MemoryRetentionProposalFactoryTest {
         verified: Boolean = true,
         referenceAvailable: Boolean = true,
         retain: Boolean = false
-    ) = MemoryRetentionCandidate(type, 0.9, 0.8, 0.8, verified, referenceAvailable, retain)
+    ) = MemoryRetentionCandidate(
+        type = type,
+        futureUseLikelihood = 0.9,
+        uniqueness = 0.8,
+        reResearchCost = 0.8,
+        sourceVerified = verified,
+        sourceReferenceAvailable = referenceAvailable,
+        explicitlyRequestedToRetain = retain,
+        evidenceAgeDays = 0
+    )
 
     private fun record(
         kind: MemoryKind = MemoryKind.SEMANTIC,
