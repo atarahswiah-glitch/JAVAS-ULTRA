@@ -4,6 +4,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import java.time.Duration
 import java.time.Instant
 
@@ -61,8 +63,8 @@ class LearningCycleCoordinatorTest {
             Result.success(bundle())
         }
 
-        val result = LearningCycleCoordinator(provider, journal)
-            .run(signal, settings, now, tasksCreatedToday = 0)
+        val result = runBlocking { LearningCycleCoordinator(provider, journal)
+            .run(signal, settings, now, tasksCreatedToday = 0) }
 
         assertTrue(result is LearningCycleResult.ReadyForCreatorReview)
         val ready = result as LearningCycleResult.ReadyForCreatorReview
@@ -81,9 +83,9 @@ class LearningCycleCoordinatorTest {
             providerCalls++
             Result.success(bundle())
         }
-        val result = LearningCycleCoordinator(provider, journal).run(
+        val result = runBlocking { LearningCycleCoordinator(provider, journal).run(
             signal.copy(involvesPrivateData = true), settings, now, tasksCreatedToday = 0
-        )
+        ) }
 
         val rejected = result as LearningCycleResult.Rejected
         assertEquals(LearningCycleDenial.PLANNING_REJECTED, rejected.reason)
@@ -96,8 +98,8 @@ class LearningCycleCoordinatorTest {
         val journal = FakeJournal()
         val provider = LearningResearchProvider { _, _, _, _ -> Result.success(bundle(sourceCount = 1)) }
 
-        val result = LearningCycleCoordinator(provider, journal)
-            .run(signal, settings, now, tasksCreatedToday = 0)
+        val result = runBlocking { LearningCycleCoordinator(provider, journal)
+            .run(signal, settings, now, tasksCreatedToday = 0) }
 
         val rejected = result as LearningCycleResult.Rejected
         assertEquals(LearningCycleDenial.EVIDENCE_REJECTED, rejected.reason)
@@ -135,6 +137,26 @@ class LearningCycleCoordinatorTest {
         )
         assertEquals(LearningJournalState.FAILED, journal.entries.values.single().state)
         assertFalse(journal.entries.values.single().sourceIds.isNotEmpty())
+    }
+
+
+    @Test fun researchTimeoutIsRecordedAsFailure() {
+        val journal = FakeJournal()
+        val provider = LearningResearchProvider { _, _, _, _ ->
+            delay(1_500)
+            Result.success(bundle())
+        }
+        val shortSettings = settings.copy(maxTaskDuration = Duration.ofSeconds(1))
+
+        val result = runBlocking {
+            LearningCycleCoordinator(provider, journal)
+                .run(signal, shortSettings, now, tasksCreatedToday = 0)
+        }
+
+        val rejected = result as LearningCycleResult.Rejected
+        assertEquals(LearningCycleDenial.RESEARCH_TIMEOUT, rejected.reason)
+        assertEquals(LearningJournalState.FAILED, journal.entries.values.single().state)
+        assertEquals("RESEARCH_TIMEOUT", journal.entries.values.single().failureCode)
     }
 
     private class FakeJournal : LearningCycleJournal {
