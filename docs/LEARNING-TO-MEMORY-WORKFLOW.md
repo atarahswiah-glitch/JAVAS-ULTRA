@@ -72,3 +72,28 @@ The local `LearningCycleCoordinator` connects the existing planning, task, resea
 6. A successful cycle returns a `READY_FOR_REVIEW` task and deliberately leaves the journal in `SOURCE_REVIEW`. The separate Creator review/proposal workflow must make the next decision.
 
 The provider is an interface only in this increment. No production HTTP transport, claim-extraction model, scheduler, Android UI or background worker is implemented. Provider implementations must enforce the supplied limits and the existing HTTPS, public-only, GET-only, robots, redirect/DNS/IP, timeout and byte-limit requirements. The coordinator does not persist or activate memory and cannot authorize external actions.
+
+
+## Evidence-gated memory retention scoring
+
+The shared `MemoryRetentionPolicy` now scores seven independent numeric signals:
+1. recurrence;
+2. freshness;
+3. change likelihood (higher volatility reduces retention score);
+4. uniqueness;
+5. future usefulness;
+6. re-research cost;
+7. source confidence.
+
+The weighted score is reported separately from the evidence gates. Evidence gates can veto knowledge retention regardless of score:
+- evidence validity;
+- unresolved contradictions or disputed verification;
+- known evidence age within the configured maximum age;
+- complete provenance and a retrievable source reference;
+- verified/corroborated status;
+- at least two independent sources;
+- minimum source confidence.
+
+A gate failure may require Creator review, permit only a source reference, or require fresh research. An explicit retention request does not override evidence gates. An explicit instruction not to retain and secret/transient classifications still take precedence. Creator statements, stable preferences and project decisions use the separate Creator-context path.
+
+The learning proposal mapper now passes source confidence, independent publisher count, verification status, provenance completeness and publication age into the shared policy. Missing publication dates remain unknown; they cannot be silently treated as fresh evidence. The current learning mapper still has no retention consent, so its conservative scores are intended to create source-reference proposals only, not durable knowledge.
