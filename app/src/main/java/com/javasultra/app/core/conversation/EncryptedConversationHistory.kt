@@ -83,7 +83,7 @@ class EncryptedConversationHistory(
         if (!ConversationHistoryPolicy.valid(message)) {
             return failure(ConversationHistoryFailure.INVALID_MESSAGE)
         }
-        if (message.ownerPrincipalId != actorPrincipalId) {
+        if (!ConversationHistoryAccessPolicy.canAccess(message.ownerPrincipalId, actorPrincipalId)) {
             return failure(ConversationHistoryFailure.OWNER_MISMATCH)
         }
         return try {
@@ -140,7 +140,7 @@ class EncryptedConversationHistory(
         actorPrincipalId: String,
         limit: Int
     ): ConversationHistoryResult<List<ConversationMessage>> {
-        if (conversationId.isBlank() || actorPrincipalId.isBlank() || limit !in 1..MAX_READ_LIMIT) {
+        if (!ConversationHistoryAccessPolicy.validReadRequest(conversationId, actorPrincipalId, limit)) {
             return failure(ConversationHistoryFailure.INVALID_MESSAGE)
         }
         return try {
@@ -178,7 +178,7 @@ class EncryptedConversationHistory(
         conversationId: String,
         actorPrincipalId: String
     ): ConversationHistoryResult<Int> {
-        if (conversationId.isBlank() || actorPrincipalId.isBlank()) {
+        if (!ConversationHistoryAccessPolicy.validDeleteRequest(conversationId, actorPrincipalId)) {
             return failure(ConversationHistoryFailure.INVALID_MESSAGE)
         }
         return try {
@@ -276,4 +276,17 @@ object ConversationMessageCodec {
             return result
         }
     }
+}
+
+
+object ConversationHistoryAccessPolicy {
+    fun canAccess(ownerPrincipalId: String, actorPrincipalId: String): Boolean =
+        ownerPrincipalId.isNotBlank() && actorPrincipalId.isNotBlank() &&
+            ownerPrincipalId == actorPrincipalId
+
+    fun validReadRequest(conversationId: String, actorPrincipalId: String, limit: Int): Boolean =
+        conversationId.isNotBlank() && actorPrincipalId.isNotBlank() && limit in 1..200
+
+    fun validDeleteRequest(conversationId: String, actorPrincipalId: String): Boolean =
+        conversationId.isNotBlank() && actorPrincipalId.isNotBlank()
 }
