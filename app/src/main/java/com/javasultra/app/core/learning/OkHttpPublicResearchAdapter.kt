@@ -3,9 +3,12 @@ package com.javasultra.app.core.learning
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.suspendCancellableCoroutine
+import okhttp3.Callback
 import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import org.jsoup.Jsoup
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -17,6 +20,7 @@ import java.net.UnknownHostException
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resumeWithException
 
 /**
  * Read-only HTTPS transport for explicitly allowed public research.
@@ -159,7 +163,7 @@ class OkHttpPublicResearchAdapter(
             }
         }
 
-    private fun fetchRobots(uri: URI): Pair<Boolean, String> {
+    private suspend fun fetchRobots(uri: URI): Pair<Boolean, String> {
         val robotsUri = URI(uri.scheme, null, uri.host, uri.port, "/robots.txt", null, null)
         val response = executeGet(robotsUri, MAX_ROBOTS_BYTES)
         response.use {
@@ -171,7 +175,7 @@ class OkHttpPublicResearchAdapter(
         }
     }
 
-    private fun executeGet(uri: URI, maxBytes: Int): okhttp3.Response {
+    private suspend fun executeGet(uri: URI, maxBytes: Int): Response {
         val request = Request.Builder()
             .url(uri.toString())
             .get()
@@ -179,13 +183,29 @@ class OkHttpPublicResearchAdapter(
             .header("Accept", "text/html,text/plain;q=0.9")
             .header("Accept-Encoding", "gzip")
             .build()
-        val response = client.newCall(request).execute()
-        val declaredLength = response.body?.contentLength() ?: -1L
-        if (declaredLength > maxBytes) {
-            response.close()
-            throw IOException("Research response exceeds byte limit")
+        return suspendCancellableCoroutine { continuation ->
+            val call = client.newCall(request)
+            continuation.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: okhttp3.Call, failure: IOException) {
+                    if (continuation.isActive) continuation.resumeWithException(failure)
+                }
+
+                override fun onResponse(call: okhttp3.Call, response: Response) {
+                    val declaredLength = response.body?.contentLength() ?: -1L
+                    if (declaredLength > maxBytes) {
+                        response.close()
+                        if (continuation.isActive) {
+                            continuation.resumeWithException(IOException("Research response exceeds byte limit"))
+                        }
+                    } else if (continuation.isActive) {
+                        continuation.resume(response)
+                    } else {
+                        response.close()
+                    }
+                }
+            })
         }
-        return response
     }
 
     private fun readBounded(input: java.io.InputStream, maxBytes: Int): ByteArray {
