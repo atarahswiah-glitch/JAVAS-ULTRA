@@ -20,7 +20,6 @@ import java.net.UnknownHostException
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.resumeWithException
 
 /**
  * Read-only HTTPS transport for explicitly allowed public research.
@@ -188,7 +187,7 @@ class OkHttpPublicResearchAdapter(
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: okhttp3.Call, failure: IOException) {
-                    if (continuation.isActive) continuation.resumeWithException(failure)
+                    if (continuation.isActive) continuation.resumeWith(Result.failure(failure))
                 }
 
                 override fun onResponse(call: okhttp3.Call, response: Response) {
@@ -196,10 +195,10 @@ class OkHttpPublicResearchAdapter(
                     if (declaredLength > maxBytes) {
                         response.close()
                         if (continuation.isActive) {
-                            continuation.resumeWithException(IOException("Research response exceeds byte limit"))
+                            continuation.resumeWith(Result.failure(IOException("Research response exceeds byte limit")))
                         }
                     } else if (continuation.isActive) {
-                        continuation.resume(response)
+                        continuation.resumeWith(Result.success(response))
                     } else {
                         response.close()
                     }
