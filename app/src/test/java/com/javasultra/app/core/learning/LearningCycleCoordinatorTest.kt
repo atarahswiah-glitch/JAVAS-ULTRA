@@ -85,11 +85,9 @@ class LearningCycleCoordinatorTest {
             signal.copy(involvesPrivateData = true), settings, now, tasksCreatedToday = 0
         )
 
-        assertEquals(
-            LearningCycleDenial.PLANNING_REJECTED,
-            (result as LearningCycleResult.Rejected).reason
-        )
-        assertEquals(PlanningDenial.PRIVATE_DATA, result.planningDenial)
+        val rejected = result as LearningCycleResult.Rejected
+        assertEquals(LearningCycleDenial.PLANNING_REJECTED, rejected.reason)
+        assertEquals(PlanningDenial.PRIVATE_DATA, rejected.planningDenial)
         assertEquals(0, providerCalls)
         assertTrue(journal.entries.isEmpty())
     }
@@ -101,11 +99,9 @@ class LearningCycleCoordinatorTest {
         val result = LearningCycleCoordinator(provider, journal)
             .run(signal, settings, now, tasksCreatedToday = 0)
 
-        assertEquals(
-            LearningCycleDenial.EVIDENCE_REJECTED,
-            (result as LearningCycleResult.Rejected).reason
-        )
-        assertEquals(EvidenceEvaluationDenial.INSUFFICIENT_INDEPENDENT_SOURCES, result.evidenceDenial)
+        val rejected = result as LearningCycleResult.Rejected
+        assertEquals(LearningCycleDenial.EVIDENCE_REJECTED, rejected.reason)
+        assertEquals(EvidenceEvaluationDenial.INSUFFICIENT_INDEPENDENT_SOURCES, rejected.evidenceDenial)
         assertEquals(LearningJournalState.FAILED, journal.entries.values.single().state)
         assertEquals("EVIDENCE_REJECTED", journal.entries.values.single().failureCode)
     }
