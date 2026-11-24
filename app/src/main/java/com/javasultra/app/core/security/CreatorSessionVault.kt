@@ -26,7 +26,7 @@ data class CreatorSessionCredential(
         if (principalId.isBlank() || principalId.length > 256 ||
             deviceId.isBlank() || deviceId.length > 256 ||
             accessToken.isBlank() || accessToken.length > MAX_TOKEN_CHARS ||
-            refreshToken?.length?.let { it > MAX_TOKEN_CHARS } == true ||
+            refreshToken?.let { it.isBlank() || it.length > MAX_TOKEN_CHARS } == true ||
             !expiresAt.isAfter(issuedAt) ||
             authenticatedAt.isBefore(issuedAt) ||
             authenticatedAt.isAfter(expiresAt) ||
