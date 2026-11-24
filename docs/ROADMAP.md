@@ -134,3 +134,21 @@ Integration priorities:
 6. Add isolated capability improvement with regression checks, approval and rollback.
 
 The next vertical slice should demonstrate one complete learning cycle end-to-end: inspect current capability → identify a gap → discover a resource → learn → practise in a sandbox → pass an evaluation → propose or use an authorized capability → selectively retain useful knowledge → report evidence and limitations. Do not build a broad tool catalogue before this vertical slice works.
+
+
+## Build-ahead increment — public research transport (not yet verified)
+
+On branch `feature/secure-public-research-transport`:
+- Added an OkHttp HTTPS GET transport with custom public-address DNS filtering, manual same-origin redirects, bounded robots.txt checks, response limits, and cancellable network requests.
+- Added orchestration connecting injected public-source discovery, page retrieval and injected evidence-claim extraction to the existing learning-provider contract.
+- Added JVM tests for public IP classification, robots rules, discovery-domain validation, duplicate candidates, source budgets and coordinator timeouts.
+- Added the Android INTERNET permission and documented the transport boundary.
+
+Not yet complete:
+- This branch has not been built or tested by CI.
+- No real search/discovery adapter or approved model-based claim extractor is configured.
+- No trusted server-side egress proxy is implemented.
+- The transport is not wired into a user-facing learning screen, scheduler or active worker.
+- No Android installation or device testing has been performed.
+
+Next integrated work remains Creator identity/session and memory-management UI, followed by approved discovery/extraction adapters and trusted backend enforcement. Device-only checks remain deferred until the Creator requests testing.
