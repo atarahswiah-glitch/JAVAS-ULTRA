@@ -242,7 +242,7 @@ class CreatorSessionCoordinator(
         }
         if (credential == null) return CreatorSessionResult.NoSession
         val revoked = try {
-            revokeQuietly(credential.accessToken).isSuccess
+            authentication.revoke(credential.accessToken).isSuccess
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
