@@ -24,9 +24,10 @@ class CreatorSessionCoordinatorTest {
         vault: FakeVault = FakeVault(),
         accountState: CreatorAccountState = CreatorAccountState.ACTIVE,
         deviceState: RegisteredDeviceState = RegisteredDeviceState.VERIFIED,
-        remoteRevokeSucceeds: Boolean = true
+        remoteRevokeSucceeds: Boolean = true,
+        refreshSession: ProviderAuthenticationResult? = null
     ): Triple<CreatorSessionCoordinator, FakeVault, FakeAuthentication> {
-        val auth = FakeAuthentication(providerSession, remoteRevokeSucceeds)
+        val auth = FakeAuthentication(providerSession, remoteRevokeSucceeds, refreshSession)
         val accounts = object : CreatorAccountGateway {
             override suspend fun loadCreator(accessToken: String) =
                 Result.success(CreatorIdentitySnapshot(PrincipalId("creator-1"), accountState))
@@ -100,6 +101,32 @@ class CreatorSessionCoordinatorTest {
         assertEquals(null, vault.credential)
     }
 
+
+    @Test fun refreshesExpiredSessionWithoutElevatingAuthenticationStrength() = runBlocking {
+        val expired = providerSession.copy(
+            issuedAt = now.minusSeconds(7_200),
+            authenticatedAt = now.minusSeconds(7_200),
+            expiresAt = now
+        )
+        val refreshed = providerSession.copy(
+            accessToken = "new-access-token",
+            refreshToken = "new-refresh-token",
+            issuedAt = now,
+            authenticatedAt = now,
+            expiresAt = now.plusSeconds(3_600)
+        )
+        val vault = FakeVault().apply { credential = expired.toCredential("device-1") }
+        val (manager, _, _) = coordinator(vault, refreshSession = refreshed)
+
+        val result = manager.restore(now.plusSeconds(1))
+
+        assertTrue(result is CreatorSessionResult.Authenticated)
+        assertEquals("new-access-token", vault.credential?.accessToken)
+        assertEquals(AuthenticationStrength.MULTI_FACTOR, vault.credential?.strength)
+        assertEquals(2, vault.credential?.verifiedFactorCount)
+        assertEquals(expired.authenticatedAt, vault.credential?.authenticatedAt)
+    }
+
     @Test fun signOutClearsLocalCredentialEvenWhenRemoteRevocationFails() = runBlocking {
         val vault = FakeVault().apply { credential = providerSession.toCredential("device-1") }
         val (manager, _, _) = coordinator(vault, remoteRevokeSucceeds = false)
@@ -113,13 +140,18 @@ class CreatorSessionCoordinatorTest {
 
     private class FakeAuthentication(
         private val session: ProviderAuthenticationResult,
-        private val revokeSucceeds: Boolean
+        private val revokeSucceeds: Boolean,
+        private val refreshedSession: ProviderAuthenticationResult?
     ) : CreatorAuthenticationGateway {
         var revocations = 0
         override suspend fun authenticate(identifier: String, secret: CharArray) =
             Result.success(session)
 
-        override suspend fun revoke(accessToken: String): Result<Unit> {
+        override suspend fun refresh(refreshToken: String): Result<ProviderAuthenticationResult> =
+            refreshedSession?.let { Result.success(it) }
+                ?: Result.failure(IllegalStateException("refresh unavailable"))
+
+        override suspend fun revoke(accessToken: String, refreshToken: String?): Result<Unit> {
             revocations++
             return if (revokeSucceeds) Result.success(Unit)
             else Result.failure(IllegalStateException("remote revoke unavailable"))
