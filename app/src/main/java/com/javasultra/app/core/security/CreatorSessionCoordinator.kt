@@ -101,7 +101,7 @@ class CreatorSessionCoordinator(
         val deviceId = try {
             deviceIdentity.getOrCreateDeviceId()
         } catch (_: Exception) {
-            authentication.revoke(providerSession.accessToken)
+            revokeQuietly(providerSession.accessToken)
             return CreatorSessionResult.Denied(CreatorSessionDenial.INVALID_INPUT)
         }
         val credential = CreatorSessionCredential(
@@ -116,51 +116,51 @@ class CreatorSessionCoordinator(
             verifiedFactorCount = providerSession.verifiedFactorCount
         )
         if (!credential.validate() || now.isBefore(credential.issuedAt) || !now.isBefore(credential.expiresAt)) {
-            authentication.revoke(providerSession.accessToken)
+            revokeQuietly(providerSession.accessToken)
             return CreatorSessionResult.Denied(CreatorSessionDenial.INVALID_PROVIDER_SESSION)
         }
 
         val identity = try {
             accounts.loadCreator(credential.accessToken).getOrElse {
-                authentication.revoke(credential.accessToken)
+                revokeQuietly(credential.accessToken)
                 return CreatorSessionResult.Denied(CreatorSessionDenial.IDENTITY_SERVICE_UNAVAILABLE)
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            authentication.revoke(credential.accessToken)
+            revokeQuietly(credential.accessToken)
             return CreatorSessionResult.Denied(CreatorSessionDenial.IDENTITY_SERVICE_UNAVAILABLE)
         }
         if (identity.principalId != providerSession.principalId ||
             identity.accountState != CreatorAccountState.ACTIVE
         ) {
-            authentication.revoke(credential.accessToken)
+            revokeQuietly(credential.accessToken)
             return CreatorSessionResult.Denied(CreatorSessionDenial.ACCOUNT_NOT_ACTIVE)
         }
 
         val device = try {
             accounts.verifyDevice(credential.accessToken, deviceId).getOrElse {
-                authentication.revoke(credential.accessToken)
+                revokeQuietly(credential.accessToken)
                 return CreatorSessionResult.Denied(CreatorSessionDenial.DEVICE_SERVICE_UNAVAILABLE)
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            authentication.revoke(credential.accessToken)
+            revokeQuietly(credential.accessToken)
             return CreatorSessionResult.Denied(CreatorSessionDenial.DEVICE_SERVICE_UNAVAILABLE)
         }
         if (device.deviceId != deviceId) {
-            authentication.revoke(credential.accessToken)
+            revokeQuietly(credential.accessToken)
             return CreatorSessionResult.Denied(CreatorSessionDenial.DEVICE_NOT_VERIFIED)
         }
         if (device.state != RegisteredDeviceState.VERIFIED) {
-            authentication.revoke(credential.accessToken)
+            revokeQuietly(credential.accessToken)
             return CreatorSessionResult.DeviceVerificationRequired(deviceId)
         }
 
         val decision = evaluateCredential(credential, identity, device, now, Duration.ofMinutes(5))
         if (decision != IdentityDecision.Allowed) {
-            authentication.revoke(credential.accessToken)
+            revokeQuietly(credential.accessToken)
             return CreatorSessionResult.Denied(CreatorSessionDenial.IDENTITY_POLICY_DENIED)
         }
 
@@ -168,7 +168,7 @@ class CreatorSessionCoordinator(
             is CreatorSessionVaultResult.Success ->
                 CreatorSessionResult.Authenticated(providerSession.principalId, deviceId, credential.expiresAt)
             is CreatorSessionVaultResult.Failure -> {
-                authentication.revoke(credential.accessToken)
+                revokeQuietly(credential.accessToken)
                 CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_VAULT_WRITE_FAILED)
             }
         }
@@ -242,13 +242,24 @@ class CreatorSessionCoordinator(
         }
         if (credential == null) return CreatorSessionResult.NoSession
         val revoked = try {
-            authentication.revoke(credential.accessToken).isSuccess
+            revokeQuietly(credential.accessToken).isSuccess
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
             false
         }
         return CreatorSessionResult.SignedOut(serverRevocationConfirmed = revoked)
+    }
+
+
+    private suspend fun revokeQuietly(accessToken: String) {
+        try {
+            authentication.revoke(accessToken)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // The short-lived provider token is not persisted when local checks fail.
+        }
     }
 
     private fun evaluateCredential(
