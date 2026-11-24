@@ -137,17 +137,18 @@ object LearningMemoryProposalMapper {
             )
             if (record.validate().isNotEmpty()) return denied(LearningProposalDenial.INVALID_CLAIM)
 
-            // Creator approval authorizes a proposal only, not activation. Treat it as
-            // explicit permission to prepare a durable candidate and retain source provenance.
+            // Approval authorizes this PROPOSED candidate only. It is not consent to
+            // retain the knowledge as durable memory. Until a separate retention decision
+            // exists, use conservative scores and preserve only the source-reference path.
             val retention = MemoryRetentionProposalFactory.prepare(
                 MemoryRetentionCandidate(
                     type = MemoryRetentionType.RESEARCH_FINDING,
-                    futureUseLikelihood = 0.5,
-                    uniqueness = 0.5,
-                    reResearchCost = 0.5,
+                    futureUseLikelihood = 0.0,
+                    uniqueness = 0.0,
+                    reResearchCost = 0.0,
                     sourceVerified = true,
                     sourceReferenceAvailable = true,
-                    explicitlyRequestedToRetain = true
+                    explicitlyRequestedToRetain = false
                 ),
                 record
             )
