@@ -15,7 +15,6 @@ import java.net.InetAddress
 import java.net.URI
 import java.net.UnknownHostException
 import java.security.MessageDigest
-import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
@@ -135,7 +134,7 @@ class OkHttpPublicResearchAdapter(
                                 return@withContext Result.failure(IllegalStateException("Extracted research content is empty or over limit"))
                             }
                             val retrievedAt = clock()
-                            if (retrievedAt == Instant.MIN || retrievedAt.isAfter(Instant.now().plusSeconds(60))) {
+                            if (retrievedAt == Instant.MIN || !retrievedAt.isAfter(Instant.EPOCH)) {
                                 return@withContext Result.failure(IllegalStateException("Invalid research clock"))
                             }
                             return@withContext Result.success(
