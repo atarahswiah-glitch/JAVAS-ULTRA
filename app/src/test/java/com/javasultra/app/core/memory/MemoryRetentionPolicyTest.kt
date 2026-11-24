@@ -186,6 +186,36 @@ class MemoryRetentionPolicyTest {
         assertEquals(MemoryEvidenceGateFailure.LOW_SOURCE_CONFIDENCE, result.evidenceGateFailure)
     }
 
+
+    @Test fun explicitRetentionRequestCannotOverrideContradictionGate() {
+        val result = MemoryRetentionPolicy.evaluate(
+            candidate(
+                retain = true,
+                futureUse = 1.0,
+                uniqueness = 1.0,
+                researchCost = 1.0,
+                recurrence = 1.0,
+                freshness = 1.0,
+                sourceConfidence = 1.0,
+                contradictionStatus = MemoryContradictionStatus.UNRESOLVED
+            )
+        )
+        assertEquals(MemoryRetentionAction.REQUIRE_CREATOR_REVIEW, result.action)
+        assertEquals(MemoryEvidenceGateFailure.CONTRADICTION_UNRESOLVED, result.evidenceGateFailure)
+    }
+
+    @Test fun explicitRetentionRequestCannotOverrideInsufficientSources() {
+        val result = MemoryRetentionPolicy.evaluate(
+            candidate(
+                retain = true,
+                independentSources = 1,
+                verificationStatus = MemoryVerification.SINGLE_SOURCE
+            )
+        )
+        assertEquals(MemoryRetentionAction.STORE_SOURCE_REFERENCE, result.action)
+        assertEquals(MemoryEvidenceGateFailure.INSUFFICIENT_INDEPENDENT_SOURCES, result.evidenceGateFailure)
+    }
+
     @Test fun invalidEvidenceRequiresCreatorReview() {
         val result = MemoryRetentionPolicy.evaluate(candidate(evidenceValid = false))
         assertEquals(MemoryRetentionAction.REQUIRE_CREATOR_REVIEW, result.action)
