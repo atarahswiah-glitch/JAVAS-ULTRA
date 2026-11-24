@@ -145,10 +145,13 @@ object LearningMemoryProposalMapper {
             // Approval authorizes this PROPOSED candidate only. It is not consent to
             // retain the knowledge as durable memory. Until a separate retention decision
             // exists, use conservative scores and preserve only the source-reference path.
-            val oldestEvidenceDate = supporting.minOfOrNull { it.publishedAt ?: it.retrievedAt }
-            val evidenceAgeDays = oldestEvidenceDate?.let { Duration.between(it, createdAt).toDays() }
+            val evidenceAgeDays = if (supporting.any { it.publishedAt == null }) {
+                null
+            } else {
+                Duration.between(supporting.minOf { it.publishedAt!! }, createdAt).toDays()
+            }
             val sourceConfidence = supporting.minOfOrNull { it.trustScore } ?: 0.0
-            val sourceVerified = publishers.size >= 2 && sourceConfidence >= 0.5
+            val sourceVerified = publishers.size >= 2
             val retention = MemoryRetentionProposalFactory.prepare(
                 MemoryRetentionCandidate(
                     type = MemoryRetentionType.RESEARCH_FINDING,
