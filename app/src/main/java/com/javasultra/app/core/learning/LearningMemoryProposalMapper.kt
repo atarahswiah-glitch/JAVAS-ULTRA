@@ -152,7 +152,7 @@ object LearningMemoryProposalMapper {
                 ),
                 record
             )
-            if (retention.retention.action != MemoryRetentionAction.STORE_KNOWLEDGE ||
+            if (retention.retention.action != MemoryRetentionAction.STORE_SOURCE_REFERENCE ||
                 retention.recordToPropose == null
             ) return denied(LearningProposalDenial.RETENTION_POLICY_REJECTED)
             records += retention.recordToPropose
