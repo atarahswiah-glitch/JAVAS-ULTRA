@@ -183,9 +183,52 @@ class CreatorSessionCoordinator(
             is CreatorSessionVaultResult.Failure ->
                 return CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_VAULT_UNAVAILABLE)
         }
-        if (!credential.validate() || !now.isBefore(credential.expiresAt)) {
+        if (!credential.validate()) {
             vault.clear()
             return CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_EXPIRED)
+        }
+        if (!now.isBefore(credential.expiresAt)) {
+            val refreshToken = credential.refreshToken
+                ?: run {
+                    vault.clear()
+                    return CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_EXPIRED)
+                }
+            val refreshed = try {
+                authentication.refresh(refreshToken).getOrElse {
+                    return CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_REFRESH_UNAVAILABLE)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                return CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_REFRESH_UNAVAILABLE)
+            }
+            val refreshedCredential = CreatorSessionCredential(
+                principalId = refreshed.principalId.value,
+                deviceId = credential.deviceId,
+                accessToken = refreshed.accessToken,
+                refreshToken = refreshed.refreshToken,
+                issuedAt = refreshed.issuedAt,
+                authenticatedAt = credential.authenticatedAt,
+                expiresAt = refreshed.expiresAt,
+                strength = credential.strength,
+                verifiedFactorCount = credential.verifiedFactorCount
+            )
+            if (refreshed.principalId.value != credential.principalId ||
+                refreshed.strength != credential.strength ||
+                refreshed.verifiedFactorCount != credential.verifiedFactorCount ||
+                refreshed.issuedAt.isBefore(credential.issuedAt) ||
+                !refreshedCredential.validate() ||
+                now.isBefore(refreshedCredential.issuedAt) ||
+                !now.isBefore(refreshedCredential.expiresAt)
+            ) {
+                revokeQuietly(refreshed.accessToken, refreshed.refreshToken)
+                vault.clear()
+                return CreatorSessionResult.Denied(CreatorSessionDenial.IDENTITY_POLICY_DENIED)
+            }
+            if (vault.write(refreshedCredential) is CreatorSessionVaultResult.Failure) {
+                return CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_VAULT_WRITE_FAILED)
+            }
+            credential = refreshedCredential
         }
 
         val identity = try {
