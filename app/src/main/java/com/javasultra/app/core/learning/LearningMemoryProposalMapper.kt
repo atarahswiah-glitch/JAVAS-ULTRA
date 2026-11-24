@@ -151,7 +151,7 @@ object LearningMemoryProposalMapper {
                 Duration.between(supporting.minOf { it.publishedAt!! }, createdAt).toDays()
             }
             val sourceConfidence = supporting.minOfOrNull { it.trustScore } ?: 0.0
-            val sourceVerified = publishers.size >= 2
+            val sourceVerified = supporting.isNotEmpty()
             val retention = MemoryRetentionProposalFactory.prepare(
                 MemoryRetentionCandidate(
                     type = MemoryRetentionType.RESEARCH_FINDING,
@@ -165,7 +165,11 @@ object LearningMemoryProposalMapper {
                     freshness = evidenceAgeDays?.let { (1.0 - it.toDouble() / 365.0).coerceIn(0.0, 1.0) } ?: 0.0,
                     changeLikelihood = 0.0,
                     sourceConfidence = sourceConfidence,
-                    verificationStatus = if (sourceVerified) MemoryVerification.CORROBORATED else MemoryVerification.UNVERIFIED,
+                    verificationStatus = when {
+                        publishers.size >= 2 -> MemoryVerification.CORROBORATED
+                        publishers.isNotEmpty() -> MemoryVerification.SINGLE_SOURCE
+                        else -> MemoryVerification.UNVERIFIED
+                    },
                     independentSourceCount = publishers.size,
                     provenanceComplete = true,
                     evidenceValid = supporting.all { it.trustScore in 0.0..1.0 },
