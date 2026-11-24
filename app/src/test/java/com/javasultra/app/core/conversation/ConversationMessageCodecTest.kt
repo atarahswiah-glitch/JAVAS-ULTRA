@@ -30,10 +30,15 @@ class ConversationMessageCodecTest {
         )
     }
 
-    @Test fun acceptsOnlyBoundedNonEmptyReadRequests() {
-        assertTrue(ConversationHistoryPolicy.valid(sample))
-        assertEquals(ConversationHistoryFailure.INVALID_MESSAGE, invalidReadResult("thread-1", "creator-1", 0))
-        assertEquals(ConversationHistoryFailure.INVALID_MESSAGE, invalidReadResult("", "creator-1", 10))
+    @Test fun enforcesOwnerAndBoundedHistoryAccess() {
+        assertTrue(ConversationHistoryAccessPolicy.canAccess("creator-1", "creator-1"))
+        assertFalse(ConversationHistoryAccessPolicy.canAccess("creator-1", "other-user"))
+        assertFalse(ConversationHistoryAccessPolicy.canAccess("", "creator-1"))
+        assertTrue(ConversationHistoryAccessPolicy.validReadRequest("thread-1", "creator-1", 100))
+        assertFalse(ConversationHistoryAccessPolicy.validReadRequest("thread-1", "creator-1", 201))
+        assertFalse(ConversationHistoryAccessPolicy.validReadRequest("", "creator-1", 10))
+        assertTrue(ConversationHistoryAccessPolicy.validDeleteRequest("thread-1", "creator-1"))
+        assertFalse(ConversationHistoryAccessPolicy.validDeleteRequest("thread-1", ""))
     }
 
     @Test fun codecRejectsUnsupportedVersionAndTrailingBytes() {
