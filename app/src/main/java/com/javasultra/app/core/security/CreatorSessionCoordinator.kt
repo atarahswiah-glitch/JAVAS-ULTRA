@@ -22,7 +22,8 @@ interface CreatorAuthenticationGateway {
         secret: CharArray
     ): Result<ProviderAuthenticationResult>
 
-    suspend fun revoke(accessToken: String): Result<Unit>
+    suspend fun refresh(refreshToken: String): Result<ProviderAuthenticationResult>
+    suspend fun revoke(accessToken: String, refreshToken: String?): Result<Unit>
 }
 
 interface CreatorAccountGateway {
@@ -45,6 +46,7 @@ enum class CreatorSessionDenial {
     DEVICE_NOT_VERIFIED,
     IDENTITY_POLICY_DENIED,
     SESSION_EXPIRED,
+    SESSION_REFRESH_UNAVAILABLE,
     SESSION_VAULT_UNAVAILABLE,
     SESSION_VAULT_WRITE_FAILED,
     SESSION_VAULT_CLEAR_FAILED
@@ -101,7 +103,7 @@ class CreatorSessionCoordinator(
         val deviceId = try {
             deviceIdentity.getOrCreateDeviceId()
         } catch (_: Exception) {
-            revokeQuietly(providerSession.accessToken)
+            revokeQuietly(providerSession.accessToken, providerSession.refreshToken)
             return CreatorSessionResult.Denied(CreatorSessionDenial.INVALID_INPUT)
         }
         val credential = CreatorSessionCredential(
@@ -122,7 +124,7 @@ class CreatorSessionCoordinator(
 
         val identity = try {
             accounts.loadCreator(credential.accessToken).getOrElse {
-                revokeQuietly(credential.accessToken)
+                revokeQuietly(credential.accessToken, credential.refreshToken)
                 return CreatorSessionResult.Denied(CreatorSessionDenial.IDENTITY_SERVICE_UNAVAILABLE)
             }
         } catch (cancelled: CancellationException) {
@@ -242,7 +244,7 @@ class CreatorSessionCoordinator(
         }
         if (credential == null) return CreatorSessionResult.NoSession
         val revoked = try {
-            authentication.revoke(credential.accessToken).isSuccess
+            authentication.revoke(credential.accessToken, credential.refreshToken).isSuccess
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -252,9 +254,9 @@ class CreatorSessionCoordinator(
     }
 
 
-    private suspend fun revokeQuietly(accessToken: String) {
+    private suspend fun revokeQuietly(accessToken: String, refreshToken: String?) {
         try {
-            authentication.revoke(accessToken)
+            authentication.revoke(accessToken, refreshToken)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
