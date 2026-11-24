@@ -102,7 +102,7 @@ data class MemoryRetentionDecision(
  * or delete records; repository and trusted identity boundaries must enforce those operations.
  */
 object MemoryRetentionPolicy {
-    private const val KNOWLEDGE_RETENTION_THRESHOLD = 0.40
+    private const val KNOWLEDGE_RETENTION_THRESHOLD = 0.41
     private const val MIN_SOURCE_CONFIDENCE = 0.50
 
     fun evaluate(candidate: MemoryRetentionCandidate): MemoryRetentionDecision {
