@@ -35,7 +35,15 @@ class CreatorMemoryManagerTest {
                 ) != MemoryActivationDecision.Allowed
             ) return failure(MemoryRepositoryFailure.ACCESS_DENIED)
             prior?.let { records[it.id] = it.copy(lifecycle = MemoryLifecycle.SUPERSEDED, updatedAt = at) }
-            val active = record.copy(lifecycle = MemoryLifecycle.ACTIVE, updatedAt = at)
+            val active = record.copy(
+                lifecycle = MemoryLifecycle.ACTIVE,
+                updatedAt = at,
+                verification = if (record.provenance.sourceType == MemorySourceType.CREATOR_STATEMENT) {
+                    MemoryVerification.CREATOR_CONFIRMED
+                } else {
+                    record.verification
+                }
+            )
             records[id] = active
             return MemoryRepositoryResult.Success(active)
         }
@@ -110,6 +118,7 @@ class CreatorMemoryManagerTest {
         val confirmed = manager.confirm("creator-1", proposed.id, now.plusSeconds(1))
         assertTrue(confirmed is MemoryRepositoryResult.Success)
         assertEquals(MemoryLifecycle.ACTIVE, (confirmed as MemoryRepositoryResult.Success).value.lifecycle)
+        assertEquals(MemoryVerification.CREATOR_CONFIRMED, confirmed.value.verification)
     }
 
     @Test fun correctionProposalDoesNotReplaceTheActiveRecordUntilConfirmed() {
@@ -144,6 +153,7 @@ class CreatorMemoryManagerTest {
         assertTrue(activated is MemoryRepositoryResult.Success)
         assertEquals(MemoryLifecycle.SUPERSEDED, repository.records[original.id]?.lifecycle)
         assertEquals(MemoryLifecycle.ACTIVE, repository.records[replacement.id]?.lifecycle)
+        assertEquals(MemoryVerification.CREATOR_CONFIRMED, repository.records[replacement.id]?.verification)
     }
 
     @Test fun highlySensitiveMemoryRequiresStepUpForReviewAndDeletion() {
