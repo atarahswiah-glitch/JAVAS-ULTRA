@@ -11,16 +11,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 class MainActivity : ComponentActivity() {
@@ -36,7 +41,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                JavasApplicationShell()
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    JavasApplicationShell()
+                }
             }
         }
     }
@@ -84,7 +91,7 @@ internal fun JavasApplicationShell() {
             ) {
                 Column {
                     Text("JAVAS ULTRA", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("Personal companion", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Your personal companion", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text("FOUNDATION", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             }
@@ -101,25 +108,52 @@ internal fun JavasApplicationShell() {
 
 @Composable
 private fun ChatHome() {
+    var draft by rememberSaveable { mutableStateOf("") }
+
     Text("Good day, Creator.", style = MaterialTheme.typography.headlineMedium)
     Text(
-        "JAVAS is being assembled. This screen is the conversation entry point; a live AI model is not connected yet.",
+        "This is where your conversations with JAVAS will happen. The secure conversation engine is being connected to the app.",
         style = MaterialTheme.typography.bodyLarge
     )
     StatusCard(
-        title = "Conversation service",
+        title = "AI connection",
         status = "Not connected",
-        detail = "Messages cannot be sent to an AI provider from this build. No message is being silently stored or transmitted."
+        detail = "No live AI provider is configured. JAVAS will not pretend to answer or send your private messages to an unapproved service."
     )
     StatusCard(
-        title = "Identity and sign-in",
-        status = "Integration pending",
-        detail = "The secure Creator session foundation is being developed separately. This screen does not claim that you are authenticated."
+        title = "Creator protection",
+        status = "Connection required",
+        detail = "A verified Creator session must be active before private memory or a live conversation can be used."
     )
-    StatusCard(
-        title = "Voice interaction",
-        status = "Not enabled",
-        detail = "Microphone access and voice processing remain disabled until their permission and privacy flows are implemented."
+
+    Text("Message composer", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+    OutlinedTextField(
+        value = draft,
+        onValueChange = { if (it.length <= 12_000) draft = it },
+        modifier = Modifier.fillMaxWidth(),
+        enabled = true,
+        minLines = 3,
+        maxLines = 7,
+        label = { Text("Write a message") },
+        placeholder = { Text("Your message draft stays on this screen; sending is not available yet.") },
+        supportingText = { Text("${draft.length} / 12,000 characters · Not sent or stored as chat history") }
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Button(onClick = { /* Deliberately unavailable until authenticated model routing is wired. */ }, enabled = false) {
+            Text("Send")
+        }
+        TextButton(onClick = { draft = "" }, enabled = draft.isNotEmpty()) {
+            Text("Clear draft")
+        }
+    }
+    Text(
+        "Voice, attachments, conversation history and message sending will be enabled only after their privacy and security integrations are complete.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
 
@@ -127,47 +161,68 @@ private fun ChatHome() {
 private fun LearningHome() {
     Text("Learning workspace", style = MaterialTheme.typography.headlineMedium)
     Text(
-        "The planned learning cycle is inspect → identify a gap → plan → research → practise → evaluate → report.",
+        "JAVAS is being designed to improve through a controlled learning cycle.",
         style = MaterialTheme.typography.bodyLarge
     )
     StatusCard(
-        title = "Learning coordinator",
-        status = "Domain foundation in progress",
-        detail = "The coordinator and research interfaces have been drafted. A complete live discovery and evidence-extraction provider is not configured."
+        title = "Learning cycle",
+        status = "Architecture in progress",
+        detail = "Inspect → identify a gap → plan → research → practise → evaluate → report. Each stage must keep evidence and its completion status."
+    )
+    StatusCard(
+        title = "Research sources",
+        status = "Not connected",
+        detail = "The secure public-research transport is a foundation only. Live search discovery and evidence extraction still need approved providers."
     )
     StatusCard(
         title = "Autonomy boundary",
-        status = "Creator approval required",
-        detail = "JAVAS may prepare recommendations, but it cannot grant itself permissions, activate protected memory or perform restricted actions."
+        status = "Creator remains in control",
+        detail = "JAVAS may prepare plans and recommendations. It cannot grant itself permissions, activate protected memory or perform restricted actions."
     )
     StatusCard(
         title = "Scheduled learning",
         status = "Not running",
-        detail = "No background learning worker or schedule is active in this app shell."
+        detail = "No background learning worker or schedule is active in this app."
     )
 }
 
 @Composable
 private fun MemoryHome() {
+    var searchDraft by rememberSaveable { mutableStateOf("") }
+
     Text("Memory centre", style = MaterialTheme.typography.headlineMedium)
     Text(
-        "Memory must remain inspectable, correctable and under Creator control.",
+        "Your memory should be accurate, private, searchable and under your control.",
         style = MaterialTheme.typography.bodyLarge
     )
     StatusCard(
-        title = "Encrypted local storage",
-        status = "Foundation drafted",
-        detail = "Encryption and storage components exist in the project, but they are not yet connected to this screen or a complete memory workflow."
+        title = "Encrypted local memory",
+        status = "Storage foundation exists · screen not connected",
+        detail = "The encrypted repository and access rules are present in the project. This screen does not yet read, create, edit or delete records."
     )
-    StatusCard(
-        title = "Evidence and sources",
-        status = "Policy foundation drafted",
-        detail = "Retention rules distinguish verified knowledge from single-source or uncertain material. Evidence must pass its gates before knowledge can be activated."
+    OutlinedTextField(
+        value = searchDraft,
+        onValueChange = { if (it.length <= 300) searchDraft = it },
+        modifier = Modifier.fillMaxWidth(),
+        enabled = false,
+        singleLine = true,
+        label = { Text("Search your memories") },
+        placeholder = { Text("Available after Creator sign-in") }
     )
     StatusCard(
         title = "Your saved memories",
-        status = "Not displayed yet",
-        detail = "This screen does not read or expose stored memory yet. No sample entries are presented as real personal memories."
+        status = "Not loaded",
+        detail = "No entries are shown because the app has no verified Creator session connected to the memory screen. No sample memories are being presented as yours."
+    )
+    StatusCard(
+        title = "Memory controls",
+        status = "Not connected",
+        detail = "Review, correct, confirm, expire, export and delete controls will be connected with owner checks and step-up authentication for highly sensitive records."
+    )
+    StatusCard(
+        title = "Evidence quality",
+        status = "Policy foundation exists",
+        detail = "Unverified, single-source, corroborated, Creator-confirmed and disputed information must remain clearly distinguished."
     )
 }
 
@@ -176,23 +231,28 @@ private fun ProfileHome() {
     Text("Creator and settings", style = MaterialTheme.typography.headlineMedium)
     StatusCard(
         title = "Creator account",
-        status = "Authentication not connected",
-        detail = "Sign-in, account recovery, device registration and session revocation still require a production authentication service."
+        status = "Authentication provider not connected",
+        detail = "The local session coordinator is drafted. A trusted account service, sign-in UI, recovery and server-side verification are still required."
     )
     StatusCard(
         title = "Registered device",
-        status = "Local identity foundation drafted",
-        detail = "The current app-scoped device identifier is not hardware attestation and is not proof of a trusted device."
+        status = "Local identity foundation",
+        detail = "The app-scoped device identifier is not hardware attestation and does not independently prove that a device is trusted."
     )
     StatusCard(
         title = "Permissions and capabilities",
-        status = "Not connected",
-        detail = "No device-action capabilities are enabled from this screen. Protected permissions must be granted by the Creator."
+        status = "No capabilities enabled",
+        detail = "JAVAS cannot install or grant itself tools. Each protected capability must have a clear purpose, permission, scope and revocation path."
     )
     StatusCard(
-        title = "Privacy and safety",
-        status = "Core rules in development",
-        detail = "No microphone, camera, location or background sensor collection is started by this foundation screen."
+        title = "Privacy",
+        status = "Sensors inactive",
+        detail = "This foundation screen does not start microphone, camera, location or background sensor collection."
+    )
+    StatusCard(
+        title = "Build status",
+        status = "Development build",
+        detail = "The current app is not a production-ready companion. Build, automated tests and real-device verification are still required for the latest changes."
     )
 }
 
@@ -212,4 +272,3 @@ private fun StatusCard(title: String, status: String, detail: String) {
         }
     }
 }
-
