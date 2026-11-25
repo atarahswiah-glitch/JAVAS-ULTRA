@@ -233,3 +233,26 @@ Verification status:
 - Added JVM test source for successful issuance and all denial cases.
 - This remains a client-side boundary only. It does not replace server-side access-token validation, device verification, revocation checks or provider-side authorization. The current Compose shell does not yet instantiate or wire the production session coordinator.
 - No Gradle build or tests were run; test sources are authored but unverified.
+
+
+## Native companion interaction and Creator memory management increment — 2026-11-25
+
+Implemented on `feature/native-companion-navigation-shell`:
+
+- Reworked the native Chat, Learn, Memory and Profile destinations into clearer task-oriented screens.
+- Chat now has an editable, bounded message draft and a clear action. Sending remains disabled until verified Creator authentication and an approved private-data-capable model provider are actually wired. No transcript is fabricated or silently persisted.
+- Memory now communicates the real state of encrypted storage and explicitly avoids showing sample memories as Creator data. Search remains disabled until the screen is connected to an authenticated repository session.
+- Added `CreatorMemoryManager` use cases over the encrypted repository:
+  - Creator statements are stored as PROPOSED, never silently activated.
+  - Explicit confirmation is the only proposal-to-ACTIVE transition.
+  - Corrections create a new proposal and leave the current active memory unchanged until the correction is confirmed.
+  - Review, export and delete use distinct access actions.
+  - Highly-sensitive records require step-up authentication through the existing access policy.
+  - Owner, content, tag and expiry input bounds are validated before storage.
+- Added JVM test source for proposal/confirmation, correction/supersession, highly-sensitive access and invalid input.
+- No fake authentication, fake model replies, fake memories or enabled tool actions have been added.
+
+Verification:
+- Source and documentation were committed to the active feature branch.
+- No Gradle build, JVM tests, Android instrumentation tests, CI run, APK build, installation or physical-device test was performed. All newly authored tests remain unverified.
+- Chat sending, authenticated memory listing and the memory-management UI are still blocked on production identity and application dependency wiring. The current Chat draft is not a conversation transcript.
