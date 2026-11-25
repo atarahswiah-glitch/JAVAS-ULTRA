@@ -178,7 +178,7 @@ class CreatorSessionCoordinator(
 
     /** Revalidates the stored session with the trusted identity and device services. */
     suspend fun restore(now: Instant): CreatorSessionResult {
-        val credential = when (val stored = vault.read()) {
+        var credential = when (val stored = vault.read()) {
             is CreatorSessionVaultResult.Success -> stored.value ?: return CreatorSessionResult.NoSession
             is CreatorSessionVaultResult.Failure ->
                 return CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_VAULT_UNAVAILABLE)
@@ -299,7 +299,7 @@ class CreatorSessionCoordinator(
     }
 
 
-    private suspend fun revokeQuietly(accessToken: String, refreshToken: String?) {
+    private suspend fun revokeQuietly(accessToken: String, refreshToken: String? = null) {
         try {
             authentication.revoke(accessToken, refreshToken)
         } catch (cancelled: CancellationException) {
