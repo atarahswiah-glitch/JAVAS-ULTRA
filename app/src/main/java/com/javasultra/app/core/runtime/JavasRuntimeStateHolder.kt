@@ -66,7 +66,7 @@ class JavasRuntimeStateHolder(
         val result = try {
             runtime.signIn(identifier, secret)
         } catch (failure: Exception) {
-            secret.fill('\\u0000')
+            secret.fill('\u0000')
             throw failure
         }
         when (result) {
