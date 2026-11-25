@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { isValidMessages, MAX_MESSAGE_CHARS, MAX_MESSAGES } from "./validation.ts";
+import { isCreatorAllowed, isValidMessages, MAX_MESSAGE_CHARS, MAX_MESSAGES } from "./validation.ts";
 
 Deno.test("accepts a bounded user message", () => {
   assert(isValidMessages([{ role: "user", content: "Hello JAVAS" }]));
@@ -39,8 +39,7 @@ Deno.test("requires the final message to be from the user", () => {
   ]), false);
 });
 
-Deno.test("Creator allowlist requires an exact configured user ID", async () => {
-  const { isCreatorAllowed } = await import("./validation.ts");
+Deno.test("Creator allowlist requires an exact configured user ID", () => {
   assertEquals(isCreatorAllowed("creator-123", "creator-123"), true);
   assertEquals(isCreatorAllowed("other-user", "creator-123"), false);
   assertEquals(isCreatorAllowed("creator-123", undefined), false);
