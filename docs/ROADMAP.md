@@ -264,3 +264,21 @@ Verification:
 - Activation of memories from other provenance types does not automatically upgrade their verification state.
 - This keeps Creator confirmation distinct from model inference or research evidence.
 - Test source was updated to cover the confirmation transition; execution remains pending.
+
+
+## Application integration checkpoint — 2026-11-25
+
+Implemented on `feature/native-companion-navigation-shell`:
+- Added `app/src/main/java/com/javasultra/app/core/runtime/JavasRuntime.kt` as a central composition root.
+- The factory constructs the encrypted Android session vault and encrypted local memory repository, then composes the existing session coordinator, Creator memory manager, owner-scoped conversation-memory adapter, model gateway and protected conversation orchestrator.
+- Authentication, account/device verification and model adapters are injected. No fake provider, default identity or placeholder credential is created.
+- Runtime entry points coordinate restore, sign-in and sign-out. A successful coordinator result is converted into short-lived conversation authorization; expiry clears the in-memory authorization. Session coordinator and memory manager are encapsulated rather than exposed as bypassable public services.
+- Chat remains unavailable when no compatible model adapter is supplied. Server gateways must still independently validate every request.
+
+Not yet implemented or verified:
+- The launcher does not instantiate this runtime; production auth/account/device gateways and a real approved model adapter do not exist yet.
+- The UI does not yet call the runtime, and authenticated memory review/proposal/confirmation/correction/export/deletion controls are not yet exposed through a screen state holder.
+- No Gradle build, JVM tests, CI, APK, installation or device testing was run for this increment, as requested. Static source inspection only.
+- This composition root is a local application boundary, not proof of server-side authentication, device attestation or production readiness.
+
+Next: implement a lifecycle-safe application state holder and UI-facing use-case facade that exposes only owner-scoped memory operations after runtime-issued Creator authorization; then add unit tests for session transitions, sign-out clearing and unavailable-provider behaviour. Keep external providers explicitly unconfigured until trusted implementations are approved.
