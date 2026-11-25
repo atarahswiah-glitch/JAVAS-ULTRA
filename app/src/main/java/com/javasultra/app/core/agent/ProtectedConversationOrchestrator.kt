@@ -2,7 +2,7 @@ package com.javasultra.app.core.agent
 
 import java.time.Duration
 import java.time.Instant
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CancellationException\nimport kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 
 /**
