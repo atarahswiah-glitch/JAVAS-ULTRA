@@ -1,5 +1,6 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
+  isCreatorAllowed,
   isValidMessages,
   MAX_REQUEST_BYTES,
   type ChatMessage,
@@ -65,7 +66,7 @@ Deno.serve(async (req: Request) => {
   if (!creatorUserId?.trim()) {
     return jsonResponse({ error: "Creator access is not configured" }, 503);
   }
-  if (user.id !== creatorUserId.trim()) {
+  if (!isCreatorAllowed(user.id, creatorUserId)) {
     return jsonResponse({ error: "Forbidden" }, 403);
   }
 
