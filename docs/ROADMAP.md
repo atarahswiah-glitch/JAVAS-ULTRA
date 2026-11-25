@@ -196,3 +196,14 @@ Not yet complete:
 - Added `docs/ANDROID-APPLICATION-SHELL.md` and updated the README project status.
 - This is a source implementation only. No Gradle build, JVM test, instrumentation test, CI run, APK installation or device test was performed for this milestone.
 - Next: connect the Creator session flow to an approved authentication provider, then implement the protected conversation pipeline and functional memory manager. Do not enable a live provider or production backend without Creator approval.
+
+
+## Creator identity and protected conversation slice — 2026-11-25
+
+- Added `core/agent/ProtectedConversationOrchestrator.kt`: authenticated Creator preflight, bounded message/context, Creator-private model classification, approved-memory context interface, provider deadline and response validation.
+- Added `core/agent/ProtectedConversationOrchestratorTest.kt` covering the core denial and safety paths. Test source has not been executed.
+- Model responses now identify the selected provider; tool proposals are rejected by the text conversation path and are never executed.
+- Static review corrected Creator session restore reassignment and made best-effort revocation safe when no refresh token exists.
+- Added `docs/CREATOR-CONVERSATION-BOUNDARY.md`.
+- No live model provider, production authentication, backend adapter or memory context adapter is configured. No build, test, CI, APK or device validation was run.
+- Next: complete the real Creator authentication provider contract and secure application session lifecycle, then implement the Creator-approved memory manager and conversation UI integration. Provider credentials/backend activation remain protected decisions.
