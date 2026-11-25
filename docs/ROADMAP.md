@@ -224,3 +224,12 @@ Verification status:
 - No Gradle build, JVM tests, instrumentation tests, CI run, APK build, installation or device test has been performed in this increment, in keeping with the instruction to defer testing.
 - Production authentication, a trusted backend, real model provider credentials, session-to-conversation authorization issuance, and Compose chat/memory UI wiring remain unconnected. The app must not be described as a functioning live companion yet.
 - Next integrated work: add a trusted application session boundary that issues short-lived conversation authorization only from verified coordinator results; then connect the actual Chat and Memory screens through injected app dependencies. Do not fabricate provider credentials or activate backend services.
+
+
+## Verified-session authorization handoff — 2026-11-25
+
+- Successful Creator session results now carry the authenticated-at timestamp and verified factor count from the encrypted credential, including after restore/refresh.
+- Added `CreatorConversationAuthorizationFactory`, which issues an in-process conversation proof only from a successful coordinator session result, rejects future-dated/expired/overlong sessions and invalid factor counts, and caps the authorization lifetime at 24 hours.
+- Added JVM test source for successful issuance and all denial cases.
+- This remains a client-side boundary only. It does not replace server-side access-token validation, device verification, revocation checks or provider-side authorization. The current Compose shell does not yet instantiate or wire the production session coordinator.
+- No Gradle build or tests were run; test sources are authored but unverified.
