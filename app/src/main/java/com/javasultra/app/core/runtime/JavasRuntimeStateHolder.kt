@@ -126,10 +126,7 @@ class JavasRuntimeStateHolder(
     }
 
     fun sendMessage(message: String, offline: Boolean = false) = launchBusy {
-        if (mutableState.value.session != CreatorUiSessionState.SIGNED_IN) {
-            fail("Sign in as the Creator before starting a conversation.")
-            return@launchBusy
-        }
+        if (!requireActiveSession()) return@launchBusy
         when (val result = runtime.sendMessage(message, offline)) {
             is ConversationResult.Success -> update {
                 it.copy(
@@ -145,10 +142,7 @@ class JavasRuntimeStateHolder(
     }
 
     fun refreshMemories() = launchBusy {
-        if (mutableState.value.session != CreatorUiSessionState.SIGNED_IN) {
-            fail("Creator sign-in is required to read private memories.")
-            return@launchBusy
-        }
+        if (!requireActiveSession()) return@launchBusy
         when (val result = withContext(Dispatchers.IO) { runtime.reviewMemories() }) {
             is MemoryRepositoryResult.Success -> update { it.copy(memories = result.value, memoriesLoaded = true, error = null) }
             is MemoryRepositoryResult.Failure -> fail("Memory review failed: ${result.reason}.")
@@ -161,10 +155,7 @@ class JavasRuntimeStateHolder(
         sensitivity: MemorySensitivity,
         tags: Set<String> = emptySet()
     ) = launchBusy {
-        if (mutableState.value.session != CreatorUiSessionState.SIGNED_IN) {
-            fail("Creator sign-in is required to propose a memory.")
-            return@launchBusy
-        }
+        if (!requireActiveSession()) return@launchBusy
         when (val result = withContext(Dispatchers.IO) {
             runtime.proposeMemory(content, kind, sensitivity, tags = tags)
         }) {
@@ -176,6 +167,7 @@ class JavasRuntimeStateHolder(
     }
 
     fun confirmMemory(id: MemoryId) = launchBusy {
+        if (!requireActiveSession()) return@launchBusy
         when (val result = withContext(Dispatchers.IO) { runtime.confirmMemory(id) }) {
             is MemoryRepositoryResult.Success -> update {
                 it.copy(memories = replaceMemory(it.memories, result.value), error = null)
@@ -185,6 +177,7 @@ class JavasRuntimeStateHolder(
     }
 
     fun deleteMemory(id: MemoryId) = launchBusy {
+        if (!requireActiveSession()) return@launchBusy
         when (val result = withContext(Dispatchers.IO) { runtime.deleteMemory(id) }) {
             is MemoryRepositoryResult.Success -> update {
                 it.copy(memories = it.memories.filterNot { memory -> memory.id == id }, error = null)
@@ -194,6 +187,7 @@ class JavasRuntimeStateHolder(
     }
 
     fun prepareExport() = launchBusy {
+        if (!requireActiveSession()) return@launchBusy
         when (val result = withContext(Dispatchers.IO) { runtime.exportMemories() }) {
             is MemoryRepositoryResult.Success -> update { it.copy(exportSnapshot = result.value, error = null) }
             is MemoryRepositoryResult.Failure -> fail("Memory export failed: ${result.reason}.")
@@ -217,6 +211,23 @@ class JavasRuntimeStateHolder(
                 update { it.copy(busy = false) }
             }
         }
+    }
+
+    /** Call on app resume and before each private operation to hide stale private UI state. */
+    fun validateSession() {
+        if (mutableState.value.session == CreatorUiSessionState.SIGNED_IN) requireActiveSession()
+    }
+
+    private fun requireActiveSession(): Boolean {
+        if (mutableState.value.session != CreatorUiSessionState.SIGNED_IN) {
+            fail("Creator sign-in is required for this operation.")
+            return false
+        }
+        if (!runtime.hasActiveCreatorSession()) {
+            signedOutWithError("Your Creator session has expired or needs fresh authentication. Sign in again.")
+            return false
+        }
+        return true
     }
 
     private fun signedOutWithError(message: String) = update {
