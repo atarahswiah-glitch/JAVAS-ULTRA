@@ -41,6 +41,7 @@ interface JavasRuntimeContract {
     suspend fun restoreSession(): CreatorSessionResult
     suspend fun signIn(identifier: String, secret: CharArray): CreatorSessionResult
     suspend fun signOut(): CreatorSessionResult
+    fun hasActiveCreatorSession(now: Instant = Instant.now()): Boolean
     fun reviewMemories(now: Instant = Instant.now()): MemoryRepositoryResult<List<MemoryRecord>>
     fun proposeMemory(content: String, kind: MemoryKind, sensitivity: MemorySensitivity, now: Instant = Instant.now(), expiresAt: Instant? = null, tags: Set<String> = emptySet()): MemoryRepositoryResult<MemoryRecord>
     fun confirmMemory(id: MemoryId, now: Instant = Instant.now()): MemoryRepositoryResult<MemoryRecord>
@@ -79,7 +80,7 @@ class JavasRuntime private constructor(
         sessions.signOut()
     }
 
-    fun hasActiveCreatorSession(now: Instant = clock.instant()): Boolean =
+    override fun hasActiveCreatorSession(now: Instant): Boolean =
         activeAuthorization(now) != null
 
     /** Owner is derived from the verified session; callers cannot choose another owner. */
