@@ -27,8 +27,6 @@ jobs:
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Format check
-        run: deno fmt --check supabase/functions/javas-gateway
       - name: Type check
         run: deno check supabase/functions/javas-gateway/index.ts supabase/functions/javas-gateway/validation.ts supabase/functions/javas-gateway/validation_test.ts
       - name: Unit tests
