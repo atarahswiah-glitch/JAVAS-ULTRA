@@ -9,18 +9,19 @@ JAVAS ULTRA is being developed as a secure, memory-enabled personal AI companion
 The project is in active foundation development on `feature/native-companion-navigation-shell`.
 
 Implemented in source:
-- Native Jetpack Compose navigation shell with Chat, Learn, Memory and Profile destinations.
+- Native Jetpack Compose Chat, Learn, Memory and Profile screens, including a bounded local message draft and explicit disconnected states.
 - Creator session coordinator and encrypted Android Keystore-backed session vault.
 - Protected conversation orchestration with Creator-private model routing, bounded context, timeouts and no tool execution.
 - Encrypted local memory repository, access policy, deterministic retrieval and evidence-aware retention rules.
 - Conversation-memory adapter that reads only the current Creator's readable active memories and excludes disputed, low-confidence and highly-sensitive records from ordinary chat context.
+- Creator memory-management use cases for propose → explicit confirm, correction proposals, review, export and delete, with step-up authentication for highly-sensitive records.
 - Short-lived conversation authorization factory that accepts only successful Creator session results.
 - JVM test source for session, memory-context and conversation authorization boundaries.
 
 Not yet connected or verified:
 - Production authentication/account/device service and trusted server-side authorization.
 - Live model provider, approved credentials and provider-specific privacy controls.
-- Production startup dependency wiring and user-facing Chat/Memory workflows.
+- Production startup dependency wiring, live message sending and authenticated user-facing memory listing/management UI.
 - Live public search/evidence extraction, background learning scheduler and approved tool execution host.
 - Real-device microphone, notification, offline, battery, recovery and biometric behaviour.
 - A signed release build.
