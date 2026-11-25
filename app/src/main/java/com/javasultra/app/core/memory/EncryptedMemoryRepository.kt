@@ -264,7 +264,15 @@ class EncryptedMemoryRepository(
             )
         }
         return try {
-            val activated = current.copy(lifecycle = MemoryLifecycle.ACTIVE, updatedAt = at)
+            val activated = current.copy(
+                lifecycle = MemoryLifecycle.ACTIVE,
+                updatedAt = at,
+                verification = if (current.provenance.sourceType == MemorySourceType.CREATOR_STATEMENT) {
+                    MemoryVerification.CREATOR_CONFIRMED
+                } else {
+                    current.verification
+                }
+            )
             val encryptedActivated = encryptor.encrypt(MemoryRecordCodec.encode(activated), aad(id))
             val db = writableDatabase
             db.beginTransaction()
