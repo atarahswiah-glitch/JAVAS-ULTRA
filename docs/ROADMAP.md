@@ -301,3 +301,14 @@ Not yet integrated/verified:
 - The state holder is lifecycle-owned and must be closed by its eventual Compose owner; production UI wiring and cancellation/concurrency review remain outstanding.
 
 Next: complete the application lifecycle integration without inventing providers, then add UI screens for Creator sign-in/session status and memory proposal review/confirmation. In parallel, inspect session refresh failure semantics and refine typed provider errors before connecting any live service.
+
+
+## Session lifecycle hardening — 2026-11-25
+
+- Added typed provider authentication failures: terminal invalid/revoked/disabled credentials are distinguished from rate limiting, network loss and provider outages.
+- Expired-session refresh now clears the encrypted local credential when a provider explicitly reports a terminal refresh failure. A transient failure keeps the refresh credential for retry, but the expired session remains denied.
+- Added runtime session-freshness checks. Protected memory operations require authentication no older than 30 minutes, and the UI state holder can revalidate on app resume and before each private operation.
+- Stale runtime authority clears private UI state and requires sign-in again.
+- Added tests for terminal refresh revocation, transient refresh retry retention and stale-session UI cleanup. Test source only; not executed.
+
+Provider implementations must map verified provider error codes to the typed categories. Unknown failures are treated as transient/unclassified and never authorize access. No live auth provider has been connected.
