@@ -118,7 +118,7 @@ class CreatorSessionCoordinator(
             verifiedFactorCount = providerSession.verifiedFactorCount
         )
         if (!credential.validate() || now.isBefore(credential.issuedAt) || !now.isBefore(credential.expiresAt)) {
-            revokeQuietly(providerSession.accessToken)
+            revokeQuietly(providerSession.accessToken, providerSession.refreshToken)
             return CreatorSessionResult.Denied(CreatorSessionDenial.INVALID_PROVIDER_SESSION)
         }
 
@@ -136,33 +136,33 @@ class CreatorSessionCoordinator(
         if (identity.principalId != providerSession.principalId ||
             identity.accountState != CreatorAccountState.ACTIVE
         ) {
-            revokeQuietly(credential.accessToken)
+            revokeQuietly(credential.accessToken, credential.refreshToken)
             return CreatorSessionResult.Denied(CreatorSessionDenial.ACCOUNT_NOT_ACTIVE)
         }
 
         val device = try {
             accounts.verifyDevice(credential.accessToken, deviceId).getOrElse {
-                revokeQuietly(credential.accessToken)
+                revokeQuietly(credential.accessToken, credential.refreshToken)
                 return CreatorSessionResult.Denied(CreatorSessionDenial.DEVICE_SERVICE_UNAVAILABLE)
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            revokeQuietly(credential.accessToken)
+            revokeQuietly(credential.accessToken, credential.refreshToken)
             return CreatorSessionResult.Denied(CreatorSessionDenial.DEVICE_SERVICE_UNAVAILABLE)
         }
         if (device.deviceId != deviceId) {
-            revokeQuietly(credential.accessToken)
+            revokeQuietly(credential.accessToken, credential.refreshToken)
             return CreatorSessionResult.Denied(CreatorSessionDenial.DEVICE_NOT_VERIFIED)
         }
         if (device.state != RegisteredDeviceState.VERIFIED) {
-            revokeQuietly(credential.accessToken)
+            revokeQuietly(credential.accessToken, credential.refreshToken)
             return CreatorSessionResult.DeviceVerificationRequired(deviceId)
         }
 
         val decision = evaluateCredential(credential, identity, device, now, Duration.ofMinutes(5))
         if (decision != IdentityDecision.Allowed) {
-            revokeQuietly(credential.accessToken)
+            revokeQuietly(credential.accessToken, credential.refreshToken)
             return CreatorSessionResult.Denied(CreatorSessionDenial.IDENTITY_POLICY_DENIED)
         }
 
@@ -170,7 +170,7 @@ class CreatorSessionCoordinator(
             is CreatorSessionVaultResult.Success ->
                 CreatorSessionResult.Authenticated(providerSession.principalId, deviceId, credential.expiresAt)
             is CreatorSessionVaultResult.Failure -> {
-                revokeQuietly(credential.accessToken)
+                revokeQuietly(credential.accessToken, credential.refreshToken)
                 CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_VAULT_WRITE_FAILED)
             }
         }
