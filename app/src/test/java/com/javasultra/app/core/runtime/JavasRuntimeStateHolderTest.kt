@@ -55,6 +55,7 @@ class JavasRuntimeStateHolderTest {
         override suspend fun signIn(identifier: String, secret: CharArray) =
             CreatorSessionResult.Denied(com.javasultra.app.core.security.CreatorSessionDenial.AUTHENTICATION_FAILED)
         override suspend fun signOut() = CreatorSessionResult.SignedOut(serverRevocationConfirmed = true)
+        override fun hasActiveCreatorSession(now: Instant) = false
         override fun reviewMemories(now: Instant) =
             MemoryRepositoryResult.Failure(MemoryRepositoryFailure.ACCESS_DENIED)
         override fun proposeMemory(content: String, kind: MemoryKind, sensitivity: MemorySensitivity, now: Instant, expiresAt: Instant?, tags: Set<String>) =
