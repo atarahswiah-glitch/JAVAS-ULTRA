@@ -31,7 +31,7 @@ import kotlinx.coroutines.sync.withLock
  */
 class JavasRuntime private constructor(
     val sessions: CreatorSessionCoordinator,
-    val memories: CreatorMemoryManager,
+    private val memories: CreatorMemoryManager,
     private val conversation: ProtectedConversationOrchestrator,
     private val clock: Clock
 ) {
