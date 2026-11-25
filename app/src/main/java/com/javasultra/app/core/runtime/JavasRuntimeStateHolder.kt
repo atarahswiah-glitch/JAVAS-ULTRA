@@ -8,6 +8,7 @@ import com.javasultra.app.core.memory.MemoryRecord
 import com.javasultra.app.core.memory.MemoryRepositoryResult
 import com.javasultra.app.core.memory.MemorySensitivity
 import com.javasultra.app.core.security.CreatorSessionResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,7 +52,9 @@ class JavasRuntimeStateHolder(
     val state: StateFlow<JavasUiState> = mutableState.asStateFlow()
 
     fun restore() = launchBusy {
-        val restored = try { runtime.restoreSession() } catch (_: Exception) {
+        val restored = try { runtime.restoreSession() } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
             signedOutWithError("Session restoration is unavailable.")
             return@launchBusy
         }
@@ -86,7 +89,12 @@ class JavasRuntimeStateHolder(
     }
 
     fun signOut() = launchBusy {
-        val result = try { runtime.signOut() } catch (_: Exception) {
+        val result = try { runtime.signOut() } catch (cancelled: CancellationException) {
+            update {
+                it.copy(session = CreatorUiSessionState.SIGNED_OUT, chat = emptyList(), memories = emptyList(), memoriesLoaded = false, exportSnapshot = null)
+            }
+            throw cancelled
+        } catch (_: Exception) {
             update {
                 it.copy(
                     session = CreatorUiSessionState.SIGNED_OUT,
@@ -197,6 +205,8 @@ class JavasRuntimeStateHolder(
             update { it.copy(busy = true, error = null) }
             try {
                 block()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (failure: Exception) {
                 fail("The requested operation could not be completed.")
             } finally {
