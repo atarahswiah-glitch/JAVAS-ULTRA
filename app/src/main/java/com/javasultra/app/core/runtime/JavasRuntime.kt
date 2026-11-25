@@ -88,7 +88,7 @@ class JavasRuntime private constructor(
     }
 
     /** Owner is derived from the verified session; callers cannot choose another owner. */
-    override fun reviewMemories(now: Instant = clock.instant()): MemoryRepositoryResult<List<MemoryRecord>> {
+    override fun reviewMemories(now: Instant): MemoryRepositoryResult<List<MemoryRecord>> {
         val current = activeAuthorization(now)
             ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.ACCESS_DENIED)
         return memories.review(current.principalId, now, stepUpAuthenticated = false)
@@ -116,19 +116,19 @@ class JavasRuntime private constructor(
     }
 
     /** Confirmation is explicit; highly-sensitive records remain denied without step-up. */
-    override fun confirmMemory(id: MemoryId, now: Instant = clock.instant()): MemoryRepositoryResult<MemoryRecord> {
+    override fun confirmMemory(id: MemoryId, now: Instant): MemoryRepositoryResult<MemoryRecord> {
         val current = activeAuthorization(now)
             ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.ACCESS_DENIED)
         return memories.confirm(current.principalId, id, now, stepUpAuthenticated = false)
     }
 
-    override fun deleteMemory(id: MemoryId, now: Instant = clock.instant()): MemoryRepositoryResult<Unit> {
+    override fun deleteMemory(id: MemoryId, now: Instant): MemoryRepositoryResult<Unit> {
         val current = activeAuthorization(now)
             ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.ACCESS_DENIED)
         return memories.delete(current.principalId, id, now, stepUpAuthenticated = false)
     }
 
-    override fun exportMemories(now: Instant = clock.instant()): MemoryRepositoryResult<List<MemoryRecord>> {
+    override fun exportMemories(now: Instant): MemoryRepositoryResult<List<MemoryRecord>> {
         val current = activeAuthorization(now)
             ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.ACCESS_DENIED)
         return memories.export(current.principalId, now, stepUpAuthenticated = false)
