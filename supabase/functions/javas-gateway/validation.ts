@@ -27,3 +27,11 @@ export function isValidMessages(value: unknown): value is ChatMessage[] {
 
   return value[value.length - 1].role === "user";
 }
+
+/** Fail closed: only the single server-configured Creator identity is allowed. */
+export function isCreatorAllowed(userId: string, configuredCreatorId: string | undefined): boolean {
+  return configuredCreatorId !== undefined &&
+    configuredCreatorId.trim().length > 0 &&
+    userId.length > 0 &&
+    userId === configuredCreatorId.trim();
+}
