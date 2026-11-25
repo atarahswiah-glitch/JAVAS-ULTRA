@@ -75,9 +75,10 @@ class JavasRuntime private constructor(
         }
 
     /** Revoke local authority immediately, then ask the session coordinator to clear/revoke tokens. */
-    override suspend fun signOut(): CreatorSessionResult = sessionMutex.withLock {
+    override suspend fun signOut(): CreatorSessionResult {
+        // Revoke local authority immediately; do not wait behind a sign-in/restore lock.
         authorization = null
-        sessions.signOut()
+        return sessionMutex.withLock { sessions.signOut() }
     }
 
     override fun hasActiveCreatorSession(now: Instant): Boolean =
@@ -155,7 +156,7 @@ class JavasRuntime private constructor(
             ?: return ConversationResult.Denied(
                 com.javasultra.app.core.agent.ConversationDenial.INVALID_AUTHORIZATION
             )
-        return conversation.respond(
+        val result = conversation.respond(
             ConversationTurnRequest(
                 authorization = current,
                 userMessage = message,
@@ -163,6 +164,13 @@ class JavasRuntime private constructor(
                 offline = offline
             )
         )
+        // A sign-out that occurred while the provider was working invalidates its late result.
+        if (authorization != current) {
+            return ConversationResult.Denied(
+                com.javasultra.app.core.agent.ConversationDenial.INVALID_AUTHORIZATION
+            )
+        }
+        return result
     }
 
     companion object {
