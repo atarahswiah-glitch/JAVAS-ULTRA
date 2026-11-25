@@ -16,12 +16,14 @@ Implemented in source:
 - Conversation-memory adapter that reads only the current Creator's readable active memories and excludes disputed, low-confidence and highly-sensitive records from ordinary chat context.
 - Creator memory-management use cases for propose → explicit confirm, correction proposals, review, export and delete, with step-up authentication for highly-sensitive records.
 - Short-lived conversation authorization factory that accepts only successful Creator session results.
+- Central Android runtime composition root (`core/runtime/JavasRuntime.kt`) wiring the encrypted session vault, trusted auth/account/device gateways, encrypted memory repository, Creator memory manager, memory-context adapter and model gateway. It exposes session restore/sign-in/sign-out and guarded conversation entry points; session coordinator and memory manager remain encapsulated.
 - JVM test source for session, memory-context and conversation authorization boundaries.
 
 Not yet connected or verified:
 - Production authentication/account/device service and trusted server-side authorization.
 - Live model provider, approved credentials and provider-specific privacy controls.
-- Production startup dependency wiring, live message sending and authenticated user-facing memory listing/management UI.
+- Production authentication/account/device gateway implementations and approved live model provider; the runtime composition root is implemented but not yet instantiated by application startup.
+- Live message sending and authenticated user-facing memory listing/management UI.
 - Live public search/evidence extraction, background learning scheduler and approved tool execution host.
 - Real-device microphone, notification, offline, battery, recovery and biometric behaviour.
 - A signed release build.
