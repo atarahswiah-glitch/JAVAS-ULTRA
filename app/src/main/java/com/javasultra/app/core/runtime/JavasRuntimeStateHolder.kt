@@ -72,9 +72,13 @@ class JavasRuntimeStateHolder(
     fun signIn(identifier: String, secret: CharArray) = launchBusy {
         val result = try {
             runtime.signIn(identifier, secret)
-        } catch (failure: Exception) {
+        } catch (cancelled: CancellationException) {
             secret.fill('\u0000')
-            throw failure
+            throw cancelled
+        } catch (_: Exception) {
+            secret.fill('\u0000')
+            signedOutWithError("Sign-in could not be completed.")
+            return@launchBusy
         }
         when (result) {
             is CreatorSessionResult.Authenticated -> update {
