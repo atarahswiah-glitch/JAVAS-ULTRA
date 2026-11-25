@@ -17,7 +17,8 @@ Implemented in source:
 - Creator memory-management use cases for propose → explicit confirm, correction proposals, review, export and delete, with step-up authentication for highly-sensitive records.
 - Short-lived conversation authorization factory that accepts only successful Creator session results.
 - Central Android runtime composition root (`core/runtime/JavasRuntime.kt`) wiring the encrypted session vault, trusted auth/account/device gateways, encrypted memory repository, Creator memory manager, memory-context adapter and model gateway. It exposes session restore/sign-in/sign-out, recent-authentication-gated memory operations and guarded conversation entry points; session coordinator and memory manager remain encapsulated.
-- UI-facing runtime contract and lifecycle-owned state holder (`core/runtime/JavasRuntimeStateHolder.kt`) for session status, bounded in-memory chat turns, memory review/proposal/confirmation/deletion/export, explicit errors and sign-out clearing. It stores no credentials and does not persist chat transcripts.
+- UI-facing runtime contract and lifecycle-owned state holder (`core/runtime/JavasRuntimeStateHolder.kt`) for session status/freshness checks, bounded in-memory chat turns, memory review/proposal/confirmation/deletion/export, explicit errors and sign-out clearing. It stores no credentials and does not persist chat transcripts.
+- Typed authentication-provider failure categories distinguish revoked/disabled sessions from transient refresh/network failures. Terminal refresh failures clear the local credential; transient failures retain it for a later retry but never authorize use of an expired session.
 - JVM test source for session, memory-context and conversation authorization boundaries.
 
 Not yet connected or verified:
