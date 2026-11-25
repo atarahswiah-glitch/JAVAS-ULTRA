@@ -10,6 +10,12 @@ import com.javasultra.app.core.agent.EncryptedRepositoryConversationMemoryProvid
 import com.javasultra.app.core.agent.ModelProviderAdapter
 import com.javasultra.app.core.agent.ProtectedConversationOrchestrator
 import com.javasultra.app.core.memory.CreatorMemoryManager
+import com.javasultra.app.core.memory.MemoryId
+import com.javasultra.app.core.memory.MemoryKind
+import com.javasultra.app.core.memory.MemoryRecord
+import com.javasultra.app.core.memory.MemoryRepositoryFailure
+import com.javasultra.app.core.memory.MemoryRepositoryResult
+import com.javasultra.app.core.memory.MemorySensitivity
 import com.javasultra.app.core.memory.EncryptedMemoryRepository
 import com.javasultra.app.core.security.CreatorAccountGateway
 import com.javasultra.app.core.security.CreatorAuthenticationGateway
@@ -68,6 +74,62 @@ class JavasRuntime private constructor(
         return true
     }
 
+    /** Owner is derived from the verified session; callers cannot choose another owner. */
+    fun reviewMemories(now: Instant = clock.instant()): MemoryRepositoryResult<List<MemoryRecord>> {
+        val current = activeAuthorization(now)
+            ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.ACCESS_DENIED)
+        return memories.review(current.principalId, now, stepUpAuthenticated = false)
+    }
+
+    fun proposeMemory(
+        content: String,
+        kind: MemoryKind,
+        sensitivity: MemorySensitivity,
+        now: Instant = clock.instant(),
+        expiresAt: Instant? = null,
+        tags: Set<String> = emptySet()
+    ): MemoryRepositoryResult<MemoryRecord> {
+        val current = activeAuthorization(now)
+            ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.ACCESS_DENIED)
+        return memories.proposeCreatorStatement(
+            creatorPrincipalId = current.principalId,
+            content = content,
+            kind = kind,
+            sensitivity = sensitivity,
+            now = now,
+            expiresAt = expiresAt,
+            tags = tags
+        )
+    }
+
+    /** Confirmation is explicit; highly-sensitive records remain denied without step-up. */
+    fun confirmMemory(id: MemoryId, now: Instant = clock.instant()): MemoryRepositoryResult<MemoryRecord> {
+        val current = activeAuthorization(now)
+            ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.ACCESS_DENIED)
+        return memories.confirm(current.principalId, id, now, stepUpAuthenticated = false)
+    }
+
+    fun deleteMemory(id: MemoryId, now: Instant = clock.instant()): MemoryRepositoryResult<Unit> {
+        val current = activeAuthorization(now)
+            ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.ACCESS_DENIED)
+        return memories.delete(current.principalId, id, now, stepUpAuthenticated = false)
+    }
+
+    fun exportMemories(now: Instant = clock.instant()): MemoryRepositoryResult<List<MemoryRecord>> {
+        val current = activeAuthorization(now)
+            ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.ACCESS_DENIED)
+        return memories.export(current.principalId, now, stepUpAuthenticated = false)
+    }
+
+    private fun activeAuthorization(now: Instant): CreatorConversationAuthorization? {
+        val current = authorization ?: return null
+        if (!now.isBefore(current.expiresAt)) {
+            authorization = null
+            return null
+        }
+        return current
+    }
+
     /**
      * Conversation is denied unless a recently verified Creator session exists.
      * The orchestrator still rechecks expiry, age, owner-scoped memory and provider policy.
@@ -77,16 +139,10 @@ class JavasRuntime private constructor(
         offline: Boolean = false,
         now: Instant = clock.instant()
     ): ConversationResult {
-        val current = authorization
+        val current = activeAuthorization(now)
             ?: return ConversationResult.Denied(
                 com.javasultra.app.core.agent.ConversationDenial.INVALID_AUTHORIZATION
             )
-        if (!now.isBefore(current.expiresAt)) {
-            authorization = null
-            return ConversationResult.Denied(
-                com.javasultra.app.core.agent.ConversationDenial.SESSION_EXPIRED
-            )
-        }
         return conversation.respond(
             ConversationTurnRequest(
                 authorization = current,
