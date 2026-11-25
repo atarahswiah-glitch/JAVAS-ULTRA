@@ -60,6 +60,15 @@ Deno.serve(async (req: Request) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser(match[1]);
   if (authError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
 
+  // Authentication is not Creator authorization. Fail closed until the owner ID is configured.
+  const creatorUserId = Deno.env.get("JAVAS_CREATOR_USER_ID");
+  if (!creatorUserId?.trim()) {
+    return jsonResponse({ error: "Creator access is not configured" }, 503);
+  }
+  if (user.id !== creatorUserId.trim()) {
+    return jsonResponse({ error: "Forbidden" }, 403);
+  }
+
   const declaredLength = Number(req.headers.get("Content-Length") ?? "0");
   if (declaredLength > MAX_REQUEST_BYTES) {
     return jsonResponse({ error: "Request too large" }, 413);
