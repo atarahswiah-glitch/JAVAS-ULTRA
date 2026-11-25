@@ -1,6 +1,8 @@
 package com.javasultra.app.core.ai
 
 import com.javasultra.app.ConversationEngine
+import com.javasultra.app.ConversationPromptMessage
+import com.javasultra.app.StreamingConversationEngine
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -14,9 +16,7 @@ fun interface JavasAccessTokenProvider {
 
 /**
  * Calls the authenticated JAVAS Supabase Edge Function and consumes Anthropic's SSE stream.
- *
- * Call generateReply from a background executor. The conversation UI does this so network
- * operations never run on the Android main thread.
+ * The conversation UI invokes this engine on a background executor.
  */
 class JavasGatewayConversationEngine(
     private val functionUrl: String,
@@ -24,20 +24,22 @@ class JavasGatewayConversationEngine(
     private val accessTokenProvider: JavasAccessTokenProvider,
     private val connectTimeoutMs: Int = 15_000,
     private val readTimeoutMs: Int = 120_000
-) : ConversationEngine {
+) : StreamingConversationEngine {
 
-    override fun generateReply(userMessage: String): String? {
-        val message = userMessage.trim()
-        require(message.isNotEmpty() && message.length <= MAX_MESSAGE_CHARS) {
-            "Message is empty or too long"
-        }
+    override fun generateReply(messages: List<ConversationPromptMessage>): String? =
+        generateReply(messages) {}
+
+    override fun generateReply(
+        messages: List<ConversationPromptMessage>,
+        onTextDelta: (String) -> Unit
+    ): String? {
         require(functionUrl.startsWith("https://")) { "Gateway URL must use HTTPS" }
         require(publishableKey.isNotBlank()) { "Supabase publishable key is not configured" }
-
         val accessToken = accessTokenProvider.currentAccessToken()
             ?.takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("Sign in to JAVAS before starting a conversation")
 
+        val requestBody = GatewayRequestCodec.encode(messages)
         val connection = (URL(functionUrl).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = connectTimeoutMs
@@ -51,7 +53,6 @@ class JavasGatewayConversationEngine(
         }
 
         try {
-            val requestBody = GatewayRequestCodec.encode(message)
             connection.outputStream.use { output ->
                 output.write(requestBody.toByteArray(Charsets.UTF_8))
             }
@@ -62,14 +63,13 @@ class JavasGatewayConversationEngine(
                 throw IllegalStateException("JAVAS gateway request failed (HTTP $status)")
             }
 
-            val stream = connection.inputStream
-            return readEventStream(stream)
+            return readEventStream(connection.inputStream, onTextDelta)
         } finally {
             connection.disconnect()
         }
     }
 
-    private fun readEventStream(stream: InputStream): String {
+    private fun readEventStream(stream: InputStream, onTextDelta: (String) -> Unit): String {
         val answer = StringBuilder()
         BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).use { reader ->
             while (true) {
@@ -77,25 +77,46 @@ class JavasGatewayConversationEngine(
                 if (!line.startsWith("data:")) continue
                 val data = line.substringAfter("data:").trimStart()
                 if (data == "[DONE]") break
-                val delta = AnthropicSseParser.textDelta(data)
-                if (delta != null) answer.append(delta)
                 if (AnthropicSseParser.isError(data)) {
                     throw IllegalStateException("The AI provider returned an error")
                 }
+                val delta = AnthropicSseParser.textDelta(data) ?: continue
+                answer.append(delta)
+                onTextDelta(delta)
             }
         }
         return answer.toString().takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("The AI provider returned no response")
     }
-
-    companion object {
-        const val MAX_MESSAGE_CHARS = 12_000
-    }
 }
 
 object GatewayRequestCodec {
+    const val MAX_MESSAGES = 40
+    const val MAX_MESSAGE_CHARS = 12_000
+
     fun encode(message: String): String =
-        """{"messages":[{"role":"user","content":${jsonString(message)}}],"stream":true}"""
+        encode(listOf(ConversationPromptMessage("user", message)))
+
+    fun encode(messages: List<ConversationPromptMessage>): String {
+        require(messages.isNotEmpty() && messages.size <= MAX_MESSAGES)
+        require(messages.all {
+            it.role in setOf("user", "assistant") &&
+                it.content.isNotBlank() && it.content.length <= MAX_MESSAGE_CHARS
+        })
+        require(messages.last().role == "user")
+        return buildString {
+            append("{\"messages\":[")
+            messages.forEachIndexed { index, message ->
+                if (index > 0) append(',')
+                append("{\"role\":")
+                append(jsonString(message.role))
+                append(",\"content\":")
+                append(jsonString(message.content))
+                append('}')
+            }
+            append("],\"stream\":true}")
+        }
+    }
 
     private fun jsonString(value: String): String = buildString {
         append('"')
