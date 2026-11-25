@@ -130,7 +130,7 @@ class CreatorSessionCoordinatorTest {
 
 
     @Test fun revokedRefreshTokenClearsExpiredLocalCredential() = runBlocking {
-        val expired = providerSession.copy(expiresAt = now)
+        val expired = providerSession.copy(issuedAt = now.minusSeconds(3_600), authenticatedAt = now.minusSeconds(3_600), expiresAt = now)
         val vault = FakeVault().apply { credential = expired.toCredential("device-1") }
         val (manager, _, _) = coordinator(
             vault = vault,
@@ -144,7 +144,7 @@ class CreatorSessionCoordinatorTest {
     }
 
     @Test fun temporaryRefreshFailureKeepsCredentialForRetryButDoesNotAuthenticate() = runBlocking {
-        val expired = providerSession.copy(expiresAt = now)
+        val expired = providerSession.copy(issuedAt = now.minusSeconds(3_600), authenticatedAt = now.minusSeconds(3_600), expiresAt = now)
         val vault = FakeVault().apply { credential = expired.toCredential("device-1") }
         val (manager, _, _) = coordinator(vault = vault)
 
