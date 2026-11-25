@@ -2,7 +2,7 @@ package com.javasultra.app.core.agent
 
 import java.time.Duration
 import java.time.Instant
-import kotlinx.coroutines.CancellationException\nimport kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeout
 
 /**
@@ -140,7 +140,8 @@ class ProtectedConversationOrchestrator(
             response.proposedToolCalls.isNotEmpty() ||
             response.completedAt.isBefore(request.now) ||
             !response.completedAt.isBefore(modelRequest.deadline) ||
-            response.outputUnitsUsed !in 1..request.maxOutputUnits ||\n            response.providerId.isBlank() ||
+            response.outputUnitsUsed !in 1..request.maxOutputUnits ||
+            response.providerId.isBlank() ||
             response.inputUnitsUsed !in 0..modelRequest.inputUnits
         ) return ConversationResult.Denied(ConversationDenial.PROVIDER_RESPONSE_INVALID)
 
