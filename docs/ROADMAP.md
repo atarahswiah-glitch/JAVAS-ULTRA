@@ -312,3 +312,6 @@ Next: complete the application lifecycle integration without inventing providers
 - Added tests for terminal refresh revocation, transient refresh retry retention and stale-session UI cleanup. Test source only; not executed.
 
 Provider implementations must map verified provider error codes to the typed categories. Unknown failures are treated as transient/unclassified and never authorize access. No live auth provider has been connected.
+
+
+- Additional race hardening: runtime sign-out clears local authorization before waiting for session coordination. A conversation response that completes after sign-out is discarded. The UI state holder also discards private-memory operation results if the Creator session ended while the operation was running, and its busy indicator accounts for overlapping operations.
