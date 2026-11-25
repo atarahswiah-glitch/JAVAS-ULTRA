@@ -130,7 +130,7 @@ class CreatorSessionCoordinator(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            revokeQuietly(credential.accessToken)
+            revokeQuietly(credential.accessToken, credential.refreshToken)
             return CreatorSessionResult.Denied(CreatorSessionDenial.IDENTITY_SERVICE_UNAVAILABLE)
         }
         if (identity.principalId != providerSession.principalId ||
@@ -184,14 +184,20 @@ class CreatorSessionCoordinator(
                 return CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_VAULT_UNAVAILABLE)
         }
         if (!credential.validate()) {
-            vault.clear()
-            return CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_EXPIRED)
+            return if (vault.clear() is CreatorSessionVaultResult.Failure) {
+                CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_VAULT_CLEAR_FAILED)
+            } else {
+                CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_EXPIRED)
+            }
         }
         if (!now.isBefore(credential.expiresAt)) {
             val refreshToken = credential.refreshToken
                 ?: run {
-                    vault.clear()
-                    return CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_EXPIRED)
+                    return if (vault.clear() is CreatorSessionVaultResult.Failure) {
+                        CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_VAULT_CLEAR_FAILED)
+                    } else {
+                        CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_EXPIRED)
+                    }
                 }
             val refreshed = try {
                 authentication.refresh(refreshToken).getOrElse {
@@ -279,13 +285,15 @@ class CreatorSessionCoordinator(
 
     /** Local credentials are cleared even if server revocation is temporarily unavailable. */
     suspend fun signOut(): CreatorSessionResult {
-        val credential = when (val stored = vault.read()) {
-            is CreatorSessionVaultResult.Success -> stored.value
-            is CreatorSessionVaultResult.Failure ->
-                return CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_VAULT_UNAVAILABLE)
-        }
+        // Clear local authority even when ciphertext cannot be decoded. In that case remote
+        // revocation cannot be attempted, but the app must not retain an unusable local session.
+        val stored = vault.read()
+        val credential = (stored as? CreatorSessionVaultResult.Success)?.value
         if (vault.clear() is CreatorSessionVaultResult.Failure) {
             return CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_VAULT_CLEAR_FAILED)
+        }
+        if (stored is CreatorSessionVaultResult.Failure) {
+            return CreatorSessionResult.SignedOut(serverRevocationConfirmed = false)
         }
         if (credential == null) return CreatorSessionResult.NoSession
         val revoked = try {
