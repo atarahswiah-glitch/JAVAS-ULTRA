@@ -187,3 +187,12 @@ Not yet complete:
 - Tests have been written but not executed; no Gradle build or CI run has been started for this branch.
 - This remains local policy and mapper logic, not trusted backend enforcement or a user-facing memory manager.
 - Creator approval for a proposal remains separate from consent to retain or activate durable knowledge.
+
+
+## Native application navigation shell — 2026-11-25
+
+- Added a Jetpack Compose navigation shell with Chat, Learn, Memory and Profile destinations in `app/src/main/java/com/javasultra/app/MainActivity.kt`.
+- Each destination reports the real integration state and explicitly avoids presenting disconnected services as active.
+- Added `docs/ANDROID-APPLICATION-SHELL.md` and updated the README project status.
+- This is a source implementation only. No Gradle build, JVM test, instrumentation test, CI run, APK installation or device test was performed for this milestone.
+- Next: connect the Creator session flow to an approved authentication provider, then implement the protected conversation pipeline and functional memory manager. Do not enable a live provider or production backend without Creator approval.
