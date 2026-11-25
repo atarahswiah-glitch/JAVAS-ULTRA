@@ -53,7 +53,10 @@ private const val PERSONAL_IMAGE_URI = "personal_image_uri"
 private const val VOICE_MODE = "voice_mode"
 
 @Composable
-internal fun JavasCompanionScreen(\n    activity: ComponentActivity,\n    conversationEngine: ConversationEngine = UnavailableConversationEngine\n) {
+internal fun JavasCompanionScreen(
+    activity: ComponentActivity,
+    conversationEngine: ConversationEngine = UnavailableConversationEngine
+) {
     val preferences = remember(activity) {
         activity.getSharedPreferences(CREATOR_SETTINGS, Context.MODE_PRIVATE)
     }
