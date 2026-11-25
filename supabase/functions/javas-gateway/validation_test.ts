@@ -38,3 +38,12 @@ Deno.test("requires the final message to be from the user", () => {
     { role: "assistant", content: "Hi" },
   ]), false);
 });
+
+Deno.test("Creator allowlist requires an exact configured user ID", async () => {
+  const { isCreatorAllowed } = await import("./validation.ts");
+  assertEquals(isCreatorAllowed("creator-123", "creator-123"), true);
+  assertEquals(isCreatorAllowed("other-user", "creator-123"), false);
+  assertEquals(isCreatorAllowed("creator-123", undefined), false);
+  assertEquals(isCreatorAllowed("creator-123", "  "), false);
+  assertEquals(isCreatorAllowed("", "creator-123"), false);
+});
