@@ -35,12 +35,25 @@ import kotlinx.coroutines.sync.withLock
  * leaves chat unavailable. Every server gateway supplied here must independently enforce
  * server-side identity, account, device, expiry and authorization checks.
  */
+/** UI-facing boundary; implementations must preserve Creator ownership and session checks. */
+interface JavasRuntimeContract {
+    override suspend fun restoreSession(): CreatorSessionResult
+    override suspend fun signIn(identifier: String, secret: CharArray): CreatorSessionResult
+    override suspend fun signOut(): CreatorSessionResult
+    fun reviewMemories(now: Instant = Instant.now()): MemoryRepositoryResult<List<MemoryRecord>>
+    override fun proposeMemory(content: String, kind: MemoryKind, sensitivity: MemorySensitivity, now: Instant = Instant.now(), expiresAt: Instant? = null, tags: Set<String> = emptySet()): MemoryRepositoryResult<MemoryRecord>
+    fun confirmMemory(id: MemoryId, now: Instant = Instant.now()): MemoryRepositoryResult<MemoryRecord>
+    fun deleteMemory(id: MemoryId, now: Instant = Instant.now()): MemoryRepositoryResult<Unit>
+    fun exportMemories(now: Instant = Instant.now()): MemoryRepositoryResult<List<MemoryRecord>>
+    override suspend fun sendMessage(message: String, offline: Boolean = false, now: Instant = Instant.now()): ConversationResult
+}
+
 class JavasRuntime private constructor(
     private val sessions: CreatorSessionCoordinator,
     private val memories: CreatorMemoryManager,
     private val conversation: ProtectedConversationOrchestrator,
     private val clock: Clock
-) {
+) : JavasRuntimeContract {
     private val sessionMutex = Mutex()
     @Volatile private var authorization: CreatorConversationAuthorization? = null
 
@@ -75,7 +88,7 @@ class JavasRuntime private constructor(
     }
 
     /** Owner is derived from the verified session; callers cannot choose another owner. */
-    fun reviewMemories(now: Instant = clock.instant()): MemoryRepositoryResult<List<MemoryRecord>> {
+    override fun reviewMemories(now: Instant = clock.instant()): MemoryRepositoryResult<List<MemoryRecord>> {
         val current = activeAuthorization(now)
             ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.ACCESS_DENIED)
         return memories.review(current.principalId, now, stepUpAuthenticated = false)
@@ -103,19 +116,19 @@ class JavasRuntime private constructor(
     }
 
     /** Confirmation is explicit; highly-sensitive records remain denied without step-up. */
-    fun confirmMemory(id: MemoryId, now: Instant = clock.instant()): MemoryRepositoryResult<MemoryRecord> {
+    override fun confirmMemory(id: MemoryId, now: Instant = clock.instant()): MemoryRepositoryResult<MemoryRecord> {
         val current = activeAuthorization(now)
             ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.ACCESS_DENIED)
         return memories.confirm(current.principalId, id, now, stepUpAuthenticated = false)
     }
 
-    fun deleteMemory(id: MemoryId, now: Instant = clock.instant()): MemoryRepositoryResult<Unit> {
+    override fun deleteMemory(id: MemoryId, now: Instant = clock.instant()): MemoryRepositoryResult<Unit> {
         val current = activeAuthorization(now)
             ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.ACCESS_DENIED)
         return memories.delete(current.principalId, id, now, stepUpAuthenticated = false)
     }
 
-    fun exportMemories(now: Instant = clock.instant()): MemoryRepositoryResult<List<MemoryRecord>> {
+    override fun exportMemories(now: Instant = clock.instant()): MemoryRepositoryResult<List<MemoryRecord>> {
         val current = activeAuthorization(now)
             ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.ACCESS_DENIED)
         return memories.export(current.principalId, now, stepUpAuthenticated = false)
