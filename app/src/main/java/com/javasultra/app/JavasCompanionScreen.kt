@@ -3,6 +3,8 @@ package com.javasultra.app
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,7 +25,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
@@ -46,6 +50,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.javasultra.app.core.ai.SupabaseAuthSessionClient
+import java.util.concurrent.Executors
 
 private const val CREATOR_SETTINGS = "javas_creator_settings"
 private const val VOICE_SAMPLE_URI = "voice_sample_uri"
@@ -55,7 +61,8 @@ private const val VOICE_MODE = "voice_mode"
 @Composable
 internal fun JavasCompanionScreen(
     activity: ComponentActivity,
-    conversationEngine: ConversationEngine = UnavailableConversationEngine
+    conversationEngine: ConversationEngine = UnavailableConversationEngine,
+    authClient: SupabaseAuthSessionClient? = null
 ) {
     val preferences = remember(activity) {
         activity.getSharedPreferences(CREATOR_SETTINGS, Context.MODE_PRIVATE)
@@ -195,7 +202,7 @@ internal fun JavasCompanionScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            ConversationPanel(engine = conversationEngine)
+                            CreatorAuthPanel(authClient = authClient, conversationEngine = conversationEngine)
                             TextButton(
                                 onClick = { expanded = false },
                                 modifier = Modifier.fillMaxWidth()
@@ -297,6 +304,111 @@ internal fun JavasCompanionScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CreatorAuthPanel(
+    authClient: SupabaseAuthSessionClient?,
+    conversationEngine: ConversationEngine
+) {
+    if (authClient == null) {
+        Text(
+            "Secure sign-in is not configured yet. Add the JAVAS Supabase URL and publishable key to local Gradle properties.",
+            color = Color(0xFFFFD18B),
+            fontSize = 12.sp
+        )
+        return
+    }
+
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var signedIn by remember(authClient) { mutableStateOf(authClient.hasStoredSession()) }
+    var status by remember { mutableStateOf("") }
+    val worker = remember(authClient) { Executors.newSingleThreadExecutor() }
+    val mainHandler = remember { Handler(Looper.getMainLooper()) }
+
+    DisposableEffect(worker) {
+        onDispose { worker.shutdownNow() }
+    }
+
+    if (signedIn) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Supabase session stored securely", color = Color(0xFF9BE8C5), fontSize = 11.sp)
+            TextButton(
+                enabled = !busy,
+                onClick = {
+                    busy = true
+                    worker.execute {
+                        authClient.signOut()
+                        mainHandler.post {
+                            signedIn = false
+                            busy = false
+                            status = "Signed out on this device."
+                        }
+                    }
+                }
+            ) { Text(if (busy) "Please wait…" else "Sign out") }
+        }
+        ConversationPanel(engine = conversationEngine)
+    } else {
+        Text("CREATOR SIGN-IN", color = Color(0xFF79DFF2), fontSize = 10.sp, letterSpacing = 1.2.sp)
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Email") },
+            singleLine = true,
+            enabled = !busy
+        )
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Password") },
+            singleLine = true,
+            enabled = !busy
+        )
+        Button(
+            onClick = {
+                val submittedEmail = email.trim()
+                val submittedPassword = password
+                password = ""
+                busy = true
+                status = ""
+                worker.execute {
+                    val result = runCatching {
+                        authClient.signInWithPassword(submittedEmail, submittedPassword.toCharArray())
+                    }
+                    mainHandler.post {
+                        busy = false
+                        if (result.isSuccess) {
+                            signedIn = true
+                            status = "Signed in. Creator access is still verified by the server."
+                        } else {
+                            status = "Sign-in failed. Check your credentials and project configuration."
+                        }
+                    }
+                }
+            },
+            enabled = !busy && email.isNotBlank() && password.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (busy) "Signing in…" else "Sign in")
+        }
+        if (status.isNotBlank()) {
+            Text(status, color = Color(0xFFFFD18B), fontSize = 11.sp)
+        }
+        Text(
+            "Your password is not saved. The session is encrypted with Android Keystore. Creator permissions are checked by the backend.",
+            color = Color(0xFF8BA8B9),
+            fontSize = 10.sp
+        )
     }
 }
 
