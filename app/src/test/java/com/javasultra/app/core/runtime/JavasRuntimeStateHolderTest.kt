@@ -9,6 +9,8 @@ import com.javasultra.app.core.memory.MemoryRepositoryFailure
 import com.javasultra.app.core.memory.MemoryRepositoryResult
 import com.javasultra.app.core.memory.MemorySensitivity
 import com.javasultra.app.core.security.CreatorSessionResult
+import com.javasultra.app.core.security.PrincipalId
+import com.javasultra.app.core.security.DeviceId
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
@@ -26,6 +28,25 @@ class JavasRuntimeStateHolderTest {
         holder.close()
     }
 
+
+    @Test
+    fun staleRuntimeSessionClearsPrivateUiStateOnValidation() {
+        val authenticated = CreatorSessionResult.Authenticated(
+            principalId = PrincipalId("creator"),
+            deviceId = DeviceId("device"),
+            authenticatedAt = Instant.now(),
+            expiresAt = Instant.now().plusSeconds(600),
+            verifiedFactorCount = 2
+        )
+        val holder = JavasRuntimeStateHolder(FakeRuntime(authenticated), Dispatchers.Unconfined)
+        holder.restore()
+        assertEquals(CreatorUiSessionState.SIGNED_IN, holder.state.value.session)
+
+        holder.validateSession()
+
+        assertEquals(CreatorUiSessionState.SIGNED_OUT, holder.state.value.session)
+        holder.close()
+    }
     @Test
     fun deniedSignInDoesNotCreateAuthenticatedUiState() {
         val holder = JavasRuntimeStateHolder(FakeRuntime(), Dispatchers.Unconfined)
@@ -50,8 +71,8 @@ class JavasRuntimeStateHolderTest {
 
     private fun assertTrueEmpty(value: Collection<*>) = assertEquals(0, value.size)
 
-    private class FakeRuntime : JavasRuntimeContract {
-        override suspend fun restoreSession() = CreatorSessionResult.NoSession
+    private class FakeRuntime(private val restoreResult: CreatorSessionResult = CreatorSessionResult.NoSession) : JavasRuntimeContract {
+        override suspend fun restoreSession() = restoreResult
         override suspend fun signIn(identifier: String, secret: CharArray) =
             CreatorSessionResult.Denied(com.javasultra.app.core.security.CreatorSessionDenial.AUTHENTICATION_FAILED)
         override suspend fun signOut() = CreatorSessionResult.SignedOut(serverRevocationConfirmed = true)
