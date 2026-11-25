@@ -17,7 +17,7 @@ Required Supabase Edge Function secrets:
 - `ANTHROPIC_API_KEY` — Anthropic API key; never put this in Android, Git, build configuration or logs.
 - `ANTHROPIC_MODEL` — optional; defaults to `claude-sonnet-5-5`.
 - `JAVAS_CREATOR_USER_ID` — required Supabase Auth user UUID for the single authorized Creator; without it the function returns 503, and other authenticated users receive 403.
-- `SUPABASE_URL` and `SUPABASE_ANON_KEY` — supplied by the Supabase Edge Function environment for the existing legacy client pattern.
+- `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` (preferred) or legacy `SUPABASE_ANON_KEY` — supplied by the Supabase Edge Function environment. No secret/service-role key is used for user-token verification.
 
 Keep platform JWT verification enabled. The handler additionally calls `auth.getUser(accessToken)`, rejects unauthenticated callers, and checks the verified UUID against the server-only `JAVAS_CREATOR_USER_ID` allowlist. Authentication alone does not grant Creator access.
 
