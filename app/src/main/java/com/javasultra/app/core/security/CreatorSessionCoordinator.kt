@@ -36,6 +36,14 @@ fun interface CreatorDeviceIdentityProvider {
     fun getOrCreateDeviceId(): DeviceId
 }
 
+enum class CreatorAuthenticationFailureKind(val terminal: Boolean) {
+    INVALID_CREDENTIALS(true), SESSION_REVOKED(true), ACCOUNT_DISABLED(true),
+    RATE_LIMITED(false), NETWORK_UNAVAILABLE(false), PROVIDER_UNAVAILABLE(false), UNKNOWN(false)
+}
+
+/** Provider adapters should map trusted provider error codes to these categories. */
+class CreatorAuthenticationException(val kind: CreatorAuthenticationFailureKind, message: String = kind.name) : Exception(message)
+
 enum class CreatorSessionDenial {
     INVALID_INPUT,
     AUTHENTICATION_FAILED,
@@ -47,6 +55,7 @@ enum class CreatorSessionDenial {
     IDENTITY_POLICY_DENIED,
     SESSION_EXPIRED,
     SESSION_REFRESH_UNAVAILABLE,
+    SESSION_REVOKED,
     SESSION_VAULT_UNAVAILABLE,
     SESSION_VAULT_WRITE_FAILED,
     SESSION_VAULT_CLEAR_FAILED
@@ -208,7 +217,15 @@ class CreatorSessionCoordinator(
                     }
                 }
             val refreshed = try {
-                authentication.refresh(refreshToken).getOrElse {
+                val refreshResult = authentication.refresh(refreshToken)
+                refreshResult.getOrElse { failure ->
+                    if (failure is CreatorAuthenticationException && failure.kind.terminal) {
+                        val cleared = vault.clear()
+                        return CreatorSessionResult.Denied(
+                            if (cleared is CreatorSessionVaultResult.Failure) CreatorSessionDenial.SESSION_VAULT_CLEAR_FAILED
+                            else CreatorSessionDenial.SESSION_REVOKED
+                        )
+                    }
                     return CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_REFRESH_UNAVAILABLE)
                 }
             } catch (cancelled: CancellationException) {
