@@ -30,7 +30,7 @@ import kotlinx.coroutines.sync.withLock
  * server-side identity, account, device, expiry and authorization checks.
  */
 class JavasRuntime private constructor(
-    val sessions: CreatorSessionCoordinator,
+    private val sessions: CreatorSessionCoordinator,
     private val memories: CreatorMemoryManager,
     private val conversation: ProtectedConversationOrchestrator,
     private val clock: Clock
