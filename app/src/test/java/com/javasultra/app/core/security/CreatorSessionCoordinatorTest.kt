@@ -25,9 +25,10 @@ class CreatorSessionCoordinatorTest {
         accountState: CreatorAccountState = CreatorAccountState.ACTIVE,
         deviceState: RegisteredDeviceState = RegisteredDeviceState.VERIFIED,
         remoteRevokeSucceeds: Boolean = true,
-        refreshSession: ProviderAuthenticationResult? = null
+        refreshSession: ProviderAuthenticationResult? = null,
+        refreshFailure: Throwable = IllegalStateException("refresh unavailable")
     ): Triple<CreatorSessionCoordinator, FakeVault, FakeAuthentication> {
-        val auth = FakeAuthentication(providerSession, remoteRevokeSucceeds, refreshSession)
+        val auth = FakeAuthentication(providerSession, remoteRevokeSucceeds, refreshSession, refreshFailure)
         val accounts = object : CreatorAccountGateway {
             override suspend fun loadCreator(accessToken: String) =
                 Result.success(CreatorIdentitySnapshot(PrincipalId("creator-1"), accountState))
@@ -127,6 +128,31 @@ class CreatorSessionCoordinatorTest {
         assertEquals(expired.authenticatedAt, vault.credential?.authenticatedAt)
     }
 
+
+    @Test fun revokedRefreshTokenClearsExpiredLocalCredential() = runBlocking {
+        val expired = providerSession.copy(expiresAt = now)
+        val vault = FakeVault().apply { credential = expired.toCredential("device-1") }
+        val (manager, _, _) = coordinator(
+            vault = vault,
+            refreshFailure = CreatorAuthenticationException(CreatorAuthenticationFailureKind.SESSION_REVOKED)
+        )
+
+        val result = manager.restore(now.plusSeconds(1))
+
+        assertEquals(CreatorSessionDenial.SESSION_REVOKED, (result as CreatorSessionResult.Denied).reason)
+        assertEquals(null, vault.credential)
+    }
+
+    @Test fun temporaryRefreshFailureKeepsCredentialForRetryButDoesNotAuthenticate() = runBlocking {
+        val expired = providerSession.copy(expiresAt = now)
+        val vault = FakeVault().apply { credential = expired.toCredential("device-1") }
+        val (manager, _, _) = coordinator(vault = vault)
+
+        val result = manager.restore(now.plusSeconds(1))
+
+        assertEquals(CreatorSessionDenial.SESSION_REFRESH_UNAVAILABLE, (result as CreatorSessionResult.Denied).reason)
+        assertEquals(expired.accessToken, vault.credential?.accessToken)
+    }
     @Test fun signOutClearsLocalCredentialEvenWhenRemoteRevocationFails() = runBlocking {
         val vault = FakeVault().apply { credential = providerSession.toCredential("device-1") }
         val (manager, _, _) = coordinator(vault, remoteRevokeSucceeds = false)
@@ -156,7 +182,8 @@ class CreatorSessionCoordinatorTest {
     private class FakeAuthentication(
         private val session: ProviderAuthenticationResult,
         private val revokeSucceeds: Boolean,
-        private val refreshedSession: ProviderAuthenticationResult?
+        private val refreshedSession: ProviderAuthenticationResult?,
+        private val refreshFailure: Throwable
     ) : CreatorAuthenticationGateway {
         var revocations = 0
         override suspend fun authenticate(identifier: String, secret: CharArray) =
@@ -164,7 +191,7 @@ class CreatorSessionCoordinatorTest {
 
         override suspend fun refresh(refreshToken: String): Result<ProviderAuthenticationResult> =
             refreshedSession?.let { Result.success(it) }
-                ?: Result.failure(IllegalStateException("refresh unavailable"))
+                ?: Result.failure(refreshFailure)
 
         override suspend fun revoke(accessToken: String, refreshToken: String?): Result<Unit> {
             revocations++
