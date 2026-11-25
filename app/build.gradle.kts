@@ -11,6 +11,10 @@ android {
     compileSdk = 36
 
     defaultConfig {
+        val javasSupabaseUrl = providers.gradleProperty("JAVAS_SUPABASE_URL").orElse("").get()
+        val javasSupabasePublishableKey = providers.gradleProperty("JAVAS_SUPABASE_PUBLISHABLE_KEY").orElse("").get()
+        buildConfigField("String", "JAVAS_SUPABASE_URL", "\"$javasSupabaseUrl\"")
+        buildConfigField("String", "JAVAS_SUPABASE_PUBLISHABLE_KEY", "\"$javasSupabasePublishableKey\"")
         applicationId = "com.javasultra.app"
         minSdk = 26
         targetSdk = 36
@@ -19,7 +23,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
