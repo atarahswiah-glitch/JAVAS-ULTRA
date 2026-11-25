@@ -37,15 +37,15 @@ import kotlinx.coroutines.sync.withLock
  */
 /** UI-facing boundary; implementations must preserve Creator ownership and session checks. */
 interface JavasRuntimeContract {
-    override suspend fun restoreSession(): CreatorSessionResult
-    override suspend fun signIn(identifier: String, secret: CharArray): CreatorSessionResult
-    override suspend fun signOut(): CreatorSessionResult
+    suspend fun restoreSession(): CreatorSessionResult
+    suspend fun signIn(identifier: String, secret: CharArray): CreatorSessionResult
+    suspend fun signOut(): CreatorSessionResult
     fun reviewMemories(now: Instant = Instant.now()): MemoryRepositoryResult<List<MemoryRecord>>
-    override fun proposeMemory(content: String, kind: MemoryKind, sensitivity: MemorySensitivity, now: Instant = Instant.now(), expiresAt: Instant? = null, tags: Set<String> = emptySet()): MemoryRepositoryResult<MemoryRecord>
+    fun proposeMemory(content: String, kind: MemoryKind, sensitivity: MemorySensitivity, now: Instant = Instant.now(), expiresAt: Instant? = null, tags: Set<String> = emptySet()): MemoryRepositoryResult<MemoryRecord>
     fun confirmMemory(id: MemoryId, now: Instant = Instant.now()): MemoryRepositoryResult<MemoryRecord>
     fun deleteMemory(id: MemoryId, now: Instant = Instant.now()): MemoryRepositoryResult<Unit>
     fun exportMemories(now: Instant = Instant.now()): MemoryRepositoryResult<List<MemoryRecord>>
-    override suspend fun sendMessage(message: String, offline: Boolean = false, now: Instant = Instant.now()): ConversationResult
+    suspend fun sendMessage(message: String, offline: Boolean = false, now: Instant = Instant.now()): ConversationResult
 }
 
 class JavasRuntime private constructor(
@@ -58,14 +58,14 @@ class JavasRuntime private constructor(
     @Volatile private var authorization: CreatorConversationAuthorization? = null
 
     /** Restore must complete its trusted account/device checks before local authority is issued. */
-    suspend fun restoreSession(): CreatorSessionResult = sessionMutex.withLock {
+    override suspend fun restoreSession(): CreatorSessionResult = sessionMutex.withLock {
         val result = sessions.restore(clock.instant())
         authorization = CreatorConversationAuthorizationFactory.fromVerifiedSession(result, clock.instant())
         result
     }
 
     /** The supplied PIN/password is cleared by CreatorSessionCoordinator on every sign-in path. */
-    suspend fun signIn(identifier: String, secret: CharArray): CreatorSessionResult =
+    override suspend fun signIn(identifier: String, secret: CharArray): CreatorSessionResult =
         sessionMutex.withLock {
             val result = sessions.signIn(identifier, secret, clock.instant())
             authorization = CreatorConversationAuthorizationFactory.fromVerifiedSession(result, clock.instant())
@@ -73,7 +73,7 @@ class JavasRuntime private constructor(
         }
 
     /** Revoke local authority immediately, then ask the session coordinator to clear/revoke tokens. */
-    suspend fun signOut(): CreatorSessionResult = sessionMutex.withLock {
+    override suspend fun signOut(): CreatorSessionResult = sessionMutex.withLock {
         authorization = null
         sessions.signOut()
     }
@@ -94,13 +94,13 @@ class JavasRuntime private constructor(
         return memories.review(current.principalId, now, stepUpAuthenticated = false)
     }
 
-    fun proposeMemory(
+    override fun proposeMemory(
         content: String,
         kind: MemoryKind,
         sensitivity: MemorySensitivity,
-        now: Instant = clock.instant(),
-        expiresAt: Instant? = null,
-        tags: Set<String> = emptySet()
+        now: Instant,
+        expiresAt: Instant?,
+        tags: Set<String>
     ): MemoryRepositoryResult<MemoryRecord> {
         val current = activeAuthorization(now)
             ?: return MemoryRepositoryResult.Failure(MemoryRepositoryFailure.ACCESS_DENIED)
@@ -147,10 +147,10 @@ class JavasRuntime private constructor(
      * Conversation is denied unless a recently verified Creator session exists.
      * The orchestrator still rechecks expiry, age, owner-scoped memory and provider policy.
      */
-    suspend fun sendMessage(
+    override suspend fun sendMessage(
         message: String,
-        offline: Boolean = false,
-        now: Instant = clock.instant()
+        offline: Boolean,
+        now: Instant
     ): ConversationResult {
         val current = activeAuthorization(now)
             ?: return ConversationResult.Denied(
