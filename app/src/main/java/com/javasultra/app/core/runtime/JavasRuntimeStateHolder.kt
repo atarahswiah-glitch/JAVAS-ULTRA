@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicInteger
 
 enum class CreatorUiSessionState { CHECKING, SIGNED_OUT, SIGNED_IN, DEVICE_VERIFICATION_REQUIRED, ERROR }
 
@@ -49,6 +50,7 @@ class JavasRuntimeStateHolder(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val mutableState = MutableStateFlow(JavasUiState())
+    private val activeOperations = AtomicInteger(0)
     val state: StateFlow<JavasUiState> = mutableState.asStateFlow()
 
     fun restore() = launchBusy {
@@ -200,6 +202,7 @@ class JavasRuntimeStateHolder(
 
     private fun launchBusy(block: suspend () -> Unit) {
         scope.launch {
+            activeOperations.incrementAndGet()
             update { it.copy(busy = true, error = null) }
             try {
                 block()
@@ -208,7 +211,8 @@ class JavasRuntimeStateHolder(
             } catch (failure: Exception) {
                 fail("The requested operation could not be completed.")
             } finally {
-                update { it.copy(busy = false) }
+                val stillBusy = activeOperations.decrementAndGet() > 0
+                update { it.copy(busy = stillBusy) }
             }
         }
     }
