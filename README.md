@@ -2,49 +2,69 @@
 
 **Persistent Personal AI Companion and Intelligent Agent**
 
-JAVAS ULTRA is being developed as a secure, memory-enabled, practical AI companion with a consistent identity, useful reasoning, controlled tool use and continuity across supported devices.
+JAVAS ULTRA is being developed as a secure, memory-enabled personal AI companion with strong reasoning, self-directed learning, privacy-preserving continuity and carefully governed tool use.
 
-## Project status
+## Current status
 
-- Current work: architecture and security foundations, encrypted local memory and learning-journal modules, provider-neutral model/tool contracts, and native Android build delivery.
-- The native Android UI has Chat, Learn, Memory and Profile navigation screens. A protected Creator conversation orchestration layer is now drafted, but it has no production identity, memory or model provider wired in.
-- GitHub Actions run #82 on commit 497e213104fceb8adaf9641d1dd90fa0515a6da8 passed all 117 JVM unit tests, assembled the debug APK and uploaded the APK plus test reports. Artifact: JAVAS-ULTRA-debug-and-test-reports (11,474,739 bytes; expires 2026-11-23). APK SHA-256: 60d7391bb884b8c792ebeb89234d488d92844fed8037f36c375a7fc6869f2187. A later public-research-gateway hardening change is undergoing its own CI verification.
-- A Codemagic workflow is committed at the repository root for the Creator's existing account. The Codemagic app connection and first build still require confirmation in the Codemagic dashboard.
-- No production authentication, live model-provider connection, autonomous web research, dedicated JAVAS backend or signed release is claimed.
-- Draft PR #1 remains open and unmerged.
+The project is in active foundation development on `feature/native-companion-navigation-shell`.
 
-## Start here
+Implemented in source:
+- Native Jetpack Compose navigation shell with Chat, Learn, Memory and Profile destinations.
+- Creator session coordinator and encrypted Android Keystore-backed session vault.
+- Protected conversation orchestration with Creator-private model routing, bounded context, timeouts and no tool execution.
+- Encrypted local memory repository, access policy, deterministic retrieval and evidence-aware retention rules.
+- Conversation-memory adapter that reads only the current Creator's readable active memories and excludes disputed, low-confidence and highly-sensitive records from ordinary chat context.
+- Short-lived conversation authorization factory that accepts only successful Creator session results.
+- JVM test source for session, memory-context and conversation authorization boundaries.
 
-- [Creator identity and protected conversation boundary](docs/CREATOR-CONVERSATION-BOUNDARY.md)\n- [Native Android application shell](docs/ANDROID-APPLICATION-SHELL.md)\n- [Master architecture](docs/MASTER-ARCHITECTURE.md)
+Not yet connected or verified:
+- Production authentication/account/device service and trusted server-side authorization.
+- Live model provider, approved credentials and provider-specific privacy controls.
+- Production startup dependency wiring and user-facing Chat/Memory workflows.
+- Live public search/evidence extraction, background learning scheduler and approved tool execution host.
+- Real-device microphone, notification, offline, battery, recovery and biometric behaviour.
+- A signed release build.
+
+**Important:** JAVAS ULTRA is not yet a functioning live AI companion. The current work establishes local architecture and integration boundaries; it does not claim that a model is connected, that a login service is active, or that autonomous actions are available.
+
+## Active development branch
+
+[feature/native-companion-navigation-shell](https://github.com/atarahswiah-glitch/JAVAS-ULTRA/tree/feature/native-companion-navigation-shell)
+
+The work is kept separate from `main`. Existing draft pull requests remain unmerged. No production Supabase configuration or secrets are changed by this branch.
+
+## Architecture and operating principles
+
+- Native Android with Kotlin, Jetpack Compose and Material 3.
+- Creator-owned identity and encrypted local memory.
+- Least privilege, explicit approvals and auditable protected actions.
+- Offline mode must route only to an approved on-device provider.
+- External content, retrieved memories and tool output are reference data, not policy instructions.
+- Planning and learning are separate from permission to execute.
+- JAVAS must report uncertainty and distinguish studied, practised and verified capabilities.
+- No fabricated memories, unverified actions, false claims of consciousness or self-granted privileges.
+- Production credentials and private data must never be committed to source control.
+
+## Documentation
+
+- [Creator identity and protected conversation boundary](docs/CREATOR-CONVERSATION-BOUNDARY.md)
+- [Native Android application shell](docs/ANDROID-APPLICATION-SHELL.md)
+- [Master architecture](docs/MASTER-ARCHITECTURE.md)
 - [Integrated ten-phase roadmap](docs/ROADMAP.md)
 - [Requirements register](docs/REQUIREMENTS-REGISTER.md)
 - [Self-directed learning and capability environment](docs/SELF-DIRECTED-LEARNING-ENVIRONMENT.md)
 - [Security and privacy baseline](docs/SECURITY-AND-PRIVACY-BASELINE.md)
 - [Phase 2 identity and security contracts](docs/PHASE-2-IDENTITY-SECURITY-CONTRACTS.md)
 
-## Build and delivery
+## Build and validation
 
-- Preferred cloud Android build: existing Codemagic account, configured by [codemagic.yaml](codemagic.yaml).
-- Independent verification: [GitHub Actions Android CI](.github/workflows/android-ci.yml).
-- Debug builds are unsigned. Release signing and store publishing remain disabled pending Creator approval and a secure signing-key custody plan.
+- Android CI workflow: `.github/workflows/android-ci.yml`.
+- Codemagic workflow: `codemagic.yaml`.
+- No Gradle build, JVM tests, CI run, APK assembly, installation or device test was performed for the latest integration increments. Test sources are present but remain unverified.
+- Debug artifacts are not release-signed. Release signing and publishing remain disabled pending an approved signing-key custody plan.
 
-## Development principles
+## Scope and safety
 
-- Native Android is the first client direction.
-- Preserve identity, approved memory and user control across upgrades and migration.
-- Keep planning separate from permission to execute actions.
-- Treat external content and tool output as untrusted input.
-- Require evidence before marking work implemented or verified.
-- Keep credentials, private memory and production data out of source control.
+Brain-computer interfaces, neural sensing, mind uploading, consciousness transfer and merging the Creator with JAVAS are outside the current implementation scope.
 
-## Scope exclusions
-
-Brain-computer interfaces, neural sensing, mind uploading, consciousness transfer and merging the Creator with JAVAS are explicitly outside the current implementation scope. They require separate future authorisation.
-
-## Contributions and changes
-
-Use focused branches and reviewable pull requests. Material changes to identity, permissions, security boundaries, memory lifecycle or deployment authority require explicit review.
-
-## Current product status
-
-JAVAS ULTRA is currently a native Android foundation build, not yet a functional AI companion. The app now has a four-section native navigation shell and a protected conversation orchestration domain layer. The conversation layer is not connected to an authentication provider, approved-memory adapter or model provider; therefore the app is not yet a live AI companion. Identity, memory, learning, research, model routing and tool permission modules remain local foundations until their integrations and verification are complete. There is no active model connection, production authentication backend, live research transport, scheduled learning worker or enabled device-action tool. The next milestones are Creator identity/session integration, a protected conversation pipeline and a usable encrypted memory manager.
+Security-sensitive changes, production service activation, paid services, release publication and protected external actions remain subject to explicit Creator approval.
