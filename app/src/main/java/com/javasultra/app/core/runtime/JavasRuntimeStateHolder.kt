@@ -51,7 +51,11 @@ class JavasRuntimeStateHolder(
     val state: StateFlow<JavasUiState> = mutableState.asStateFlow()
 
     fun restore() = launchBusy {
-        when (val result = runtime.restoreSession()) {
+        val restored = try { runtime.restoreSession() } catch (_: Exception) {
+            signedOutWithError("Session restoration is unavailable.")
+            return@launchBusy
+        }
+        when (val result = restored) {
             is CreatorSessionResult.Authenticated -> update { it.copy(session = CreatorUiSessionState.SIGNED_IN, error = null) }
             is CreatorSessionResult.DeviceVerificationRequired -> update {
                 it.copy(session = CreatorUiSessionState.DEVICE_VERIFICATION_REQUIRED, error = "This device needs Creator verification.")
@@ -82,7 +86,19 @@ class JavasRuntimeStateHolder(
     }
 
     fun signOut() = launchBusy {
-        val result = runtime.signOut()
+        val result = try { runtime.signOut() } catch (_: Exception) {
+            update {
+                it.copy(
+                    session = CreatorUiSessionState.SIGNED_OUT,
+                    chat = emptyList(),
+                    memories = emptyList(),
+                    memoriesLoaded = false,
+                    exportSnapshot = null,
+                    error = "Signed out locally, but the sign-out service could not confirm server revocation."
+                )
+            }
+            return@launchBusy
+        }
         update {
             it.copy(
                 session = CreatorUiSessionState.SIGNED_OUT,
