@@ -145,7 +145,9 @@ class JavasRuntimeStateHolder(
 
     fun refreshMemories() = launchBusy {
         if (!requireActiveSession()) return@launchBusy
-        when (val result = withContext(Dispatchers.IO) { runtime.reviewMemories() }) {
+        val result = withContext(Dispatchers.IO) { runtime.reviewMemories() }
+        if (!confirmSessionAfterPrivateOperation()) return@launchBusy
+        when (result) {
             is MemoryRepositoryResult.Success -> update { it.copy(memories = result.value, memoriesLoaded = true, error = null) }
             is MemoryRepositoryResult.Failure -> fail("Memory review failed: ${result.reason}.")
         }
@@ -158,9 +160,11 @@ class JavasRuntimeStateHolder(
         tags: Set<String> = emptySet()
     ) = launchBusy {
         if (!requireActiveSession()) return@launchBusy
-        when (val result = withContext(Dispatchers.IO) {
+        val result = withContext(Dispatchers.IO) {
             runtime.proposeMemory(content, kind, sensitivity, tags = tags)
-        }) {
+        }
+        if (!confirmSessionAfterPrivateOperation()) return@launchBusy
+        when (result) {
             is MemoryRepositoryResult.Success -> update {
                 it.copy(memories = it.memories + result.value, memoriesLoaded = true, error = "Memory saved as a proposal. Confirm it explicitly to activate it.")
             }
@@ -170,7 +174,9 @@ class JavasRuntimeStateHolder(
 
     fun confirmMemory(id: MemoryId) = launchBusy {
         if (!requireActiveSession()) return@launchBusy
-        when (val result = withContext(Dispatchers.IO) { runtime.confirmMemory(id) }) {
+        val result = withContext(Dispatchers.IO) { runtime.confirmMemory(id) }
+        if (!confirmSessionAfterPrivateOperation()) return@launchBusy
+        when (result) {
             is MemoryRepositoryResult.Success -> update {
                 it.copy(memories = replaceMemory(it.memories, result.value), error = null)
             }
@@ -180,7 +186,9 @@ class JavasRuntimeStateHolder(
 
     fun deleteMemory(id: MemoryId) = launchBusy {
         if (!requireActiveSession()) return@launchBusy
-        when (val result = withContext(Dispatchers.IO) { runtime.deleteMemory(id) }) {
+        val result = withContext(Dispatchers.IO) { runtime.deleteMemory(id) }
+        if (!confirmSessionAfterPrivateOperation()) return@launchBusy
+        when (result) {
             is MemoryRepositoryResult.Success -> update {
                 it.copy(memories = it.memories.filterNot { memory -> memory.id == id }, error = null)
             }
@@ -190,7 +198,9 @@ class JavasRuntimeStateHolder(
 
     fun prepareExport() = launchBusy {
         if (!requireActiveSession()) return@launchBusy
-        when (val result = withContext(Dispatchers.IO) { runtime.exportMemories() }) {
+        val result = withContext(Dispatchers.IO) { runtime.exportMemories() }
+        if (!confirmSessionAfterPrivateOperation()) return@launchBusy
+        when (result) {
             is MemoryRepositoryResult.Success -> update { it.copy(exportSnapshot = result.value, error = null) }
             is MemoryRepositoryResult.Failure -> fail("Memory export failed: ${result.reason}.")
         }
@@ -220,6 +230,12 @@ class JavasRuntimeStateHolder(
     /** Call on app resume and before each private operation to hide stale private UI state. */
     fun validateSession() {
         if (mutableState.value.session == CreatorUiSessionState.SIGNED_IN) requireActiveSession()
+    }
+
+    private fun confirmSessionAfterPrivateOperation(): Boolean {
+        if (mutableState.value.session == CreatorUiSessionState.SIGNED_IN && runtime.hasActiveCreatorSession()) return true
+        signedOutWithError("Your Creator session ended during that operation. Private data was not kept on screen.")
+        return false
     }
 
     private fun requireActiveSession(): Boolean {
