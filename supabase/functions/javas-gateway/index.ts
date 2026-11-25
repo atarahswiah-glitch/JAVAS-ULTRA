@@ -48,7 +48,9 @@ Deno.serve(async (req: Request) => {
   if (!match?.[1]) return jsonResponse({ error: "Unauthorized" }, 401);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const supabaseAnonKey =
+    Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
+    Deno.env.get("SUPABASE_ANON_KEY");
   const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!supabaseUrl || !supabaseAnonKey || !anthropicApiKey) {
     return jsonResponse({ error: "Gateway is not configured" }, 503);
