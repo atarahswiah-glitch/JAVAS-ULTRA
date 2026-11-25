@@ -138,6 +138,21 @@ class CreatorSessionCoordinatorTest {
         assertEquals(null, vault.credential)
     }
 
+    @Test fun signOutClearsUnreadableVaultAndReportsRevocationUnconfirmed() = runBlocking {
+        val vault = FakeVault().apply {
+            credential = providerSession.toCredential("device-1")
+            readFailure = true
+        }
+        val (manager, _, auth) = coordinator(vault)
+
+        val result = manager.signOut()
+
+        assertTrue(result is CreatorSessionResult.SignedOut)
+        assertFalse((result as CreatorSessionResult.SignedOut).serverRevocationConfirmed)
+        assertEquals(null, vault.credential)
+        assertEquals(0, auth.revocations)
+    }
+
     private class FakeAuthentication(
         private val session: ProviderAuthenticationResult,
         private val revokeSucceeds: Boolean,
@@ -160,9 +175,11 @@ class CreatorSessionCoordinatorTest {
 
     private class FakeVault : CreatorSessionVault {
         var credential: CreatorSessionCredential? = null
+        var readFailure: Boolean = false
 
         override fun read(): CreatorSessionVaultResult<CreatorSessionCredential?> =
-            CreatorSessionVaultResult.Success(credential)
+            if (readFailure) CreatorSessionVaultResult.Failure(CreatorSessionVaultFailure.DECRYPTION_FAILED)
+            else CreatorSessionVaultResult.Success(credential)
 
         override fun write(credential: CreatorSessionCredential): CreatorSessionVaultResult<Unit> {
             if (!credential.validate()) {
