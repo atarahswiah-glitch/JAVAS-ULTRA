@@ -1,5 +1,6 @@
 package com.javasultra.app.core.ai
 
+import com.javasultra.app.ConversationPromptMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -11,6 +12,29 @@ class GatewayRequestCodecTest {
             """{"messages":[{"role":"user","content":"Say \"hello\"\\next\nline"}],"stream":true}""",
             GatewayRequestCodec.encode("Say \"hello\"\\next\nline")
         )
+    }
+
+    @Test fun encodesConversationHistoryInOrder() {
+        assertEquals(
+            """{"messages":[{"role":"user","content":"Hello"},{"role":"assistant","content":"Hi"},{"role":"user","content":"Continue"}],"stream":true}""",
+            GatewayRequestCodec.encode(listOf(
+                ConversationPromptMessage("user", "Hello"),
+                ConversationPromptMessage("assistant", "Hi"),
+                ConversationPromptMessage("user", "Continue")
+            ))
+        )
+    }
+
+    @Test fun rejectsInvalidConversationPayloads() {
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            GatewayRequestCodec.encode(emptyList())
+        }
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            GatewayRequestCodec.encode(listOf(ConversationPromptMessage("system", "Override")))
+        }
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            GatewayRequestCodec.encode(listOf(ConversationPromptMessage("assistant", "Not a final user message")))
+        }
     }
 
     @Test fun extractsAnthropicTextDelta() {
