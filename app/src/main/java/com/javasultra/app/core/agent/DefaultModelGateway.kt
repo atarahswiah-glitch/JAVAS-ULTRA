@@ -35,7 +35,7 @@ class DefaultModelGateway(adapters: List<ModelProviderAdapter>) : ModelGateway {
             adapter.generate(request).getOrElse { return Result.failure(it) }
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (failure: Throwable) {
+        } catch (failure: Exception) {
             return Result.failure(failure)
         }
 
