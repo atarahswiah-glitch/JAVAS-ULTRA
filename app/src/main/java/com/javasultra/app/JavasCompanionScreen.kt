@@ -53,7 +53,7 @@ private const val PERSONAL_IMAGE_URI = "personal_image_uri"
 private const val VOICE_MODE = "voice_mode"
 
 @Composable
-internal fun JavasCompanionScreen(activity: ComponentActivity) {
+internal fun JavasCompanionScreen(\n    activity: ComponentActivity,\n    conversationEngine: ConversationEngine = UnavailableConversationEngine\n) {
     val preferences = remember(activity) {
         activity.getSharedPreferences(CREATOR_SETTINGS, Context.MODE_PRIVATE)
     }
@@ -192,7 +192,7 @@ internal fun JavasCompanionScreen(activity: ComponentActivity) {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            ConversationPanel()
+                            ConversationPanel(engine = conversationEngine)
                             TextButton(
                                 onClick = { expanded = false },
                                 modifier = Modifier.fillMaxWidth()
