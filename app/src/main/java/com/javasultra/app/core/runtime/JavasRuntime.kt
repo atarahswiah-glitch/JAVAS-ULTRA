@@ -24,6 +24,7 @@ import com.javasultra.app.core.security.CreatorSessionCoordinator
 import com.javasultra.app.core.security.CreatorSessionResult
 import com.javasultra.app.core.security.EncryptedCreatorSessionVault
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -78,14 +79,8 @@ class JavasRuntime private constructor(
         sessions.signOut()
     }
 
-    fun hasActiveCreatorSession(now: Instant = clock.instant()): Boolean {
-        val current = authorization ?: return false
-        if (!now.isBefore(current.expiresAt)) {
-            authorization = null
-            return false
-        }
-        return true
-    }
+    fun hasActiveCreatorSession(now: Instant = clock.instant()): Boolean =
+        activeAuthorization(now) != null
 
     /** Owner is derived from the verified session; callers cannot choose another owner. */
     override fun reviewMemories(now: Instant): MemoryRepositoryResult<List<MemoryRecord>> {
@@ -136,7 +131,10 @@ class JavasRuntime private constructor(
 
     private fun activeAuthorization(now: Instant): CreatorConversationAuthorization? {
         val current = authorization ?: return null
-        if (!now.isBefore(current.expiresAt)) {
+        if (!now.isBefore(current.expiresAt) ||
+            now.isBefore(current.authenticatedAt) ||
+            Duration.between(current.authenticatedAt, now) > Duration.ofMinutes(30)
+        ) {
             authorization = null
             return null
         }
