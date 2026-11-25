@@ -207,3 +207,20 @@ Not yet complete:
 - Added `docs/CREATOR-CONVERSATION-BOUNDARY.md`.
 - No live model provider, production authentication, backend adapter or memory context adapter is configured. No build, test, CI, APK or device validation was run.
 - Next: complete the real Creator authentication provider contract and secure application session lifecycle, then implement the Creator-approved memory manager and conversation UI integration. Provider credentials/backend activation remain protected decisions.
+
+
+## Creator memory-to-conversation integration increment — 2026-11-25
+
+- Added `EncryptedRepositoryConversationMemoryProvider.kt` to connect the protected conversation boundary to the encrypted local memory repository.
+- The adapter scopes reads to the authenticated Creator principal, uses the repository's READ policy, excludes highly-sensitive records without step-up authentication, and filters disputed, low-confidence, expired, inactive, and unsupported memory kinds before ranking.
+- Context is bounded to eight records, 2,000 characters per record, and 8,000 characters overall. Memory remains reference data, not instructions.
+- Added JVM test source for owner scoping, lifecycle/verification/confidence filtering, bounded READ access and invalid input.
+- Hardened sign-out so unreadable encrypted session state is still cleared locally; remote revocation is reported unconfirmed when the token cannot be recovered. Failed preflight now attempts to revoke both access and refresh tokens.
+- Added a regression test for sign-out when the encrypted vault cannot be read.
+- Corrected escaped newline corruption in the protected conversation Kotlin source found during static review.
+
+Verification status:
+- These changes were committed to `feature/native-companion-navigation-shell`.
+- No Gradle build, JVM tests, instrumentation tests, CI run, APK build, installation or device test has been performed in this increment, in keeping with the instruction to defer testing.
+- Production authentication, a trusted backend, real model provider credentials, session-to-conversation authorization issuance, and Compose chat/memory UI wiring remain unconnected. The app must not be described as a functioning live companion yet.
+- Next integrated work: add a trusted application session boundary that issues short-lived conversation authorization only from verified coordinator results; then connect the actual Chat and Memory screens through injected app dependencies. Do not fabricate provider credentials or activate backend services.
