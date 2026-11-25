@@ -282,3 +282,22 @@ Not yet implemented or verified:
 - This composition root is a local application boundary, not proof of server-side authentication, device attestation or production readiness.
 
 Next: implement a lifecycle-safe application state holder and UI-facing use-case facade that exposes only owner-scoped memory operations after runtime-issued Creator authorization; then add unit tests for session transitions, sign-out clearing and unavailable-provider behaviour. Keep external providers explicitly unconfigured until trusted implementations are approved.
+
+
+## UI-facing runtime state checkpoint — 2026-11-25
+
+Implemented:
+- Added `JavasRuntimeContract` as the UI-facing interface; the concrete runtime implements it.
+- Added Creator-owned memory operations to the runtime. The owner principal is derived from its internal verified authorization, never accepted from UI input.
+- Protected memory review, proposal, confirmation, deletion and export require a live authorization and a recent Creator authentication (maximum 30 minutes). No UI caller can assert step-up authentication; highly-sensitive operations remain denied unless a future trusted step-up flow is added.
+- Added `JavasRuntimeStateHolder.kt` with observable StateFlow state for session, bounded in-memory conversation turns, memory entries, busy/error states and export snapshot.
+- State holder handles restore, sign-in, sign-out, conversation, memory review/proposal/confirmation/deletion/export. It clears in-memory chat and private memory state on sign-out and session lifecycle failures.
+- Chat turns are memory-only and bounded to 50 lines; no transcript persistence is introduced. New memories remain proposals until explicit confirmation.
+- Added `JavasRuntimeStateHolderTest.kt` for no-session restore, denied sign-in and sign-out state clearing.
+
+Not yet integrated/verified:
+- MainActivity does not instantiate the runtime or state holder because trusted authentication/account/device gateways and an approved model provider are still unavailable. UI remains honestly disconnected.
+- The tests are authored but not executed. No Gradle build, CI, APK, installation or device test was run.
+- The state holder is lifecycle-owned and must be closed by its eventual Compose owner; production UI wiring and cancellation/concurrency review remain outstanding.
+
+Next: complete the application lifecycle integration without inventing providers, then add UI screens for Creator sign-in/session status and memory proposal review/confirmation. In parallel, inspect session refresh failure semantics and refine typed provider errors before connecting any live service.
