@@ -52,7 +52,7 @@ class DefaultModelGateway(adapters: List<ModelProviderAdapter>) : ModelGateway {
             response.completedAt.isBefore(now)
 
         if (invalid) return Result.failure(IllegalStateException("Provider returned an invalid or over-budget response"))
-        return Result.success(response)
+        return Result.success(response.copy(providerId = provider.id))
     }
 
     private companion object {
