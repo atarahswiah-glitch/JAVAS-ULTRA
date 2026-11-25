@@ -53,10 +53,12 @@ enum class CreatorSessionDenial {
 }
 
 sealed interface CreatorSessionResult {
-    data class Authenticated(
+    data class Authenticated internal constructor(
         val principalId: PrincipalId,
         val deviceId: DeviceId,
-        val expiresAt: Instant
+        val authenticatedAt: Instant,
+        val expiresAt: Instant,
+        val verifiedFactorCount: Int
     ) : CreatorSessionResult
 
     data class DeviceVerificationRequired(val deviceId: DeviceId) : CreatorSessionResult
@@ -168,7 +170,13 @@ class CreatorSessionCoordinator(
 
         return when (vault.write(credential)) {
             is CreatorSessionVaultResult.Success ->
-                CreatorSessionResult.Authenticated(providerSession.principalId, deviceId, credential.expiresAt)
+                CreatorSessionResult.Authenticated(
+                    principalId = providerSession.principalId,
+                    deviceId = deviceId,
+                    authenticatedAt = credential.authenticatedAt,
+                    expiresAt = credential.expiresAt,
+                    verifiedFactorCount = credential.verifiedFactorCount
+                )
             is CreatorSessionVaultResult.Failure -> {
                 revokeQuietly(credential.accessToken, credential.refreshToken)
                 CreatorSessionResult.Denied(CreatorSessionDenial.SESSION_VAULT_WRITE_FAILED)
@@ -277,9 +285,11 @@ class CreatorSessionCoordinator(
             return CreatorSessionResult.Denied(CreatorSessionDenial.IDENTITY_POLICY_DENIED)
         }
         return CreatorSessionResult.Authenticated(
-            PrincipalId(credential.principalId),
-            deviceId,
-            credential.expiresAt
+            principalId = PrincipalId(credential.principalId),
+            deviceId = deviceId,
+            authenticatedAt = credential.authenticatedAt,
+            expiresAt = credential.expiresAt,
+            verifiedFactorCount = credential.verifiedFactorCount
         )
     }
 
