@@ -38,7 +38,8 @@ data class ModelResponse(
     val proposedToolCalls: List<ProposedToolCall>,
     val inputUnitsUsed: Int,
     val outputUnitsUsed: Int,
-    val completedAt: Instant
+    val completedAt: Instant,
+    val providerId: String = ""
 )
 
 enum class ModelRouteDenial {
