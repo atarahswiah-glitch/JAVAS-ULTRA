@@ -256,3 +256,11 @@ Verification:
 - Source and documentation were committed to the active feature branch.
 - No Gradle build, JVM tests, Android instrumentation tests, CI run, APK build, installation or physical-device test was performed. All newly authored tests remain unverified.
 - Chat sending, authenticated memory listing and the memory-management UI are still blocked on production identity and application dependency wiring. The current Chat draft is not a conversation transcript.
+
+
+### Creator confirmation semantics
+
+- When a Creator explicitly activates a memory whose provenance is a direct Creator statement, the repository now upgrades its verification state from `SINGLE_SOURCE` to `CREATOR_CONFIRMED`.
+- Activation of memories from other provenance types does not automatically upgrade their verification state.
+- This keeps Creator confirmation distinct from model inference or research evidence.
+- Test source was updated to cover the confirmation transition; execution remains pending.
