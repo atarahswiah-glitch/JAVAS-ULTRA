@@ -117,8 +117,9 @@ class CreatorMemoryManagerTest {
 
         val confirmed = manager.confirm("creator-1", proposed.id, now.plusSeconds(1))
         assertTrue(confirmed is MemoryRepositoryResult.Success)
-        assertEquals(MemoryLifecycle.ACTIVE, (confirmed as MemoryRepositoryResult.Success).value.lifecycle)
-        assertEquals(MemoryVerification.CREATOR_CONFIRMED, confirmed.value.verification)
+        val confirmedRecord = (confirmed as MemoryRepositoryResult.Success).value
+        assertEquals(MemoryLifecycle.ACTIVE, confirmedRecord.lifecycle)
+        assertEquals(MemoryVerification.CREATOR_CONFIRMED, confirmedRecord.verification)
     }
 
     @Test fun correctionProposalDoesNotReplaceTheActiveRecordUntilConfirmed() {
