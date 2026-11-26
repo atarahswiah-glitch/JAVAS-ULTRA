@@ -72,6 +72,7 @@ internal fun JavasCompanionScreen(
     }
     var expanded by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var showSecurityCentre by remember { mutableStateOf(false) }
     var voiceSample by remember { mutableStateOf(preferences.getString(VOICE_SAMPLE_URI, null)) }
     var personalImage by remember { mutableStateOf(preferences.getString(PERSONAL_IMAGE_URI, null)) }
     var voiceMode by remember { mutableStateOf(preferences.getString(VOICE_MODE, "JAVAS") ?: "JAVAS") }
@@ -303,9 +304,97 @@ internal fun JavasCompanionScreen(
                             color = Color(0xFF7E9AA9),
                             fontSize = 10.sp
                         )
+
+                        Spacer(Modifier.height(14.dp))
+                        Text("SECURITY & RECOVERY", color = Color(0xFF79DFF2), fontSize = 10.sp, letterSpacing = 1.2.sp)
+                        Text(
+                            "Review protection status, incident reporting readiness and the steps required to recover JAVAS.",
+                            color = Color(0xFF9CB7C5),
+                            fontSize = 11.sp
+                        )
+                        TextButton(
+                            onClick = {
+                                showSettings = false
+                                showSecurityCentre = true
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Open Security & Recovery Centre") }
                     }
                 }
             }
+
+            if (showSecurityCentre) {
+                Surface(
+                    modifier = Modifier.align(Alignment.Center).fillMaxSize().padding(vertical = 8.dp),
+                    color = Color(0xFF081725),
+                    shape = RoundedCornerShape(24.dp),
+                    shadowElevation = 24.dp
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("SECURITY & RECOVERY", color = Color(0xFF8DEBFF), fontSize = 11.sp, letterSpacing = 1.5.sp)
+                                Text("JAVAS Security Guardian", color = Color(0xFFE8F8FF), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                            }
+                            TextButton(onClick = { showSecurityCentre = false }) { Text("Close") }
+                        }
+                        Surface(color = Color(0xFF2A2518), shape = RoundedCornerShape(14.dp)) {
+                            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("FOUNDATION ONLY", color = Color(0xFFFFD18B), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "The security decision policy is in the codebase. Live monitoring and automatic enforcement are not connected yet.",
+                                    color = Color(0xFFEADFCB), fontSize = 12.sp
+                                )
+                            }
+                        }
+                        Text("PROTECTION COMPONENTS", color = Color(0xFF79DFF2), fontSize = 10.sp, letterSpacing = 1.2.sp)
+                        SecurityReadinessRow("Security decision policy", "Code foundation added", true)
+                        SecurityReadinessRow("Gateway incident capture", "Code added; CI verification pending", false)
+                        SecurityReadinessRow("Live incident history", "Not connected", false)
+                        SecurityReadinessRow("Automatic session isolation", "Not connected", false)
+                        SecurityReadinessRow("Creator alerts", "Not connected", false)
+                        SecurityReadinessRow("Secure Shelter controls", "Not connected", false)
+                        SecurityReadinessRow("Creator recovery verification", "Policy defined; workflow pending", false)
+                        Spacer(Modifier.height(2.dp))
+                        Text("INCIDENT HISTORY", color = Color(0xFF79DFF2), fontSize = 10.sp, letterSpacing = 1.2.sp)
+                        Text(
+                            "No live incident feed is connected. This screen will not invent incidents or claim that JAVAS is monitoring other devices.",
+                            color = Color(0xFF9CB7C5), fontSize = 12.sp
+                        )
+                        Text("WHEN AN INCIDENT FEED IS CONNECTED", color = Color(0xFF79DFF2), fontSize = 10.sp, letterSpacing = 1.2.sp)
+                        Text(
+                            "You will be able to review the time, apparent network address, verified account or device evidence, attempted action, protection applied and functions temporarily restricted.",
+                            color = Color(0xFF9CB7C5), fontSize = 12.sp
+                        )
+                        Text(
+                            "IP addresses and device labels are clues, not proof of a person's identity. Secrets such as passwords and access tokens will never be stored in incident reports.",
+                            color = Color(0xFF7895A5), fontSize = 10.sp
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Button(onClick = { showSecurityCentre = false }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Return to JAVAS")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SecurityReadinessRow(label: String, detail: String, foundationPresent: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(if (foundationPresent) "✓" else "○", color = if (foundationPresent) Color(0xFF9BE8C5) else Color(0xFFFFD18B), fontSize = 15.sp)
+        Column(Modifier.weight(1f)) {
+            Text(label, color = Color(0xFFE5F5FA), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text(detail, color = Color(0xFF8BA8B9), fontSize = 10.sp)
         }
     }
 }
