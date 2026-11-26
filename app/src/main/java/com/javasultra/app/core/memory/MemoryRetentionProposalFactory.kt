@@ -82,7 +82,19 @@ object MemoryRetentionProposalFactory {
             ) return denied(retention, MemoryRetentionPreparationDenial.SOURCE_NOT_VERIFIED)
         }
 
-        return MemoryRetentionPreparation(retention, recordToPropose = proposedRecord)
+        val recordToPropose = if (retention.action == MemoryRetentionAction.STORE_SOURCE_REFERENCE) {
+            val reference = proposedRecord.provenance.sourceReference
+                ?: return denied(retention, MemoryRetentionPreparationDenial.SOURCE_REFERENCE_REQUIRED)
+            proposedRecord.copy(
+                content = reference,
+                confidence = 0.0,
+                verification = MemoryVerification.UNVERIFIED,
+                tags = proposedRecord.tags + "source-reference-only"
+            )
+        } else {
+            proposedRecord
+        }
+        return MemoryRetentionPreparation(retention, recordToPropose = recordToPropose)
     }
 
     private fun denied(
