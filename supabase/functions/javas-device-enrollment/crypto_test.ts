@@ -2,6 +2,8 @@ import {
   canonicalChallengeBytes,
   derEcdsaToP1363,
   verifyDeviceProof,
+  issueEnrollmentChallenge,
+  sha256Base64,
 } from "./crypto.ts";
 
 function toBase64(bytes: Uint8Array): string {
@@ -107,4 +109,38 @@ Deno.test("rejects malformed DER signatures", () => {
     rejected = true;
   }
   if (!rejected) throw new Error("Malformed signature was accepted");
+});
+
+Deno.test("issues a fresh random challenge and stores only its digest", async () => {
+  const now = new Date("2026-11-26T15:00:00.000Z");
+  const first = await issueEnrollmentChallenge({ creatorId: "creator", deviceId: "device", now });
+  const second = await issueEnrollmentChallenge({ creatorId: "creator", deviceId: "device", now });
+  if (first.challenge.challengeId === second.challenge.challengeId) {
+    throw new Error("Challenge identifiers must be unique");
+  }
+  if (first.challenge.nonceBase64 === second.challenge.nonceBase64) {
+    throw new Error("Challenge nonces must be random");
+  }
+  if (first.nonceDigestBase64 === first.challenge.nonceBase64) {
+    throw new Error("Stored nonce digest must not equal the raw nonce");
+  }
+  const rawNonce = Uint8Array.from(atob(first.challenge.nonceBase64), (c) => c.charCodeAt(0));
+  if (await sha256Base64(rawNonce) !== first.nonceDigestBase64) {
+    throw new Error("Stored nonce digest does not match the issued nonce");
+  }
+  if (Date.parse(first.challenge.expiresAt) - now.getTime() !== 120_000) {
+    throw new Error("Default challenge lifetime must be two minutes");
+  }
+});
+
+Deno.test("rejects challenge lifetimes outside the allowed range", async () => {
+  for (const ttlMs of [0, 14_999, 120_001, 1.5]) {
+    let rejected = false;
+    try {
+      await issueEnrollmentChallenge({ creatorId: "creator", deviceId: "device", ttlMs });
+    } catch {
+      rejected = true;
+    }
+    if (!rejected) throw new Error(`Invalid TTL accepted: ${ttlMs}`);
+  }
 });
