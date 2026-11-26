@@ -6,6 +6,12 @@ import {
   sha256Base64,
 } from "./crypto.ts";
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
 function toBase64(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -75,7 +81,7 @@ Deno.test("rejects wrong Creator, wrong device and expired challenge", async () 
   const rawSignature = new Uint8Array(await crypto.subtle.sign(
     { name: "ECDSA", hash: "SHA-256" },
     pair.privateKey,
-    canonicalChallengeBytes(challenge),
+    toArrayBuffer(canonicalChallengeBytes(challenge)),
   ));
   const proof = {
     challenge,
