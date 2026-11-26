@@ -30,6 +30,10 @@ jobs:
         run: deno check supabase/functions/javas-gateway/index.ts supabase/functions/javas-gateway/validation.ts supabase/functions/javas-gateway/validation_test.ts supabase/functions/javas-gateway/security_telemetry.ts supabase/functions/javas-gateway/security_telemetry_test.ts supabase/functions/javas-gateway/incident_archive.ts supabase/functions/javas-gateway/incident_archive_test.ts supabase/functions/javas-security-incidents/index.ts supabase/functions/javas-security-incidents/index_test.ts supabase/functions/javas-security-incidents/pagination.ts
       - name: Test Supabase AI gateway validation
         run: deno test --allow-env supabase/functions/javas-gateway/validation_test.ts supabase/functions/javas-gateway/security_telemetry_test.ts
+      - name: Type-check Creator device enrollment proof verifier
+        run: deno check supabase/functions/javas-device-enrollment/crypto.ts supabase/functions/javas-device-enrollment/crypto_test.ts
+      - name: Test Creator device enrollment proof verifier
+        run: deno test supabase/functions/javas-device-enrollment/crypto_test.ts
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
