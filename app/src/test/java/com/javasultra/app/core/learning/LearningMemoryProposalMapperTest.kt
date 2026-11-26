@@ -60,7 +60,12 @@ class LearningMemoryProposalMapperTest {
         assertEquals(MemorySensitivity.CREATOR_PRIVATE, record.sensitivity)
         assertEquals(MemoryVerification.CORROBORATED, record.verification)
         assertEquals(MemorySourceType.RESEARCH_EVIDENCE, record.provenance.sourceType)
-        assertTrue(record.provenance.sourceReference!!.contains("source-a,source-b"))
+        assertTrue(record.provenance.sourceReference!!.contains("https://a.example.org"))
+        assertTrue(record.provenance.sourceReference!!.contains("https://b.example.org"))
+        assertEquals(record.provenance.sourceReference, record.content)
+        assertFalse(record.content.contains("A corroborated public research statement"))
+        assertEquals(MemoryVerification.UNVERIFIED, record.verification)
+        assertTrue(record.tags.contains("source-reference-only"))
         assertTrue(record.provenance.notes!!.contains("review=review-1"))
     }
 
