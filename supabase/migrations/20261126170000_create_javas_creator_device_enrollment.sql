@@ -16,8 +16,8 @@ create table public.javas_creator_devices (
   revoked_at timestamptz,
   unique (creator_user_id, device_id),
   unique (creator_user_id, public_key_sha256_base64),
-  check ((state = 'VERIFIED') = (approved_at is not null)),
-  check ((state = 'REVOKED') = (revoked_at is not null))
+  check (state <> 'VERIFIED' or approved_at is not null),
+  check (state <> 'REVOKED' or revoked_at is not null)
 );
 
 comment on table public.javas_creator_devices is
