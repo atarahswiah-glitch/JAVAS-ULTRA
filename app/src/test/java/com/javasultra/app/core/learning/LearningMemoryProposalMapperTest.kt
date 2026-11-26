@@ -137,6 +137,23 @@ class LearningMemoryProposalMapperTest {
         assertEquals(LearningProposalDenial.DUPLICATE_SOURCE_ID, duplicated.denial)
     }
 
+    @Test fun missingOrNonHttpsSourceUrlsCannotBecomeMemoryReferences() {
+        listOf("file:///etc/passwd", null).forEach { badUri ->
+            val badSources = sources().map {
+                if (it.id == "source-a") it.copy(uri = badUri) else it
+            }
+            val badDigest = LearningEvidenceDigest.computeSha256(listOf(claim()), badSources)
+            val req = request().copy(
+                expectedEvidenceDigestSha256 = badDigest,
+                submittedEvidenceDigestSha256 = badDigest
+            )
+            val result = LearningMemoryProposalMapper.mapApprovedClaims(
+                req, approvedReview(req), listOf(claim()), badSources, creator, now
+            )
+            assertEquals(LearningProposalDenial.INSUFFICIENT_PROVENANCE, result.denial)
+        }
+    }
+
     @Test fun modelOutputCannotBeUsedAsMemoryEvidence() {
         val modelSources = sources().map {
             if (it.id == "source-a") it.copy(kind = EvidenceSourceKind.MODEL_OUTPUT) else it
