@@ -124,3 +124,12 @@ The migration defines:
 ## Current verified boundary
 
 PR #19 provides a deterministic Kotlin policy, a readiness screen, gateway blocked-request telemetry, an append-only incident archive migration and a Creator-only incident-history scaffold. This branch now adds the cryptographic proof helper and a draft database-backed challenge schema/transaction with pgTAP coverage. The latest changes require the dedicated isolated Supabase CI job and fresh Android/Deno CI to pass. The Edge Function, trusted-device approval, session binding/revocation, server-enforced Secure Shelter, alerts and recovery are not yet operational. This document does not claim otherwise.
+
+
+## Branch implementation update — trusted-device approval transaction
+
+A follow-on migration now adds a distinct `APPROVE_DEVICE` challenge purpose and a target-device binding. The approval challenge records the already-verified approver device as the signing device and the pending installation as the target. The database refuses to issue approval challenges unless the approver is currently VERIFIED and the target is currently PENDING_APPROVAL; it also rejects self-approval.
+
+The consume routine rechecks both states, binds Creator/approver/target/purpose/nonce/expiry, consumes the challenge once and changes the target to VERIFIED with an approval timestamp in the same transaction. Replay and mismatched approver/target requests return no approval. A new pgTAP file covers binding, self-approval denial, successful transition and replay denial. CI now runs the complete database test suite rather than only the enrolment test.
+
+**Verification status:** the enrolment migration and its eight pgTAP checks passed in isolated CI run #369; Android, Deno and APK checks passed too. The new approval migration and its additional pgTAP tests have been committed but are awaiting their first CI run. The approval Edge Function and Android Keystore signing flow are not implemented yet. No hosted migration, deployment or merge has occurred.
