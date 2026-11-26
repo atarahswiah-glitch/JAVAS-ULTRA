@@ -27,9 +27,9 @@ jobs:
         with:
           deno-version: v2.x
       - name: Type-check Supabase AI gateway
-        run: deno check supabase/functions/javas-gateway/index.ts supabase/functions/javas-gateway/validation.ts supabase/functions/javas-gateway/validation_test.ts
+        run: deno check supabase/functions/javas-gateway/index.ts supabase/functions/javas-gateway/validation.ts supabase/functions/javas-gateway/validation_test.ts supabase/functions/javas-gateway/security_telemetry.ts supabase/functions/javas-gateway/security_telemetry_test.ts
       - name: Test Supabase AI gateway validation
-        run: deno test --allow-env supabase/functions/javas-gateway/validation_test.ts
+        run: deno test --allow-env supabase/functions/javas-gateway/validation_test.ts supabase/functions/javas-gateway/security_telemetry_test.ts
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
