@@ -6,11 +6,54 @@ import {
   MAX_REQUEST_BYTES,
   type ChatMessage,
 } from "./validation.ts";
-import { logSecurityIncident } from "./security_telemetry.ts";
+import { buildSecurityIncident } from "./security_telemetry.ts";
+import { toSecurityIncidentRow } from "./incident_archive.ts";
 
 const MODEL = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-sonnet-5-5";
 const ANTHROPIC_VERSION = "2023-06-01";
 const CREATOR_DISPLAY_NAME = Deno.env.get("JAVAS_CREATOR_DISPLAY_NAME")?.trim();
+const INCIDENT_ARCHIVE_KEY =
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
+  Deno.env.get("SUPABASE_SECRET_KEY");
+const incidentArchiveClient = Deno.env.get("SUPABASE_URL") && INCIDENT_ARCHIVE_KEY
+  ? createClient(Deno.env.get("SUPABASE_URL")!, INCIDENT_ARCHIVE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      fetch: (input, init) => fetch(input, {
+        ...init,
+        signal: AbortSignal.timeout(3000),
+      }),
+    },
+  })
+  : null;
+
+async function captureSecurityIncident(
+  req: Request,
+  input: Parameters<typeof buildSecurityIncident>[1],
+): Promise<void> {
+  const record = buildSecurityIncident(req, input);
+  console.warn(JSON.stringify({ event: "JAVAS_SECURITY_INCIDENT", incident: record }));
+
+  if (!incidentArchiveClient) {
+    console.error("JAVAS_SECURITY_ARCHIVE_UNAVAILABLE: server archive credentials are not configured");
+    return;
+  }
+
+  try {
+    const { error } = await incidentArchiveClient
+      .from("javas_security_incidents")
+      .insert(toSecurityIncidentRow(record));
+    if (error) {
+      console.error(JSON.stringify({
+        event: "JAVAS_SECURITY_ARCHIVE_WRITE_FAILED",
+        code: error.code ?? "unknown",
+      }));
+    }
+  } catch {
+    // A failed evidence write must never turn a blocked request into an allowed request.
+    console.error("JAVAS_SECURITY_ARCHIVE_WRITE_FAILED");
+  }
+}
 const SYSTEM_PROMPT = [
   "You are JAVAS, a helpful, honest, capable personal AI companion.",
   "The Creator is the single person whose authenticated Supabase user ID matches the server-configured Creator ID.",
@@ -50,7 +93,7 @@ function jsonResponse(body: unknown, status: number, origin: string | null): Res
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("Origin");
   if (!isOriginAllowed(origin, Deno.env.get("JAVAS_ALLOWED_ORIGINS"))) {
-    logSecurityIncident(req, {
+    await captureSecurityIncident(req, {
       incidentType: "ORIGIN_REJECTED",
       severity: "HIGH",
       attemptedAction: "Call protected gateway from a browser origin outside the allowlist",
@@ -69,7 +112,7 @@ Deno.serve(async (req: Request) => {
   const authorization = req.headers.get("Authorization");
   const match = authorization?.match(/^Bearer\s+(.+)$/i);
   if (!match?.[1]) {
-    logSecurityIncident(req, {
+    await captureSecurityIncident(req, {
       incidentType: "AUTH_MISSING",
       severity: "WARNING",
       attemptedAction: "Call protected gateway without a bearer access token",
@@ -93,7 +136,7 @@ Deno.serve(async (req: Request) => {
   });
   const { data: { user }, error: authError } = await supabase.auth.getUser(match[1]);
   if (authError || !user) {
-    logSecurityIncident(req, {
+    await captureSecurityIncident(req, {
       incidentType: "AUTH_INVALID",
       severity: "HIGH",
       attemptedAction: "Present an invalid, expired or unverifiable bearer access token",
@@ -105,7 +148,7 @@ Deno.serve(async (req: Request) => {
   // Authentication is not Creator authorization. Fail closed until the owner ID is configured.
   const creatorUserId = Deno.env.get("JAVAS_CREATOR_USER_ID");
   if (!creatorUserId?.trim()) {
-    logSecurityIncident(req, {
+    await captureSecurityIncident(req, {
       incidentType: "CREATOR_CONFIGURATION_MISSING",
       severity: "CRITICAL",
       attemptedAction: "Reach Creator-only gateway while server Creator identity is not configured",
@@ -115,7 +158,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Creator access is not configured" }, 503, origin);
   }
   if (!isCreatorAllowed(user.id, creatorUserId)) {
-    logSecurityIncident(req, {
+    await captureSecurityIncident(req, {
       incidentType: "CREATOR_ACCESS_DENIED",
       severity: "HIGH",
       attemptedAction: "Use Creator-only gateway with a non-Creator authenticated account",
@@ -127,7 +170,7 @@ Deno.serve(async (req: Request) => {
 
   const declaredLength = Number(req.headers.get("Content-Length") ?? "0");
   if (declaredLength > MAX_REQUEST_BYTES) {
-    logSecurityIncident(req, {
+    await captureSecurityIncident(req, {
       incidentType: "REQUEST_TOO_LARGE",
       severity: "WARNING",
       attemptedAction: "Submit a gateway request larger than the configured size limit",
@@ -144,7 +187,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Unable to read request" }, 400, origin);
   }
   if (new TextEncoder().encode(rawBody).byteLength > MAX_REQUEST_BYTES) {
-    logSecurityIncident(req, {
+    await captureSecurityIncident(req, {
       incidentType: "REQUEST_TOO_LARGE",
       severity: "WARNING",
       attemptedAction: "Submit a gateway request larger than the configured size limit",
@@ -158,7 +201,7 @@ Deno.serve(async (req: Request) => {
   try {
     payload = JSON.parse(rawBody);
   } catch {
-    logSecurityIncident(req, {
+    await captureSecurityIncident(req, {
       incidentType: "REQUEST_INVALID",
       severity: "WARNING",
       attemptedAction: "Submit malformed JSON to the protected gateway",
@@ -170,7 +213,7 @@ Deno.serve(async (req: Request) => {
 
   const messages = (payload as { messages?: unknown } | null)?.messages;
   if (!isValidMessages(messages)) {
-    logSecurityIncident(req, {
+    await captureSecurityIncident(req, {
       incidentType: "REQUEST_INVALID",
       severity: "WARNING",
       attemptedAction: "Submit a malformed or disallowed conversation payload",
