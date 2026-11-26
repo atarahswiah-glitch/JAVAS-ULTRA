@@ -1,5 +1,11 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { isCreatorAllowed, isValidMessages, MAX_MESSAGE_CHARS, MAX_MESSAGES } from "./validation.ts";
+import {
+  isCreatorAllowed,
+  isOriginAllowed,
+  isValidMessages,
+  MAX_MESSAGE_CHARS,
+  MAX_MESSAGES,
+} from "./validation.ts";
 
 Deno.test("accepts a bounded user message", () => {
   assert(isValidMessages([{ role: "user", content: "Hello JAVAS" }]));
@@ -45,4 +51,16 @@ Deno.test("Creator allowlist requires an exact configured user ID", () => {
   assertEquals(isCreatorAllowed("creator-123", undefined), false);
   assertEquals(isCreatorAllowed("creator-123", "  "), false);
   assertEquals(isCreatorAllowed("", "creator-123"), false);
+});
+
+Deno.test("native requests without Origin remain possible", () => {
+  assertEquals(isOriginAllowed(null, undefined), true);
+});
+
+Deno.test("browser origins must exactly match the configured allowlist", () => {
+  assertEquals(isOriginAllowed("https://app.example.com", "https://app.example.com"), true);
+  assertEquals(isOriginAllowed("https://evil.example", "https://app.example.com"), false);
+  assertEquals(isOriginAllowed("https://app.example.com", undefined), false);
+  assertEquals(isOriginAllowed("null", "null"), false);
+  assertEquals(isOriginAllowed("https://app.example.com/path", "https://app.example.com/path"), false);
 });

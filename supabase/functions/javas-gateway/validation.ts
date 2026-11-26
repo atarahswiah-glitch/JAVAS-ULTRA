@@ -35,3 +35,22 @@ export function isCreatorAllowed(userId: string, configuredCreatorId: string | u
     userId.length > 0 &&
     userId === configuredCreatorId.trim();
 }
+
+/**
+ * Native clients may omit Origin. Browser origins must be explicitly allowlisted.
+ * Origin is a browser boundary only; authentication and Creator authorization remain mandatory.
+ */
+export function isOriginAllowed(
+  origin: string | null,
+  configuredOrigins: string | undefined,
+): boolean {
+  if (origin === null) return true;
+  if (!origin || origin === "null" || !configuredOrigins?.trim()) return false;
+  try {
+    const parsed = new URL(origin);
+    if (parsed.origin !== origin) return false;
+    return configuredOrigins.split(",").map((value) => value.trim()).filter(Boolean).includes(origin);
+  } catch {
+    return false;
+  }
+}
