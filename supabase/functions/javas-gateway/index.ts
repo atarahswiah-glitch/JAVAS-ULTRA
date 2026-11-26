@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const authorization = req.headers.get("Authorization");
-  const match = authorization?.match(/^Bearer\\s+(.+)$/i);
+  const match = authorization?.match(/^Bearer\s+(.+)$/i);
   if (!match?.[1]) return jsonResponse({ error: "Unauthorized" }, 401, origin);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
