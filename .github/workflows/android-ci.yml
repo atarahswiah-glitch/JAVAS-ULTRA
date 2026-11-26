@@ -31,7 +31,7 @@ jobs:
       - name: Apply repository migrations and run Creator device enrolment tests
         run: |
           supabase db reset
-          supabase test db supabase/tests/javas_device_enrollment.test.sql
+          supabase test db
 
   verify:
     name: Build, unit tests and debug APK
