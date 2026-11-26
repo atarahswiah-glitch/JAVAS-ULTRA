@@ -12,6 +12,7 @@ import com.javasultra.app.core.memory.MemoryRetentionType
 import com.javasultra.app.core.memory.MemorySensitivity
 import com.javasultra.app.core.memory.MemorySourceType
 import com.javasultra.app.core.memory.MemoryVerification
+import java.net.URI
 import java.time.Instant
 
 enum class LearningProposalDenial {
@@ -41,6 +42,15 @@ data class LearningProposalResult(
  */
 object LearningMemoryProposalMapper {
     private val sha256Pattern = Regex("^[a-fA-F0-9]{64}$")
+
+    private fun safeHttpsSourceReference(raw: String): String? {
+        val parsed = runCatching { URI(raw.trim()) }.getOrNull() ?: return null
+        if (!parsed.scheme.equals("https", ignoreCase = true) ||
+            parsed.host.isNullOrBlank() ||
+            parsed.userInfo != null
+        ) return null
+        return parsed.toASCIIString()
+    }
 
     fun mapApprovedClaims(
         request: CreatorLearningReviewRequest,
@@ -112,11 +122,13 @@ object LearningMemoryProposalMapper {
                 supporting.any { it.kind == EvidenceSourceKind.MODEL_OUTPUT || it.retrievedAt.isAfter(createdAt) }
             ) return denied(LearningProposalDenial.INSUFFICIENT_PROVENANCE)
 
-            val sourceReference = supporting.map { it.uri.trim() }
+            val sourceUris = supporting.mapNotNull { source -> source.uri?.let(::safeHttpsSourceReference) }
                 .distinct()
                 .sorted()
-                .joinToString(" ")
-            if (sourceReference.isBlank()) return denied(LearningProposalDenial.INSUFFICIENT_PROVENANCE)
+            if (sourceUris.size != supporting.size) {
+                return denied(LearningProposalDenial.INSUFFICIENT_PROVENANCE)
+            }
+            val sourceReference = sourceUris.joinToString(" ")
             val publisherSummary = publishers.sorted().joinToString(",")
             val record = MemoryRecord(
                 id = MemoryId("learning-${request.task.id}-${claim.id}"),
