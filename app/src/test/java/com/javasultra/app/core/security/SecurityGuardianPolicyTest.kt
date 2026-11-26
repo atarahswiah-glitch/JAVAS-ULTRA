@@ -33,13 +33,15 @@ class SecurityGuardianPolicyTest {
     }
 
     @Test
-    fun highSeverityActivityRestrictsSensitiveCapabilities() {
+    fun highSeverityActivityRestrictsSensitiveCapabilitiesAndBlocksRequest() {
         val result = SecurityGuardianPolicy.assess(
             GuardianMode.NORMAL,
             listOf(signal(severity = GuardianThreatSeverity.HIGH))
         )
 
         assertEquals(GuardianMode.RESTRICTED, result.mode)
+        assertTrue(GuardianAction.BLOCK_CURRENT_REQUEST in result.actions)
+        assertTrue(GuardianAction.REQUIRE_FRESH_AUTHENTICATION in result.actions)
         assertTrue(GuardianAction.REVOKE_AFFECTED_SESSION in result.actions)
         assertTrue(GuardianAction.DISABLE_SENSITIVE_CAPABILITIES in result.actions)
         assertTrue(GuardianAction.PRESERVE_ENCRYPTED_EVIDENCE in result.actions)
@@ -58,6 +60,7 @@ class SecurityGuardianPolicyTest {
         )
 
         assertEquals(GuardianMode.SECURE_SHELTER, result.mode)
+        assertTrue(GuardianAction.BLOCK_CURRENT_REQUEST in result.actions)
         assertTrue(GuardianAction.ENTER_SECURE_SHELTER in result.actions)
         assertTrue(GuardianAction.REQUIRE_CREATOR_RECOVERY in result.actions)
     }
