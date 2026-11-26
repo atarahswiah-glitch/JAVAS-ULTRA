@@ -11,7 +11,7 @@ function parseLimit(raw: string | null): number | null {
 function validCursor(recordedAt: string | null, id: string | null): boolean {
   if (recordedAt === null && id === null) return true;
   if (!recordedAt || !id) return false;
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(recordedAt)) return false;
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(recordedAt)) return false;
   if (Number.isNaN(Date.parse(recordedAt))) return false;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 }
@@ -39,7 +39,8 @@ Deno.test("page size is bounded to 1..50", () => {
 
 Deno.test("cursor requires a valid timestamp and UUID pair", () => {
   assertEquals(validCursor(null, null), true);
-  assertEquals(validCursor("2026-11-26T14:00:00.000Z", "11111111-1111-4111-8111-111111111111"), true);\n  assertEquals(validCursor("2026-11-26T14:00:00+00:00", "11111111-1111-4111-8111-111111111111"), true);
+  assertEquals(validCursor("2026-11-26T14:00:00.000Z", "11111111-1111-4111-8111-111111111111"), true);
+  assertEquals(validCursor("2026-11-26T14:00:00+00:00", "11111111-1111-4111-8111-111111111111"), true);
   assertEquals(validCursor("2026-11-26T14:00:00.000Z", null), false);
   assertEquals(validCursor("not-a-date", "11111111-1111-4111-8111-111111111111"), false);
   assertEquals(validCursor("2026-11-26T14:00:00.000Z", "not-a-uuid"), false);
