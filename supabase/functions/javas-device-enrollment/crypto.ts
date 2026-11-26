@@ -2,6 +2,12 @@ const MIN_NONCE_BYTES = 32;
 const MAX_NONCE_BYTES = 64;
 const P256_COMPONENT_BYTES = 32;
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
 export type EnrollmentChallenge = {
   version: 1;
   challengeId: string;
@@ -112,7 +118,7 @@ export async function verifyDeviceProof(
     const signature = derEcdsaToP1363(derSignature);
     const key = await crypto.subtle.importKey(
       "spki",
-      spki,
+      toArrayBuffer(spki),
       { name: "ECDSA", namedCurve: "P-256" },
       false,
       ["verify"],
@@ -120,8 +126,8 @@ export async function verifyDeviceProof(
     return await crypto.subtle.verify(
       { name: "ECDSA", hash: "SHA-256" },
       key,
-      signature,
-      canonicalChallengeBytes(challenge),
+      toArrayBuffer(signature),
+      toArrayBuffer(canonicalChallengeBytes(challenge)),
     );
   } catch {
     return false;
@@ -129,7 +135,7 @@ export async function verifyDeviceProof(
 }
 
 export async function sha256Base64(value: Uint8Array): Promise<string> {
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", value));
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", toArrayBuffer(value)));
   return encodeBase64(digest);
 }
 
