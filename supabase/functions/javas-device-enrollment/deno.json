@@ -1,0 +1,11 @@
+{
+  "tasks": {
+    "test": "deno test --allow-env crypto_test.ts",
+    "check": "deno check crypto.ts crypto_test.ts"
+  },
+  "fmt": {
+    "lineWidth": 100,
+    "semiColons": true,
+    "singleQuote": false
+  }
+}
