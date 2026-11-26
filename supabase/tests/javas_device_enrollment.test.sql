@@ -75,7 +75,8 @@ select public.issue_javas_device_enrollment_challenge(
 );
 
 update public.javas_device_challenges
-set expires_at = pg_catalog.clock_timestamp() - interval '1 second'
+set created_at = pg_catalog.clock_timestamp() - interval '2 seconds',
+    expires_at = pg_catalog.clock_timestamp() - interval '1 second'
 where id = '44444444-4444-4444-8444-444444444444';
 
 select is(
