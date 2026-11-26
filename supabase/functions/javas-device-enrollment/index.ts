@@ -1,5 +1,6 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { isOriginAllowed } from "../javas-gateway/validation.ts";
+import { hasRecentStepUp, isUuid, readVerifiedJwtClaims } from "./auth.ts";
 import {
   issueEnrollmentChallenge,
   sha256Base64,
@@ -8,8 +9,6 @@ import {
 } from "./crypto.ts";
 
 const MAX_BODY_BYTES = 8 * 1024;
-const STEP_UP_MAX_AGE_SECONDS = 5 * 60;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const publishableKey =
@@ -59,42 +58,6 @@ function decodeBase64(value: string): Uint8Array {
   return Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
 }
 
-function readJwtPayloadAfterAuthVerification(token: string): Record<string, unknown> | null {
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
-  try {
-    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64 + "=".repeat((4 - base64.length % 4) % 4);
-    const payload = JSON.parse(atob(padded));
-    return payload && typeof payload === "object" ? payload : null;
-  } catch {
-    return null;
-  }
-}
-
-function hasRecentStepUp(claims: Record<string, unknown>): boolean {
-  const now = Math.floor(Date.now() / 1000);
-  const authTime = claims.auth_time;
-  if (
-    claims.aal !== "aal2" ||
-    !Number.isInteger(authTime) ||
-    (authTime as number) > now + 30 ||
-    now - (authTime as number) > STEP_UP_MAX_AGE_SECONDS
-  ) return false;
-
-  const amr = claims.amr;
-  if (!Array.isArray(amr)) return false;
-  return amr.some((entry) => {
-    if (!entry || typeof entry !== "object") return false;
-    const method = (entry as Record<string, unknown>).method;
-    const timestamp = (entry as Record<string, unknown>).timestamp;
-    return (method === "totp" || method === "otp") &&
-      Number.isInteger(timestamp) &&
-      (timestamp as number) <= now + 30 &&
-      now - (timestamp as number) <= STEP_UP_MAX_AGE_SECONDS;
-  });
-}
-
 async function authenticateCreator(req: Request): Promise<
   { userId: string } | { error: string; status: number }
 > {
@@ -110,7 +73,7 @@ async function authenticateCreator(req: Request): Promise<
   if (!creatorId) return { error: "Creator access is not configured", status: 503 };
   if (data.user.id !== creatorId) return { error: "Forbidden", status: 403 };
 
-  const claims = readJwtPayloadAfterAuthVerification(tokenMatch[1]);
+  const claims = readVerifiedJwtClaims(tokenMatch[1]);
   if (!claims || claims.sub !== data.user.id || !hasRecentStepUp(claims)) {
     return { error: "Recent multi-factor authentication is required", status: 403 };
   }
@@ -161,7 +124,7 @@ Deno.serve(async (req: Request) => {
 
   if (body.action === "challenge") {
     const deviceId = body.deviceId;
-    if (typeof deviceId !== "string" || !UUID_PATTERN.test(deviceId)) {
+    if (!isUuid(deviceId)) {
       return json({ error: "A valid installation device ID is required" }, 400, origin);
     }
 
@@ -206,9 +169,9 @@ Deno.serve(async (req: Request) => {
 
     const challenge = proof.challenge;
     if (
-      typeof challenge.deviceId !== "string" || !UUID_PATTERN.test(challenge.deviceId) ||
+      !isUuid(challenge.deviceId) ||
       challenge.creatorId !== identity.userId ||
-      typeof challenge.challengeId !== "string" || !UUID_PATTERN.test(challenge.challengeId)
+      !isUuid(challenge.challengeId)
     ) {
       return json({ error: "Invalid device proof" }, 400, origin);
     }
