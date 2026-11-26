@@ -82,3 +82,12 @@ SecurityGuardianPolicy is a deterministic decision policy. It returns proposed d
 - test false positives, offline operation, compromised-client scenarios and multi-device recovery on real devices.
 
 No Supabase schema, Edge Function, project setting, secret or deployment is changed by this protocol. Do not claim production protection until the enforcement services, monitoring, tests and operational recovery path are implemented and verified.
+
+
+## Network and device incident evidence
+
+The gateway also defines structured records for blocked access attempts. Records may include an edge-observed apparent IP address, bounded client-supplied user-agent, edge trace ID, authenticated account ID when token verification succeeded, attempted action category and blocked result. IP and user-agent evidence are explicitly unverified and must not be used to guess a person's identity or exact location.
+
+No passwords, PINs, bearer/refresh tokens, API keys, cookies, private keys, recovery answers or request bodies are captured. Device identity remains unverified until a server-side enrolled-device signature and fresh challenge are validated. See [GATEWAY-SECURITY-INCIDENT-EVIDENCE.md](GATEWAY-SECURITY-INCIDENT-EVIDENCE.md).
+
+At this stage records are written only to hosted Edge Function logs, not a durable incident database. Their retention is plan-dependent and may be short. A future database-backed incident store requires a reviewed migration, server-only writes, restrictive read access, retention limits and audit controls. No database migration or deployment is part of this PR.
