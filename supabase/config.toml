@@ -1,3 +1,6 @@
 # Keep the gateway protected by the platform JWT check.
 [functions.javas-gateway]
 verify_jwt = true
+
+[functions.javas-security-incidents]
+verify_jwt = true
