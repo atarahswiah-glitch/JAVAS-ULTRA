@@ -4,3 +4,6 @@ verify_jwt = true
 
 [functions.javas-security-incidents]
 verify_jwt = true
+
+[functions.javas-device-enrollment]
+verify_jwt = true
