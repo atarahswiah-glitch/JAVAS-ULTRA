@@ -119,7 +119,7 @@ The migration defines:
 - an atomic consume-and-create function, so a successful proof creates a PENDING_APPROVAL device in the same transaction and a replay returns no row;
 - RLS, revoked client-role table privileges and service_role-only execution of the narrowly scoped SQL functions.
 
-**Important status:** the migration and pgTAP test are committed to this feature branch only. They have not been run against a local Supabase database, applied to the hosted project, or deployed. The Edge Function that calls these routines, server-side Auth/MFA checks, approval workflow and Android integration are still outstanding. A cryptographic signature alone does not yet enroll or trust a device.
+**Important status:** the migration and pgTAP test are committed to this feature branch only. They have not been run against a local Supabase database, applied to the hosted project, or deployed. The branch also now contains a draft `javas-device-enrollment` Edge Function with `challenge` and `prove` actions. It verifies the bearer token with Supabase Auth, checks the server-configured Creator ID and a recent AAL2 step-up, rate-limits challenge issuance through the database routine, verifies the P-256 proof, and calls the atomic consume-and-create routine. A successful proof creates only a PENDING_APPROVAL device. The endpoint is not deployed, and its latest Deno/Android CI is still pending; local Supabase migration/pgTAP execution is also outstanding. Explicit approval from an already trusted device, session binding/revocation and Android client wiring remain outstanding. A cryptographic signature alone does not yet make a device trusted.
 
 ## Current verified boundary
 
