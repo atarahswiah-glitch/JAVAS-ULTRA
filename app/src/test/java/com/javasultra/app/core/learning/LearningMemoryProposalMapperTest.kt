@@ -58,9 +58,13 @@ class LearningMemoryProposalMapperTest {
         assertEquals(creator, record.ownerPrincipalId)
         assertEquals(MemoryLifecycle.PROPOSED, record.lifecycle)
         assertEquals(MemorySensitivity.CREATOR_PRIVATE, record.sensitivity)
-        assertEquals(MemoryVerification.CORROBORATED, record.verification)
+        assertEquals(MemoryVerification.UNVERIFIED, record.verification)
         assertEquals(MemorySourceType.RESEARCH_EVIDENCE, record.provenance.sourceType)
-        assertTrue(record.provenance.sourceReference!!.contains("source-a,source-b"))
+        assertTrue(record.provenance.sourceReference!!.contains("https://a.example.org"))
+        assertTrue(record.provenance.sourceReference!!.contains("https://b.example.org"))
+        assertEquals(record.provenance.sourceReference, record.content)
+        assertFalse(record.content.contains("A corroborated public research statement"))
+        assertTrue(record.tags.contains("source-reference-only"))
         assertTrue(record.provenance.notes!!.contains("review=review-1"))
     }
 
@@ -130,6 +134,23 @@ class LearningMemoryProposalMapperTest {
             req, approvedReview(req), listOf(claim()), sources() + sources().first(), creator, now
         )
         assertEquals(LearningProposalDenial.DUPLICATE_SOURCE_ID, duplicated.denial)
+    }
+
+    @Test fun missingOrNonHttpsSourceUrlsCannotBecomeMemoryReferences() {
+        listOf("file:///etc/passwd", null).forEach { badUri ->
+            val badSources = sources().map {
+                if (it.id == "source-a") it.copy(uri = badUri) else it
+            }
+            val badDigest = LearningEvidenceDigest.computeSha256(listOf(claim()), badSources)
+            val req = request().copy(
+                expectedEvidenceDigestSha256 = badDigest,
+                submittedEvidenceDigestSha256 = badDigest
+            )
+            val result = LearningMemoryProposalMapper.mapApprovedClaims(
+                req, approvedReview(req), listOf(claim()), badSources, creator, now
+            )
+            assertEquals(LearningProposalDenial.INSUFFICIENT_PROVENANCE, result.denial)
+        }
     }
 
     @Test fun modelOutputCannotBeUsedAsMemoryEvidence() {
