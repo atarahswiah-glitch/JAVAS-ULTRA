@@ -91,19 +91,38 @@ class SupabaseAuthSessionClient(
 
     fun hasStoredSession(): Boolean = store.read() != null
 
-    private fun request(path: String, body: String, bearer: String? = null): JSONObject {
+    /** Authentication check only. Creator authority remains a separate server-side decision. */
+    @Synchronized
+    fun verifyCurrentUser(): AuthenticatedUser? {
+        requireConfigured()
+        val token = currentAccessToken() ?: return null
+        val response = request("user", "", token, method = "GET")
+        val id = response.optString("id").takeIf { it.isNotBlank() } ?: return null
+        return AuthenticatedUser(id, response.optString("email").takeIf { it.isNotBlank() })
+    }
+
+    data class AuthenticatedUser(val id: String, val email: String?)
+
+    private fun request(
+        path: String,
+        body: String,
+        bearer: String? = null,
+        method: String = "POST"
+    ): JSONObject {
         val connection = (URL("${projectUrl.trimEnd('/')}/auth/v1/$path").openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
+            requestMethod = method
             connectTimeout = connectTimeoutMs
             readTimeout = readTimeoutMs
-            doOutput = true
+            doOutput = method == "POST"
             setRequestProperty("apikey", publishableKey)
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             if (bearer != null) setRequestProperty("Authorization", "Bearer $bearer")
         }
         try {
-            connection.outputStream.use { output ->
-                OutputStreamWriter(output, Charsets.UTF_8).use { it.write(body) }
+            if (method == "POST") {
+                connection.outputStream.use { output ->
+                    OutputStreamWriter(output, Charsets.UTF_8).use { it.write(body) }
+                }
             }
             val status = connection.responseCode
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
