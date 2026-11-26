@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   generate-and-test:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && hashFiles('supabase/migrations/*_create_javas_security_incidents.sql') == ''
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
