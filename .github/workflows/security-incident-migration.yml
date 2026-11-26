@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   generate-and-test:
-    if: github.actor != 'github-actions[bot]' && hashFiles('supabase/migrations/*_create_javas_security_incidents.sql') == ''
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -25,15 +25,28 @@ jobs:
           ref: ${{ github.ref_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Check whether migration already exists
+        id: migration_guard
+        shell: bash
+        run: |
+          if compgen -G "supabase/migrations/*_create_javas_security_incidents.sql" > /dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Node.js
+        if: steps.migration_guard.outputs.exists == 'false'
         uses: actions/setup-node@v6
         with:
           node-version: '22'
 
       - name: Verify Supabase CLI
+        if: steps.migration_guard.outputs.exists == 'false'
         run: npx --yes supabase@latest --version
 
       - name: Generate migration filename with Supabase CLI
+        if: steps.migration_guard.outputs.exists == 'false'
         id: migration
         shell: bash
         run: |
@@ -44,6 +57,7 @@ jobs:
           echo "file=$file" >> "$GITHUB_OUTPUT"
 
       - name: Define append-only incident archive with deny-by-default client access
+        if: steps.migration_guard.outputs.exists == 'false'
         env:
           MIGRATION_FILE: ${{ steps.migration.outputs.file }}
         shell: bash
@@ -114,12 +128,15 @@ jobs:
           SQL
 
       - name: Start local Supabase stack
+        if: steps.migration_guard.outputs.exists == 'false'
         run: npx --yes supabase@latest start
 
       - name: Apply migrations to clean local database
+        if: steps.migration_guard.outputs.exists == 'false'
         run: npx --yes supabase@latest db reset
 
       - name: Verify table, constraints, RLS and grants
+        if: steps.migration_guard.outputs.exists == 'false'
         run: |
           npx --yes supabase@latest db query --local --output json "
             select
@@ -137,6 +154,7 @@ jobs:
           "
 
       - name: Commit generated migration to this feature branch
+        if: steps.migration_guard.outputs.exists == 'false'
         env:
           MIGRATION_FILE: ${{ steps.migration.outputs.file }}
         run: |
@@ -147,5 +165,5 @@ jobs:
           git push origin "HEAD:${{ github.ref_name }}"
 
       - name: Stop local Supabase stack
-        if: always()
+        if: always() && steps.migration_guard.outputs.exists == 'false'
         run: npx --yes supabase@latest stop --no-backup
