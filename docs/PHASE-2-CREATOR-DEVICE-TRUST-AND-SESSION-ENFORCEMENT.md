@@ -106,6 +106,21 @@ Do not expose public device lookup, challenge listing, or bulk incident export e
 7. Run local Supabase migration/function tests, Android unit/instrumentation tests, adversarial replay tests and a real-device acceptance test.
 8. Only after review and explicit Creator approval: configure hosted Creator identity/secrets, apply migrations and deploy functions. These hosted actions are out of scope for this branch.
 
+## Branch implementation update — database foundation
+
+The branch now contains a draft migration at
+`supabase/migrations/20261126170000_create_javas_creator_device_enrollment.sql`
+and pgTAP coverage at `supabase/tests/javas_device_enrollment.test.sql`.
+
+The migration defines:
+- server-owned Creator device records with PENDING_APPROVAL / VERIFIED / REVOKED states;
+- short-lived device challenges that persist only a SHA-256 nonce digest;
+- a database-serialized challenge-issuance function with per-device rate limits;
+- an atomic consume-and-create function, so a successful proof creates a PENDING_APPROVAL device in the same transaction and a replay returns no row;
+- RLS, revoked client-role table privileges and service_role-only execution of the narrowly scoped SQL functions.
+
+**Important status:** the migration and pgTAP test are committed to this feature branch only. They have not been run against a local Supabase database, applied to the hosted project, or deployed. The Edge Function that calls these routines, server-side Auth/MFA checks, approval workflow and Android integration are still outstanding. A cryptographic signature alone does not yet enroll or trust a device.
+
 ## Current verified boundary
 
-PR #19 provides a deterministic Kotlin policy, a readiness screen, gateway blocked-request telemetry, an append-only incident archive migration and a Creator-only incident-history scaffold. Its latest Android CI and migration verification passed. Device challenge verification, approval, session binding/revocation, server-enforced Secure Shelter, alerts and recovery are not yet operational. This document does not claim otherwise.
+PR #19 provides a deterministic Kotlin policy, a readiness screen, gateway blocked-request telemetry, an append-only incident archive migration and a Creator-only incident-history scaffold. This branch now adds the cryptographic proof helper and a draft database-backed challenge schema/transaction with pgTAP coverage. The latest changes still require local database tests and fresh CI. The Edge Function, trusted-device approval, session binding/revocation, server-enforced Secure Shelter, alerts and recovery are not yet operational. This document does not claim otherwise.
