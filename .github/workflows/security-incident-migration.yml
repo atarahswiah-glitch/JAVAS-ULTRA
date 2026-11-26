@@ -1,0 +1,151 @@
+name: Generate and verify security incident archive migration
+
+on:
+  push:
+    branches:
+      - feature/survival-protocol-security-guardian
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: security-incident-migration-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  generate-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify Supabase CLI
+        run: npx --yes supabase@latest --version
+
+      - name: Generate migration filename with Supabase CLI
+        id: migration
+        shell: bash
+        run: |
+          mkdir -p supabase/migrations
+          npx --yes supabase@latest migration new create_javas_security_incidents
+          file="$(find supabase/migrations -maxdepth 1 -type f -name '*_create_javas_security_incidents.sql' -print -quit)"
+          test -n "$file"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Define append-only incident archive with deny-by-default client access
+        env:
+          MIGRATION_FILE: ${{ steps.migration.outputs.file }}
+        shell: bash
+        run: |
+          cat > "$MIGRATION_FILE" <<'SQL'
+          create table public.javas_security_incidents (
+            id uuid primary key default gen_random_uuid(),
+            event_id uuid not null unique,
+            schema_version smallint not null check (schema_version = 1),
+            occurred_at timestamptz not null,
+            service text not null check (service = 'javas-gateway'),
+            incident_type text not null check (
+              incident_type in (
+                'ORIGIN_REJECTED',
+                'AUTH_MISSING',
+                'AUTH_INVALID',
+                'CREATOR_CONFIGURATION_MISSING',
+                'CREATOR_ACCESS_DENIED',
+                'REQUEST_TOO_LARGE',
+                'REQUEST_INVALID'
+              )
+            ),
+            severity text not null check (severity in ('WARNING', 'HIGH', 'CRITICAL')),
+            attempted_action varchar(160) not null,
+            outcome text not null check (outcome = 'BLOCKED'),
+            response_status smallint not null check (response_status between 100 and 599),
+            authenticated_user_id uuid,
+            apparent_client_ip varchar(64),
+            ip_source text not null check (ip_source in ('cf-connecting-ip', 'unavailable')),
+            ip_confidence text not null check (
+              ip_confidence in ('edge-observed-unverified', 'unavailable')
+            ),
+            user_agent varchar(256),
+            user_agent_confidence text not null check (
+              user_agent_confidence in ('client-supplied-unverified', 'unavailable')
+            ),
+            edge_trace_id varchar(128),
+            device_identity text not null default 'not-verified'
+              check (device_identity = 'not-verified'),
+            device_note varchar(320) not null,
+            recorded_at timestamptz not null default now()
+          );
+
+          comment on table public.javas_security_incidents is
+            'Privacy-minimised, server-recorded evidence of blocked JAVAS gateway requests. Not proof of human identity.';
+
+          comment on column public.javas_security_incidents.authenticated_user_id is
+            'Supabase account UUID only when the gateway verified the access token; not proof of the human operating the device.';
+
+          comment on column public.javas_security_incidents.apparent_client_ip is
+            'Edge-observed candidate only; explicitly unverified and not a human identity or precise-location claim.';
+
+          create index javas_security_incidents_occurred_at_idx
+            on public.javas_security_incidents (occurred_at desc, id desc);
+
+          create index javas_security_incidents_severity_occurred_at_idx
+            on public.javas_security_incidents (severity, occurred_at desc);
+
+          create index javas_security_incidents_type_occurred_at_idx
+            on public.javas_security_incidents (incident_type, occurred_at desc);
+
+          alter table public.javas_security_incidents enable row level security;
+
+          revoke all privileges on table public.javas_security_incidents
+            from anon, authenticated, service_role;
+
+          grant select, insert on table public.javas_security_incidents to service_role;
+          SQL
+
+      - name: Start local Supabase stack
+        run: npx --yes supabase@latest start
+
+      - name: Apply migrations to clean local database
+        run: npx --yes supabase@latest db reset
+
+      - name: Verify table, constraints, RLS and grants
+        run: |
+          npx --yes supabase@latest db query --local --output json "
+            select
+              c.relname as table_name,
+              c.relrowsecurity as rls_enabled,
+              has_table_privilege('anon', 'public.javas_security_incidents', 'SELECT') as anon_can_select,
+              has_table_privilege('authenticated', 'public.javas_security_incidents', 'SELECT') as authenticated_can_select,
+              has_table_privilege('service_role', 'public.javas_security_incidents', 'INSERT') as service_role_can_insert,
+              has_table_privilege('service_role', 'public.javas_security_incidents', 'UPDATE') as service_role_can_update,
+              has_table_privilege('service_role', 'public.javas_security_incidents', 'DELETE') as service_role_can_delete
+            from pg_class c
+            join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'public'
+              and c.relname = 'javas_security_incidents';
+          "
+
+      - name: Commit generated migration to this feature branch
+        env:
+          MIGRATION_FILE: ${{ steps.migration.outputs.file }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$MIGRATION_FILE"
+          git commit -m "db(security): add private incident archive migration"
+          git push origin "HEAD:${{ github.ref_name }}"
+
+      - name: Stop local Supabase stack
+        if: always()
+        run: npx --yes supabase@latest stop --no-backup
