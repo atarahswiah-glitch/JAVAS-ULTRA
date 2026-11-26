@@ -52,6 +52,32 @@ Deno.test("canonical challenge bytes are stable and bind every field", () => {
   }
 });
 
+Deno.test("canonical challenge rejects delimiter injection and oversized fields", () => {
+  const base = {
+    version: 1 as const,
+    challengeId: "challenge-1",
+    creatorId: "creator-1",
+    deviceId: "device-1",
+    purpose: "ENROLL_DEVICE" as const,
+    expiresAt: "2026-11-26T16:00:00.000Z",
+    nonceBase64: toBase64(new Uint8Array(32).fill(7)),
+  };
+  for (const invalid of [
+    { ...base, creatorId: "creator-1\\nattacker" },
+    { ...base, deviceId: "device-1\\rattacker" },
+    { ...base, challengeId: "x".repeat(65) },
+    { ...base, nonceBase64: "x".repeat(129) },
+  ]) {
+    let rejected = false;
+    try {
+      canonicalChallengeBytes(invalid);
+    } catch {
+      rejected = true;
+    }
+    if (!rejected) throw new Error("Malformed challenge field was accepted");
+  }
+});
+
 Deno.test("DER signature conversion returns fixed-width P-256 signature", () => {
   const raw = new Uint8Array(64);
   raw[31] = 1;
