@@ -32,6 +32,7 @@ jobs:
         run: deno test --allow-env supabase/functions/javas-gateway/validation_test.ts supabase/functions/javas-gateway/security_telemetry_test.ts
       # Keep this cryptographic contract in CI; Android emits DER ECDSA signatures.
       # Check the server proof helper before running Android build steps.
+      # Keep server-side verification and Android signing formats aligned.
       - name: Type-check Creator device enrollment proof verifier
         run: deno check supabase/functions/javas-device-enrollment/crypto.ts supabase/functions/javas-device-enrollment/crypto_test.ts
       - name: Test Creator device enrollment proof verifier
