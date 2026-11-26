@@ -132,3 +132,30 @@ export async function sha256Base64(value: Uint8Array): Promise<string> {
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", value));
   return encodeBase64(digest);
 }
+
+export async function issueEnrollmentChallenge(
+  input: { creatorId: string; deviceId: string; now?: Date; ttlMs?: number },
+): Promise<{ challenge: EnrollmentChallenge; nonceDigestBase64: string }> {
+  if (!input.creatorId.trim() || !input.deviceId.trim()) {
+    throw new Error("Creator and device identifiers are required");
+  }
+  const ttlMs = input.ttlMs ?? 120_000;
+  if (!Number.isInteger(ttlMs) || ttlMs < 15_000 || ttlMs > 120_000) {
+    throw new Error("Challenge lifetime must be between 15 and 120 seconds");
+  }
+  const nonce = crypto.getRandomValues(new Uint8Array(32));
+  const now = input.now ?? new Date();
+  const challenge: EnrollmentChallenge = {
+    version: 1,
+    challengeId: crypto.randomUUID(),
+    creatorId: input.creatorId,
+    deviceId: input.deviceId,
+    purpose: "ENROLL_DEVICE",
+    expiresAt: new Date(now.getTime() + ttlMs).toISOString(),
+    nonceBase64: encodeBase64(nonce),
+  };
+  return {
+    challenge,
+    nonceDigestBase64: await sha256Base64(nonce),
+  };
+}
