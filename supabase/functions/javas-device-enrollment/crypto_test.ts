@@ -63,8 +63,8 @@ Deno.test("canonical challenge rejects delimiter injection and oversized fields"
     nonceBase64: toBase64(new Uint8Array(32).fill(7)),
   };
   for (const invalid of [
-    { ...base, creatorId: "creator-1\\nattacker" },
-    { ...base, deviceId: "device-1\\rattacker" },
+    { ...base, creatorId: "creator-1\nattacker" },
+    { ...base, deviceId: "device-1\rattacker" },
     { ...base, challengeId: "x".repeat(65) },
     { ...base, nonceBase64: "x".repeat(129) },
   ]) {
