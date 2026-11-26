@@ -2,6 +2,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { isCreatorAllowed, isOriginAllowed } from "../javas-gateway/validation.ts";
 
 const INCIDENT_COLUMNS = [
+  "id",
   "event_id",
   "schema_version",
   "occurred_at",
