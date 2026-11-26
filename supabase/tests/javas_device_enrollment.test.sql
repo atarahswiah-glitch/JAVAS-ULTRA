@@ -98,6 +98,10 @@ select public.issue_javas_device_enrollment_challenge(
   'EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE=',
   pg_catalog.clock_timestamp() + interval '60 seconds'
 );
+
+update public.javas_device_challenges
+set consumed_at = pg_catalog.clock_timestamp()
+where id = '55555555-5555-4555-8555-555555555555';
 select public.issue_javas_device_enrollment_challenge(
   '66666666-6666-4666-8666-666666666666',
   '22222222-2222-4222-8222-222222222222',
@@ -105,6 +109,10 @@ select public.issue_javas_device_enrollment_challenge(
   'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF=',
   pg_catalog.clock_timestamp() + interval '60 seconds'
 );
+
+update public.javas_device_challenges
+set consumed_at = pg_catalog.clock_timestamp()
+where id = '66666666-6666-4666-8666-666666666666';
 select public.issue_javas_device_enrollment_challenge(
   '77777777-7777-4777-8777-777777777777',
   '22222222-2222-4222-8222-222222222222',
@@ -112,6 +120,10 @@ select public.issue_javas_device_enrollment_challenge(
   'GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG=',
   pg_catalog.clock_timestamp() + interval '60 seconds'
 );
+
+update public.javas_device_challenges
+set consumed_at = pg_catalog.clock_timestamp()
+where id = '77777777-7777-4777-8777-777777777777';
 
 select throws_ok(
   $$ select public.issue_javas_device_enrollment_challenge(
