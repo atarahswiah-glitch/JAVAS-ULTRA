@@ -58,3 +58,8 @@ The memory SQLite database now has a version-2 migration that creates an owner-s
 JVM coverage now exercises envelope validation, owner mismatch, delivery, journal failure with pending retention, and append-success/ack-failure replay. Android instrumentation coverage exercises encrypted outbox payloads, owner isolation, exact replay, acknowledgement, and transaction rollback. These instrumentation tests are compiled by CI; device execution is still required.
 
 This remains local device storage. It does not provide cross-device recovery, trusted backend review consumption, or server-side audit atomicity.
+
+
+## Retention consent boundary — 2026-11-26
+
+Creator approval of a learning result permits creation of a local proposal only; it does not authorize durable retention of the research claim. Until a separate retention-consent workflow exists, the mapper creates source-reference-only proposals: the stored content is the actual source URL list, confidence is zero, and verification remains unverified. The claim text is not retained as semantic knowledge. The proposal remains inactive and owner-bound. This does not provide trusted backend review consumption or cross-device memory recovery.
