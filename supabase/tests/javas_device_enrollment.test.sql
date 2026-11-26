@@ -1,6 +1,6 @@
 begin;
 
-select plan(6);
+select plan(5);
 
 set local role service_role;
 
