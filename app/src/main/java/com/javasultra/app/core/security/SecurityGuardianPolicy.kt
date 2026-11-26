@@ -100,8 +100,12 @@ object SecurityGuardianPolicy {
                 it.type == GuardianSignalType.SECURITY_MONITORING_TAMPER
         }
         val restrictionRequired = accepted.any { it.severity == GuardianThreatSeverity.HIGH }
-        val suspicious = accepted.any { it.severity == GuardianThreatSeverity.SUSPICIOUS } ||
-            accepted.any { it.type == GuardianSignalType.UNTRUSTED_DEVICE }
+        val suspicious = accepted.any {
+            it.severity == GuardianThreatSeverity.SUSPICIOUS ||
+                it.severity == GuardianThreatSeverity.HIGH ||
+                it.severity == GuardianThreatSeverity.CRITICAL ||
+                it.type == GuardianSignalType.UNTRUSTED_DEVICE
+        }
 
         if (suspicious) {
             actions += GuardianAction.BLOCK_CURRENT_REQUEST
