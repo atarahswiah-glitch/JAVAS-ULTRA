@@ -415,6 +415,8 @@ private fun CreatorAuthPanel(
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var creatingAccount by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var signedIn by remember(authClient) { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
@@ -486,40 +488,86 @@ private fun CreatorAuthPanel(
             singleLine = true,
             enabled = !busy
         )
+        if (creatingAccount) {
+            OutlinedTextField(
+                value = confirmPassword,
+                onValueChange = { confirmPassword = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Confirm password") },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true,
+                enabled = !busy
+            )
+        }
         Button(
             onClick = {
                 val submittedEmail = email.trim()
                 val submittedPassword = password
+                val submittedConfirmation = confirmPassword
                 password = ""
+                confirmPassword = ""
                 busy = true
                 status = ""
                 worker.execute {
                     val result = runCatching {
-                        authClient.signInWithPassword(submittedEmail, submittedPassword.toCharArray())
-                        authClient.verifyCurrentUser()
-                            ?: error("Supabase did not return an authenticated user")
+                        if (creatingAccount) {
+                            require(submittedPassword == submittedConfirmation) {
+                                "The passwords do not match"
+                            }
+                            authClient.registerWithPassword(submittedEmail, submittedPassword.toCharArray())
+                        } else {
+                            authClient.signInWithPassword(submittedEmail, submittedPassword.toCharArray())
+                            authClient.verifyCurrentUser()
+                                ?: error("Supabase did not return an authenticated user")
+                            null
+                        }
                     }
                     mainHandler.post {
                         busy = false
                         if (result.isSuccess) {
-                            signedIn = true
-                            status = "Supabase identity verified. Creator-only permissions are still checked by the server."
+                            val registration = result.getOrNull()
+                            if (creatingAccount && registration == SupabaseAuthSessionClient.RegistrationResult.EmailConfirmationRequired) {
+                                status = "Account created. Check your email and confirm the address before signing in. Account creation does not grant Creator authority."
+                                creatingAccount = false
+                            } else if (creatingAccount) {
+                                signedIn = true
+                                status = "Account created and identity verified. Creator authority is not granted by registration."
+                            } else {
+                                signedIn = true
+                                status = "Supabase identity verified. Creator-only permissions are still checked by the server."
+                            }
                         } else {
-                            status = "Sign-in failed. Check your credentials and project configuration."
+                            status = result.exceptionOrNull()?.message
+                                ?.takeIf { it.contains("passwords do not match") || it.contains("12 characters") || it.contains("valid email") }
+                                ?: if (creatingAccount) "Account creation failed. Check the email, password requirements and project settings."
+                                else "Sign-in failed. Check your credentials and project configuration."
                         }
                     }
                 }
             },
-            enabled = !busy && email.isNotBlank() && password.isNotEmpty(),
+            enabled = !busy && email.isNotBlank() && password.isNotEmpty() &&
+                (!creatingAccount || (password.length >= 12 && confirmPassword.isNotEmpty())),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (busy) "Signing in…" else "Sign in")
+            Text(if (busy) "Please wait…" else if (creatingAccount) "Create account" else "Sign in")
+        }
+        TextButton(
+            onClick = {
+                creatingAccount = !creatingAccount
+                password = ""
+                confirmPassword = ""
+                status = ""
+            },
+            enabled = !busy,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (creatingAccount) "Already have an account? Sign in" else "New here? Create an account")
         }
         if (status.isNotBlank()) {
             Text(status, color = Color(0xFFFFD18B), fontSize = 11.sp)
         }
         Text(
-            "Your password is not saved. The session is encrypted with Android Keystore. Creator permissions are checked by the backend.",
+            if (creatingAccount) "Use a strong password of at least 12 characters. Email confirmation may be required. Registration does not make this account the Creator." else "Your password is not saved. The session is encrypted with Android Keystore. Creator permissions are checked by the backend.",
             color = Color(0xFF8BA8B9),
             fontSize = 10.sp
         )
