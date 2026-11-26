@@ -42,6 +42,10 @@ class MemoryRetentionProposalFactoryTest {
         )
         assertEquals(MemoryRetentionAction.STORE_SOURCE_REFERENCE, result.retention.action)
         assertNotNull(result.recordToPropose)
+        assertEquals("https://example.org/source", result.recordToPropose?.content)
+        assertEquals(0.0, result.recordToPropose?.confidence ?: -1.0, 0.0)
+        assertEquals(MemoryVerification.UNVERIFIED, result.recordToPropose?.verification)
+        assertEquals(true, result.recordToPropose?.tags?.contains("source-reference-only"))
     }
 
     @Test fun sourceReferenceCannotBeInventedWhenMissing() {
