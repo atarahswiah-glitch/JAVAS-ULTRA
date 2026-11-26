@@ -39,7 +39,7 @@ Deno.test("page size is bounded to 1..50", () => {
 
 Deno.test("cursor requires a valid timestamp and UUID pair", () => {
   assertEquals(validCursor(null, null), true);
-  assertEquals(validCursor("2026-11-26T14:00:00.000Z", "11111111-1111-4111-8111-111111111111"), true);
+  assertEquals(validCursor("2026-11-26T14:00:00.000Z", "11111111-1111-4111-8111-111111111111"), true);\n  assertEquals(validCursor("2026-11-26T14:00:00+00:00", "11111111-1111-4111-8111-111111111111"), true);
   assertEquals(validCursor("2026-11-26T14:00:00.000Z", null), false);
   assertEquals(validCursor("not-a-date", "11111111-1111-4111-8111-111111111111"), false);
   assertEquals(validCursor("2026-11-26T14:00:00.000Z", "not-a-uuid"), false);
