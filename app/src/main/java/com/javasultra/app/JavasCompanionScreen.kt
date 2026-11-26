@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -326,7 +327,7 @@ private fun CreatorAuthPanel(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
-    var signedIn by remember(authClient) { mutableStateOf(authClient.hasStoredSession()) }
+    var signedIn by remember(authClient) { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     val worker = remember(authClient) { Executors.newSingleThreadExecutor() }
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
@@ -335,13 +336,32 @@ private fun CreatorAuthPanel(
         onDispose { worker.shutdownNow() }
     }
 
+    LaunchedEffect(authClient) {
+        if (authClient.hasStoredSession()) {
+            busy = true
+            status = "Verifying saved Supabase session…"
+            worker.execute {
+                val result = runCatching { authClient.verifyCurrentUser() }
+                mainHandler.post {
+                    busy = false
+                    signedIn = result.getOrNull() != null
+                    status = when {
+                        signedIn -> "Supabase identity verified. Creator-only permissions are checked by the server."
+                        result.isFailure -> "Saved session could not be verified. Connect to the server and sign in again if needed."
+                        else -> "Saved session has expired. Please sign in again."
+                    }
+                }
+            }
+        }
+    }
+
     if (signedIn) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("Supabase session stored securely", color = Color(0xFF9BE8C5), fontSize = 11.sp)
+            Text("Supabase identity verified", color = Color(0xFF9BE8C5), fontSize = 11.sp)
             TextButton(
                 enabled = !busy,
                 onClick = {
@@ -387,12 +407,14 @@ private fun CreatorAuthPanel(
                 worker.execute {
                     val result = runCatching {
                         authClient.signInWithPassword(submittedEmail, submittedPassword.toCharArray())
+                        authClient.verifyCurrentUser()
+                            ?: error("Supabase did not return an authenticated user")
                     }
                     mainHandler.post {
                         busy = false
                         if (result.isSuccess) {
                             signedIn = true
-                            status = "Signed in. Creator access is still verified by the server."
+                            status = "Supabase identity verified. Creator-only permissions are still checked by the server."
                         } else {
                             status = "Sign-in failed. Check your credentials and project configuration."
                         }
