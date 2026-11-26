@@ -112,8 +112,11 @@ object LearningMemoryProposalMapper {
                 supporting.any { it.kind == EvidenceSourceKind.MODEL_OUTPUT || it.retrievedAt.isAfter(createdAt) }
             ) return denied(LearningProposalDenial.INSUFFICIENT_PROVENANCE)
 
-            val sourceReference = "javas-learning:${request.task.id}:${claim.id}:" +
-                claim.supportingSourceIds.sorted().joinToString(",")
+            val sourceReference = supporting.map { it.uri.trim() }
+                .distinct()
+                .sorted()
+                .joinToString(" ")
+            if (sourceReference.isBlank()) return denied(LearningProposalDenial.INSUFFICIENT_PROVENANCE)
             val publisherSummary = publishers.sorted().joinToString(",")
             val record = MemoryRecord(
                 id = MemoryId("learning-${request.task.id}-${claim.id}"),
@@ -137,21 +140,22 @@ object LearningMemoryProposalMapper {
             )
             if (record.validate().isNotEmpty()) return denied(LearningProposalDenial.INVALID_CLAIM)
 
-            // Creator approval authorizes a proposal only, not activation. Treat it as
-            // explicit permission to prepare a durable candidate and retain source provenance.
+            // Approval authorizes a PROPOSED candidate only; it is not consent
+            // to retain the research claim as durable knowledge. Keep only source URLs
+            // until a separate retention-consent workflow is implemented.
             val retention = MemoryRetentionProposalFactory.prepare(
                 MemoryRetentionCandidate(
                     type = MemoryRetentionType.RESEARCH_FINDING,
-                    futureUseLikelihood = 0.5,
-                    uniqueness = 0.5,
-                    reResearchCost = 0.5,
+                    futureUseLikelihood = 0.0,
+                    uniqueness = 0.0,
+                    reResearchCost = 0.0,
                     sourceVerified = true,
                     sourceReferenceAvailable = true,
-                    explicitlyRequestedToRetain = true
+                    explicitlyRequestedToRetain = false
                 ),
                 record
             )
-            if (retention.retention.action != MemoryRetentionAction.STORE_KNOWLEDGE ||
+            if (retention.retention.action != MemoryRetentionAction.STORE_SOURCE_REFERENCE ||
                 retention.recordToPropose == null
             ) return denied(LearningProposalDenial.RETENTION_POLICY_REJECTED)
             records += retention.recordToPropose
