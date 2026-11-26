@@ -39,7 +39,7 @@ function json(body: unknown, status: number, origin: string | null): Response {
     status,
     headers: {
       ...(origin ? { "Access-Control-Allow-Origin": origin } : {}),
-      "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Access-Control-Max-Age": "86400",
       "Vary": "Origin",
@@ -101,7 +101,7 @@ Deno.serve(async (req: Request) => {
       status: 204,
       headers: {
         ...(origin ? { "Access-Control-Allow-Origin": origin } : {}),
-        "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Max-Age": "86400",
         "Vary": "Origin",
