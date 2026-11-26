@@ -15,6 +15,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  database-tests:
+    name: Supabase migration and pgTAP tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start isolated local Supabase stack
+        run: supabase start
+      - name: Apply repository migrations and run Creator device enrolment tests
+        run: |
+          supabase db reset
+          supabase test db supabase/tests/javas_device_enrollment.test.sql
+
   verify:
     name: Build, unit tests and debug APK
     runs-on: ubuntu-latest
