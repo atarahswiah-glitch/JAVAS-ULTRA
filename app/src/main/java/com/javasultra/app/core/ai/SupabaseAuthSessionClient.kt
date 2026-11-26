@@ -48,6 +48,39 @@ class SupabaseAuthSessionClient(
         return AuthResult.SignedIn
     }
 
+
+    /**
+     * Creates a normal Supabase account. Registration never grants JAVAS Creator authority.
+     * When email confirmation is enabled, Supabase returns a user without a session.
+     */
+    @Synchronized
+    fun registerWithPassword(email: String, password: CharArray): RegistrationResult {
+        requireConfigured()
+        require(email.isNotBlank() && password.size >= 12) {
+            "Enter a valid email and a password of at least 12 characters"
+        }
+        val body = JSONObject()
+            .put("email", email.trim())
+            .put("password", String(password))
+            .toString()
+        password.fill('\u0000')
+
+        val response = request("signup", body)
+        return if (response.optString("access_token").isNotBlank() &&
+            response.optString("refresh_token").isNotBlank()
+        ) {
+            store.save(parseSession(response))
+            RegistrationResult.AccountCreatedSignedIn
+        } else {
+            RegistrationResult.EmailConfirmationRequired
+        }
+    }
+
+    sealed interface RegistrationResult {
+        data object AccountCreatedSignedIn : RegistrationResult
+        data object EmailConfirmationRequired : RegistrationResult
+    }
+
     @Synchronized
     override fun currentAccessToken(): String? {
         val current = store.read() ?: return null
