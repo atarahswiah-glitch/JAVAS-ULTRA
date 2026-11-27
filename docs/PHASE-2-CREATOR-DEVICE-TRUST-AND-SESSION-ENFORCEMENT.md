@@ -133,3 +133,15 @@ A follow-on migration now adds a distinct `APPROVE_DEVICE` challenge purpose and
 The consume routine rechecks both states, binds Creator/approver/target/purpose/nonce/expiry, consumes the challenge once and changes the target to VERIFIED with an approval timestamp in the same transaction. Replay and mismatched approver/target requests return no approval. A new pgTAP file covers binding, self-approval denial, successful transition and replay denial. CI now runs the complete database test suite rather than only the enrolment test.
 
 **Verification status:** the enrolment migration and its eight pgTAP checks passed in isolated CI run #369; Android, Deno and APK checks passed too. The new approval migration and its additional pgTAP tests have been committed but are awaiting their first CI run. The approval Edge Function and Android Keystore signing flow are not implemented yet. No hosted migration, deployment or merge has occurred.
+
+
+## Branch implementation update — approval endpoint
+
+The `javas-device-enrollment` Edge Function now has branch-local `approval-challenge` and `approve` actions in addition to `challenge` and `prove`.
+
+- `approval-challenge` requires the server-verified Creator identity and recent AAL2 step-up, validates distinct approver/target UUIDs, creates a fresh 32-byte nonce and calls the service-role-only database routine. The database verifies that the signer is currently VERIFIED and the target is PENDING_APPROVAL.
+- `approve` loads the approver public key from the server-owned device table (never from the request), verifies a canonical P-256 signature that binds Creator, approver, target, purpose, challenge ID, nonce and expiry, then calls the atomic one-time consume-and-approve routine.
+- The verifier rejects wrong Creator, signer, target, expired challenge and malformed signatures. Added Deno tests cover valid signatures, target substitution, signer substitution, Creator substitution, expiry and self-approval challenge rejection.
+- The approval action returns success only when the database returns exactly one approved device row.
+
+**Current boundary:** this is server-side branch code, not an active deployed service. Android Keystore approval signing, the Creator approval UI, session binding/revocation and end-to-end device testing remain outstanding. Do not configure or deploy hosted secrets/functions or apply hosted migrations without explicit Creator approval.
