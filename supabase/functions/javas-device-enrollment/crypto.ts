@@ -166,3 +166,135 @@ export async function issueEnrollmentChallenge(
     nonceDigestBase64: await sha256Base64(nonce),
   };
 }
+
+
+export type DeviceApprovalChallenge = {
+  version: 1;
+  challengeId: string;
+  creatorId: string;
+  approverDeviceId: string;
+  targetDeviceId: string;
+  purpose: "APPROVE_DEVICE";
+  expiresAt: string;
+  nonceBase64: string;
+};
+
+export type DeviceApprovalProof = {
+  challenge: DeviceApprovalChallenge;
+  signatureDerBase64: string;
+};
+
+/** Canonical approval bytes bind the trusted signer and the exact pending target. */
+export function canonicalApprovalChallengeBytes(
+  challenge: DeviceApprovalChallenge,
+): Uint8Array {
+  const fields = [
+    "JAVAS-DEVICE-APPROVAL",
+    String(challenge.version),
+    challenge.challengeId,
+    challenge.creatorId,
+    challenge.approverDeviceId,
+    challenge.targetDeviceId,
+    challenge.purpose,
+    challenge.expiresAt,
+    challenge.nonceBase64,
+  ];
+  const limits = [64, 1, 64, 128, 128, 128, 40, 32, 128];
+  if (fields.some((field, index) =>
+    field.length === 0 || field.length > (limits[index] ?? 128) ||
+    /[\\r\\n]/.test(field)
+  )) {
+    throw new Error("Invalid approval challenge field");
+  }
+  return new TextEncoder().encode(fields.join("\\n"));
+}
+
+export async function issueDeviceApprovalChallenge(
+  input: {
+    creatorId: string;
+    approverDeviceId: string;
+    targetDeviceId: string;
+    now?: Date;
+    ttlMs?: number;
+  },
+): Promise<{ challenge: DeviceApprovalChallenge; nonceDigestBase64: string }> {
+  if (
+    !input.creatorId.trim() || !input.approverDeviceId.trim() ||
+    !input.targetDeviceId.trim() || input.approverDeviceId === input.targetDeviceId
+  ) {
+    throw new Error("Valid Creator, approver and target identifiers are required");
+  }
+  const ttlMs = input.ttlMs ?? 120_000;
+  if (!Number.isInteger(ttlMs) || ttlMs < 15_000 || ttlMs > 120_000) {
+    throw new Error("Challenge lifetime must be between 15 and 120 seconds");
+  }
+  const nonce = crypto.getRandomValues(new Uint8Array(32));
+  const now = input.now ?? new Date();
+  const challenge: DeviceApprovalChallenge = {
+    version: 1,
+    challengeId: crypto.randomUUID(),
+    creatorId: input.creatorId,
+    approverDeviceId: input.approverDeviceId,
+    targetDeviceId: input.targetDeviceId,
+    purpose: "APPROVE_DEVICE",
+    expiresAt: new Date(now.getTime() + ttlMs).toISOString(),
+    nonceBase64: encodeBase64(nonce),
+  };
+  return {
+    challenge,
+    nonceDigestBase64: await sha256Base64(nonce),
+  };
+}
+
+/**
+ * Verify approval using the public key loaded from the server-owned VERIFIED
+ * device record. Never accept a public key supplied in the approval request.
+ */
+export async function verifyDeviceApprovalProof(
+  proof: DeviceApprovalProof,
+  expected: {
+    creatorId: string;
+    approverDeviceId: string;
+    targetDeviceId: string;
+    publicKeySpkiBase64: string;
+    now?: Date;
+  },
+): Promise<boolean> {
+  const { challenge } = proof;
+  if (
+    challenge.version !== 1 ||
+    challenge.purpose !== "APPROVE_DEVICE" ||
+    challenge.creatorId !== expected.creatorId ||
+    challenge.approverDeviceId !== expected.approverDeviceId ||
+    challenge.targetDeviceId !== expected.targetDeviceId ||
+    challenge.approverDeviceId === challenge.targetDeviceId
+  ) return false;
+
+  const expiresAt = Date.parse(challenge.expiresAt);
+  const now = (expected.now ?? new Date()).getTime();
+  if (!Number.isFinite(expiresAt) || expiresAt <= now || expiresAt - now > 5 * 60_000) {
+    return false;
+  }
+
+  try {
+    const nonce = decodeBase64(challenge.nonceBase64);
+    if (nonce.length < MIN_NONCE_BYTES || nonce.length > MAX_NONCE_BYTES) return false;
+    const spki = decodeBase64(expected.publicKeySpkiBase64);
+    const signature = derEcdsaToP1363(decodeBase64(proof.signatureDerBase64));
+    const key = await crypto.subtle.importKey(
+      "spki",
+      toArrayBuffer(spki),
+      { name: "ECDSA", namedCurve: "P-256" },
+      false,
+      ["verify"],
+    );
+    return await crypto.subtle.verify(
+      { name: "ECDSA", hash: "SHA-256" },
+      key,
+      toArrayBuffer(signature),
+      toArrayBuffer(canonicalApprovalChallengeBytes(challenge)),
+    );
+  } catch {
+    return false;
+  }
+}
