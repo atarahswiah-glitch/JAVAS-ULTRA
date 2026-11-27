@@ -113,7 +113,6 @@ declare
 begin
   if p_challenge_id is null or p_creator_user_id is null
      or p_approver_device_id is null or p_target_device_id is null
-     or p_approver_device_id = p_target_device_id
      or (length(p_nonce_sha256_base64) <> 44 or right(p_nonce_sha256_base64, 1) <> '=' or p_nonce_sha256_base64 ~ '[^A-Za-z0-9+/=]') then
     raise exception 'Invalid approval proof parameters' using errcode = '22023';
   end if;
