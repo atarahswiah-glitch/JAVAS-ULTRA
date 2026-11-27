@@ -2,7 +2,7 @@ name: Android CI
 
 on:
   push:
-    branches: [docs/phase-1-architecture-foundation, "feature/**"]
+    branches: [docs/phase-1-architecture-foundation]
   pull_request:
     branches: [main, docs/phase-1-architecture-foundation, "feature/**"]
   workflow_dispatch:
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-ci-${{ github.ref }}
+  group: android-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
