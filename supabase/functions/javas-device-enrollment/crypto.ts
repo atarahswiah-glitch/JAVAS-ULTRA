@@ -197,11 +197,11 @@ export function canonicalApprovalChallengeBytes(challenge: ApprovalChallenge): U
   ];
   const limits = [64, 1, 64, 128, 128, 128, 40, 32, 128];
   if (fields.some((field, index) =>
-    field.length === 0 || field.length > (limits[index] ?? 128) || /[\\r\\n]/.test(field)
+    field.length === 0 || field.length > (limits[index] ?? 128) || /[\r\n]/.test(field)
   )) {
     throw new Error("Invalid approval challenge field");
   }
-  return new TextEncoder().encode(fields.join("\\n"));
+  return new TextEncoder().encode(fields.join("\n"));
 }
 
 export async function verifyApprovalDeviceProof(
