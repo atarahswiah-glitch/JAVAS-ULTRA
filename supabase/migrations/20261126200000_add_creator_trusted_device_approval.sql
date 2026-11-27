@@ -3,8 +3,10 @@
 
 alter table public.javas_device_challenges
   drop constraint if exists javas_device_challenges_purpose_check;
+
 alter table public.javas_device_challenges
   add column if not exists target_device_id uuid;
+
 alter table public.javas_device_challenges
   add constraint javas_device_challenges_purpose_check
   check (
@@ -113,190 +115,13 @@ declare
 begin
   if p_challenge_id is null or p_creator_user_id is null
      or p_approver_device_id is null or p_target_device_id is null
-     or p_nonce_sha256_base64 !~ '^[A-Za-z0-9+/]{43}=
-
-  perform pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended(
-      p_creator_user_id::text || ':APPROVE:' || p_approver_device_id::text || ':' || p_target_device_id::text, 0
-    )
-  );
-
-  update public.javas_device_challenges challenge
-  set consumed_at = v_now
-  where challenge.id = p_challenge_id
-    and challenge.creator_user_id = p_creator_user_id
-    and challenge.device_id = p_approver_device_id
-    and challenge.target_device_id = p_target_device_id
-    and challenge.purpose = 'APPROVE_DEVICE'
-    and challenge.nonce_sha256_base64 = p_nonce_sha256_base64
-    and challenge.consumed_at is null
-    and challenge.expires_at > v_now
-    and exists (
-      select 1 from public.javas_creator_devices approver
-      where approver.creator_user_id = p_creator_user_id
-        and approver.device_id = p_approver_device_id
-        and approver.state = 'VERIFIED'
-    )
-    and exists (
-      select 1 from public.javas_creator_devices target
-      where target.creator_user_id = p_creator_user_id
-        and target.device_id = p_target_device_id
-        and target.state = 'PENDING_APPROVAL'
-    )
-  returning challenge.id into v_consumed_id;
-
-  if v_consumed_id is null then
-    return;
-  end if;
-
-  update public.javas_creator_devices target
-  set state = 'VERIFIED', approved_at = v_now
-  where target.creator_user_id = p_creator_user_id
-    and target.device_id = p_target_device_id
-    and target.state = 'PENDING_APPROVAL';
-
-  if not found then
-    raise exception 'Pending device changed during approval' using errcode = '40001';
-  end if;
-
-  return query select p_target_device_id, 'VERIFIED'::text;
-end;
-$$;
-
-revoke all on function public.issue_javas_device_approval_challenge(uuid, uuid, uuid, uuid, text, timestamptz)
-  from public, anon, authenticated;
-revoke all on function public.consume_javas_device_approval_challenge(uuid, uuid, uuid, uuid, text)
-  from public, anon, authenticated;
-grant execute on function public.issue_javas_device_approval_challenge(uuid, uuid, uuid, uuid, text, timestamptz)
-  to service_role;
-grant execute on function public.consume_javas_device_approval_challenge(uuid, uuid, uuid, uuid, text)
-  to service_role;
- then
+     or p_nonce_sha256_base64 !~ '^[A-Za-z0-9+/]{43}=$' then
     raise exception 'Invalid approval proof parameters' using errcode = '22023';
   end if;
 
-  perform pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended(
-      p_creator_user_id::text || ':APPROVE:' || p_approver_device_id::text || ':' || p_target_device_id::text, 0
-    )
-  );
-
-  update public.javas_device_challenges challenge
-  set consumed_at = v_now
-  where challenge.id = p_challenge_id
-    and challenge.creator_user_id = p_creator_user_id
-    and challenge.device_id = p_approver_device_id
-    and challenge.target_device_id = p_target_device_id
-    and challenge.purpose = 'APPROVE_DEVICE'
-    and challenge.nonce_sha256_base64 = p_nonce_sha256_base64
-    and challenge.consumed_at is null
-    and challenge.expires_at > v_now
-    and exists (
-      select 1 from public.javas_creator_devices approver
-      where approver.creator_user_id = p_creator_user_id
-        and approver.device_id = p_approver_device_id
-        and approver.state = 'VERIFIED'
-    )
-    and exists (
-      select 1 from public.javas_creator_devices target
-      where target.creator_user_id = p_creator_user_id
-        and target.device_id = p_target_device_id
-        and target.state = 'PENDING_APPROVAL'
-    )
-  returning challenge.id into v_consumed_id;
-
-  if v_consumed_id is null then
-    return;
-  end if;
-
-  update public.javas_creator_devices target
-  set state = 'VERIFIED', approved_at = v_now
-  where target.creator_user_id = p_creator_user_id
-    and target.device_id = p_target_device_id
-    and target.state = 'PENDING_APPROVAL';
-
-  if not found then
-    raise exception 'Pending device changed during approval' using errcode = '40001';
-  end if;
-
-  return query select p_target_device_id, 'VERIFIED'::text;
-end;
-$$;
-
-revoke all on function public.issue_javas_device_approval_challenge(uuid, uuid, uuid, uuid, text, timestamptz)
-  from public, anon, authenticated;
-revoke all on function public.consume_javas_device_approval_challenge(uuid, uuid, uuid, uuid, text)
-  from public, anon, authenticated;
-grant execute on function public.issue_javas_device_approval_challenge(uuid, uuid, uuid, uuid, text, timestamptz)
-  to service_role;
-grant execute on function public.consume_javas_device_approval_challenge(uuid, uuid, uuid, uuid, text)
-  to service_role;
- then
-    raise exception 'Invalid approval proof parameters' using errcode = '22023';
-  end if;
-
+  -- A device may never approve itself; return zero rows.
   if p_approver_device_id = p_target_device_id then
     return;
-  end if;
-
-  perform pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended(
-      p_creator_user_id::text || ':APPROVE:' || p_approver_device_id::text || ':' || p_target_device_id::text, 0
-    )
-  );
-
-  update public.javas_device_challenges challenge
-  set consumed_at = v_now
-  where challenge.id = p_challenge_id
-    and challenge.creator_user_id = p_creator_user_id
-    and challenge.device_id = p_approver_device_id
-    and challenge.target_device_id = p_target_device_id
-    and challenge.purpose = 'APPROVE_DEVICE'
-    and challenge.nonce_sha256_base64 = p_nonce_sha256_base64
-    and challenge.consumed_at is null
-    and challenge.expires_at > v_now
-    and exists (
-      select 1 from public.javas_creator_devices approver
-      where approver.creator_user_id = p_creator_user_id
-        and approver.device_id = p_approver_device_id
-        and approver.state = 'VERIFIED'
-    )
-    and exists (
-      select 1 from public.javas_creator_devices target
-      where target.creator_user_id = p_creator_user_id
-        and target.device_id = p_target_device_id
-        and target.state = 'PENDING_APPROVAL'
-    )
-  returning challenge.id into v_consumed_id;
-
-  if v_consumed_id is null then
-    return;
-  end if;
-
-  update public.javas_creator_devices target
-  set state = 'VERIFIED', approved_at = v_now
-  where target.creator_user_id = p_creator_user_id
-    and target.device_id = p_target_device_id
-    and target.state = 'PENDING_APPROVAL';
-
-  if not found then
-    raise exception 'Pending device changed during approval' using errcode = '40001';
-  end if;
-
-  return query select p_target_device_id, 'VERIFIED'::text;
-end;
-$$;
-
-revoke all on function public.issue_javas_device_approval_challenge(uuid, uuid, uuid, uuid, text, timestamptz)
-  from public, anon, authenticated;
-revoke all on function public.consume_javas_device_approval_challenge(uuid, uuid, uuid, uuid, text)
-  from public, anon, authenticated;
-grant execute on function public.issue_javas_device_approval_challenge(uuid, uuid, uuid, uuid, text, timestamptz)
-  to service_role;
-grant execute on function public.consume_javas_device_approval_challenge(uuid, uuid, uuid, uuid, text)
-  to service_role;
- then
-    raise exception 'Invalid approval proof parameters' using errcode = '22023';
   end if;
 
   perform pg_catalog.pg_advisory_xact_lock(
