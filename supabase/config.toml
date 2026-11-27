@@ -2,7 +2,7 @@
 project_id = "javas-ultra"
 
 # Keep local email testing ports distinct from common runner/service defaults.
-[inbucket]
+[local_smtp]
 enabled = true
 port = 54344
 smtp_port = 54345
