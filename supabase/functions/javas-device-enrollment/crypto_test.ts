@@ -1,8 +1,11 @@
 import {
   canonicalChallengeBytes,
+  canonicalApprovalChallengeBytes,
   derEcdsaToP1363,
   verifyDeviceProof,
+  verifyDeviceApprovalProof,
   issueEnrollmentChallenge,
+  issueDeviceApprovalChallenge,
   sha256Base64,
 } from "./crypto.ts";
 
@@ -175,4 +178,83 @@ Deno.test("rejects challenge lifetimes outside the allowed range", async () => {
     }
     if (!rejected) throw new Error(`Invalid TTL accepted: ${ttlMs}`);
   }
+});
+
+
+Deno.test("approval proof binds Creator, trusted signer and exact pending target", async () => {
+  const issued = await issueDeviceApprovalChallenge({
+    creatorId: "creator-1",
+    approverDeviceId: "trusted-device-1",
+    targetDeviceId: "pending-device-2",
+    now: new Date("2026-11-26T15:59:00.000Z"),
+  });
+  const pair = await crypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" },
+    true,
+    ["sign", "verify"],
+  );
+  const spki = new Uint8Array(await crypto.subtle.exportKey("spki", pair.publicKey));
+  const rawSignature = new Uint8Array(await crypto.subtle.sign(
+    { name: "ECDSA", hash: "SHA-256" },
+    pair.privateKey,
+    toArrayBuffer(canonicalApprovalChallengeBytes(issued.challenge)),
+  ));
+  const proof = {
+    challenge: issued.challenge,
+    signatureDerBase64: toBase64(rawToDer(rawSignature)),
+  };
+  const publicKeySpkiBase64 = toBase64(spki);
+  const now = new Date("2026-11-26T15:59:30.000Z");
+  const expected = {
+    creatorId: "creator-1",
+    approverDeviceId: "trusted-device-1",
+    targetDeviceId: "pending-device-2",
+    publicKeySpkiBase64,
+    now,
+  };
+  if (!await verifyDeviceApprovalProof(proof, expected)) {
+    throw new Error("Valid trusted-device approval proof was rejected");
+  }
+  if (await verifyDeviceApprovalProof(proof, { ...expected, targetDeviceId: "other-target" })) {
+    throw new Error("Approval proof was accepted for a substituted target");
+  }
+  if (await verifyDeviceApprovalProof(proof, { ...expected, approverDeviceId: "other-device" })) {
+    throw new Error("Approval proof was accepted for a substituted signer");
+  }
+  if (await verifyDeviceApprovalProof(proof, { ...expected, creatorId: "other-creator" })) {
+    throw new Error("Approval proof was accepted for another Creator");
+  }
+  if (await verifyDeviceApprovalProof(proof, {
+    ...expected,
+    now: new Date("2026-11-26T16:01:01.000Z"),
+  })) {
+    throw new Error("Expired approval challenge was accepted");
+  }
+});
+
+Deno.test("approval challenge rejects self-approval and invalid lifetimes", async () => {
+  let selfApprovalRejected = false;
+  try {
+    await issueDeviceApprovalChallenge({
+      creatorId: "creator",
+      approverDeviceId: "same-device",
+      targetDeviceId: "same-device",
+    });
+  } catch {
+    selfApprovalRejected = true;
+  }
+  if (!selfApprovalRejected) throw new Error("Self-approval challenge was issued");
+
+  let invalidTtlRejected = false;
+  try {
+    await issueDeviceApprovalChallenge({
+      creatorId: "creator",
+      approverDeviceId: "trusted",
+      targetDeviceId: "pending",
+      ttlMs: 120_001,
+    });
+  } catch {
+    invalidTtlRejected = true;
+  }
+  if (!invalidTtlRejected) throw new Error("Out-of-range approval TTL was accepted");
 });
