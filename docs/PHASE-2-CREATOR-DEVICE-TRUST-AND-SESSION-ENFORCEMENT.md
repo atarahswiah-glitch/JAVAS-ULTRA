@@ -145,3 +145,10 @@ The `javas-device-enrollment` Edge Function now has branch-local `approval-chall
 - The approval action returns success only when the database returns exactly one approved device row.
 
 **Current boundary:** this is server-side branch code, not an active deployed service. Android Keystore approval signing, the Creator approval UI, session binding/revocation and end-to-end device testing remain outstanding. Do not configure or deploy hosted secrets/functions or apply hosted migrations without explicit Creator approval.
+
+
+## Branch implementation update — Android signing and management UI
+
+Android now has a canonical challenge encoder whose field order matches the server's enrollment and approval payloads, plus a `JavasDeviceEnrollmentClient` that obtains challenges, signs them through the existing `DeviceKeyManager` Android Keystore key, and submits the DER ECDSA proofs over HTTPS. The Creator Security & Recovery Centre now links to a trusted-device management panel with explicit enrol and approve actions. The panel clearly labels successful enrolment as `PENDING_APPROVAL` and does not claim a device is trusted until the server returns `VERIFIED`.
+
+A JVM unit test checks canonical payload field order and delimiter rejection. The network client runs on a background executor in the UI. **Not yet verified:** latest Android build/unit/instrumentation CI for these new files is still running; the UI does not yet include Supabase MFA enrollment/challenge screens, so the backend's recent AAL2 requirement must already be satisfied by the signed-in session. The Edge Function and migrations remain undeployed, and no physical-phone acceptance test has occurred.
