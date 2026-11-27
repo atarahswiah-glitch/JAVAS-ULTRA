@@ -24,6 +24,22 @@ export type DeviceProof = {
   signatureDerBase64: string;
 };
 
+export type ApprovalChallenge = {
+  version: 1;
+  challengeId: string;
+  creatorId: string;
+  deviceId: string;
+  targetDeviceId: string;
+  purpose: "APPROVE_DEVICE";
+  expiresAt: string;
+  nonceBase64: string;
+};
+
+export type ApprovalDeviceProof = {
+  challenge: ApprovalChallenge;
+  signatureDerBase64: string;
+};
+
 function decodeBase64(value: string): Uint8Array {
   if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
     throw new Error("Invalid base64 encoding");
@@ -165,4 +181,106 @@ export async function issueEnrollmentChallenge(
     challenge,
     nonceDigestBase64: await sha256Base64(nonce),
   };
+}
+
+export function canonicalApprovalChallengeBytes(challenge: ApprovalChallenge): Uint8Array {
+  const fields = [
+    "JAVAS-DEVICE-APPROVAL",
+    String(challenge.version),
+    challenge.challengeId,
+    challenge.creatorId,
+    challenge.deviceId,
+    challenge.targetDeviceId,
+    challenge.purpose,
+    challenge.expiresAt,
+    challenge.nonceBase64,
+  ];
+  const limits = [64, 1, 64, 128, 128, 128, 40, 32, 128];
+  if (fields.some((field, index) =>
+    field.length === 0 || field.length > (limits[index] ?? 128) || /[\\r\\n]/.test(field)
+  )) {
+    throw new Error("Invalid approval challenge field");
+  }
+  return new TextEncoder().encode(fields.join("\\n"));
+}
+
+export async function verifyApprovalDeviceProof(
+  proof: ApprovalDeviceProof,
+  expected: {
+    creatorId: string;
+    approverDeviceId: string;
+    targetDeviceId: string;
+    publicKeySpkiBase64: string;
+    now?: Date;
+  },
+): Promise<boolean> {
+  const { challenge } = proof;
+  if (
+    challenge.version !== 1 ||
+    challenge.purpose !== "APPROVE_DEVICE" ||
+    challenge.creatorId !== expected.creatorId ||
+    challenge.deviceId !== expected.approverDeviceId ||
+    challenge.targetDeviceId !== expected.targetDeviceId ||
+    challenge.deviceId === challenge.targetDeviceId
+  ) return false;
+
+  const expiresAt = Date.parse(challenge.expiresAt);
+  const now = (expected.now ?? new Date()).getTime();
+  if (!Number.isFinite(expiresAt) || expiresAt <= now || expiresAt - now > 5 * 60_000) {
+    return false;
+  }
+
+  try {
+    const nonce = decodeBase64(challenge.nonceBase64);
+    if (nonce.length < MIN_NONCE_BYTES || nonce.length > MAX_NONCE_BYTES) return false;
+    const spki = decodeBase64(expected.publicKeySpkiBase64);
+    const signature = derEcdsaToP1363(decodeBase64(proof.signatureDerBase64));
+    const key = await crypto.subtle.importKey(
+      "spki",
+      toArrayBuffer(spki),
+      { name: "ECDSA", namedCurve: "P-256" },
+      false,
+      ["verify"],
+    );
+    return await crypto.subtle.verify(
+      { name: "ECDSA", hash: "SHA-256" },
+      key,
+      toArrayBuffer(signature),
+      toArrayBuffer(canonicalApprovalChallengeBytes(challenge)),
+    );
+  } catch {
+    return false;
+  }
+}
+
+export async function issueApprovalChallenge(
+  input: {
+    creatorId: string;
+    approverDeviceId: string;
+    targetDeviceId: string;
+    now?: Date;
+    ttlMs?: number;
+  },
+): Promise<{ challenge: ApprovalChallenge; nonceDigestBase64: string }> {
+  if (
+    !input.creatorId.trim() || !input.approverDeviceId.trim() ||
+    !input.targetDeviceId.trim() || input.approverDeviceId === input.targetDeviceId
+  ) throw new Error("Creator, approver and distinct target device identifiers are required");
+  const ttlMs = input.ttlMs ?? 120_000;
+  if (!Number.isInteger(ttlMs) || ttlMs < 15_000 || ttlMs > 120_000) {
+    throw new Error("Challenge lifetime must be between 15 and 120 seconds");
+  }
+  const nonce = crypto.getRandomValues(new Uint8Array(32));
+  const now = input.now ?? new Date();
+  const challenge: ApprovalChallenge = {
+    version: 1,
+    challengeId: crypto.randomUUID(),
+    creatorId: input.creatorId,
+    deviceId: input.approverDeviceId,
+    targetDeviceId: input.targetDeviceId,
+    purpose: "APPROVE_DEVICE",
+    expiresAt: new Date(now.getTime() + ttlMs).toISOString(),
+    nonceBase64: encodeBase64(nonce),
+  };
+  return { challenge, nonceDigestBase64: await sha256Base64(nonce) };
 }
