@@ -4,6 +4,9 @@ import {
   verifyDeviceProof,
   issueEnrollmentChallenge,
   sha256Base64,
+  canonicalApprovalChallengeBytes,
+  issueApprovalChallenge,
+  verifyApprovalDeviceProof,
 } from "./crypto.ts";
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
@@ -175,4 +178,98 @@ Deno.test("rejects challenge lifetimes outside the allowed range", async () => {
     }
     if (!rejected) throw new Error(`Invalid TTL accepted: ${ttlMs}`);
   }
+});
+
+
+Deno.test("approval challenge binds Creator, approver, target and purpose", async () => {
+  const issued = await issueApprovalChallenge({
+    creatorId: "creator-1",
+    approverDeviceId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    targetDeviceId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    now: new Date("2026-11-26T15:00:00.000Z"),
+  });
+  const decoded = new TextDecoder().decode(canonicalApprovalChallengeBytes(issued.challenge));
+  if (!decoded.includes(issued.challenge.targetDeviceId)) {
+    throw new Error("Approval target was not bound into signed challenge");
+  }
+  if (issued.challenge.purpose !== "APPROVE_DEVICE") {
+    throw new Error("Wrong approval purpose");
+  }
+  if (issued.challenge.deviceId === issued.challenge.targetDeviceId) {
+    throw new Error("Approver and target must differ");
+  }
+});
+
+Deno.test("approval proof requires trusted approver key and exact target binding", async () => {
+  const pair = await crypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" },
+    true,
+    ["sign", "verify"],
+  );
+  const spki = new Uint8Array(await crypto.subtle.exportKey("spki", pair.publicKey));
+  const publicKeySpkiBase64 = toBase64(spki);
+  const issued = await issueApprovalChallenge({
+    creatorId: "creator-1",
+    approverDeviceId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    targetDeviceId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    now: new Date("2026-11-26T15:00:00.000Z"),
+  });
+  const rawSignature = new Uint8Array(await crypto.subtle.sign(
+    { name: "ECDSA", hash: "SHA-256" },
+    pair.privateKey,
+    toArrayBuffer(canonicalApprovalChallengeBytes(issued.challenge)),
+  ));
+  const proof = {
+    challenge: issued.challenge,
+    signatureDerBase64: toBase64(rawToDer(rawSignature)),
+  };
+  const expected = {
+    creatorId: "creator-1",
+    approverDeviceId: issued.challenge.deviceId,
+    targetDeviceId: issued.challenge.targetDeviceId,
+    publicKeySpkiBase64,
+    now: new Date("2026-11-26T15:00:30.000Z"),
+  };
+  if (!await verifyApprovalDeviceProof(proof, expected)) {
+    throw new Error("Valid trusted-device approval proof was rejected");
+  }
+  if (await verifyApprovalDeviceProof(proof, { ...expected, targetDeviceId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc" })) {
+    throw new Error("Approval proof accepted a substituted target");
+  }
+  if (await verifyApprovalDeviceProof(proof, { ...expected, approverDeviceId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" })) {
+    throw new Error("Approval proof accepted a substituted approver");
+  }
+  if (await verifyApprovalDeviceProof(proof, { ...expected, creatorId: "other-creator" })) {
+    throw new Error("Approval proof accepted a substituted Creator");
+  }
+  if (await verifyApprovalDeviceProof(proof, { ...expected, now: new Date("2026-11-26T15:02:00.000Z") })) {
+    throw new Error("Expired approval proof was accepted");
+  }
+});
+
+Deno.test("approval challenge rejects self-approval and invalid lifetime", async () => {
+  let selfApprovalRejected = false;
+  try {
+    await issueApprovalChallenge({
+      creatorId: "creator",
+      approverDeviceId: "same-device",
+      targetDeviceId: "same-device",
+    });
+  } catch {
+    selfApprovalRejected = true;
+  }
+  if (!selfApprovalRejected) throw new Error("Self-approval challenge was issued");
+
+  let invalidLifetimeRejected = false;
+  try {
+    await issueApprovalChallenge({
+      creatorId: "creator",
+      approverDeviceId: "approver",
+      targetDeviceId: "target",
+      ttlMs: 120_001,
+    });
+  } catch {
+    invalidLifetimeRejected = true;
+  }
+  if (!invalidLifetimeRejected) throw new Error("Invalid approval challenge lifetime was accepted");
 });
