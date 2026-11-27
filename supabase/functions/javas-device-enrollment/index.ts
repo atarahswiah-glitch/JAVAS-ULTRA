@@ -1,6 +1,7 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { isOriginAllowed } from "../javas-gateway/validation.ts";
 import { hasRecentStepUp, isUuid, readVerifiedJwtClaims } from "./auth.ts";
+import { readBoundedJsonObject } from "./body.ts";
 import {
   issueEnrollmentChallenge,
   sha256Base64,
@@ -80,17 +81,6 @@ async function authenticateCreator(req: Request): Promise<
   return { userId: data.user.id };
 }
 
-async function readBody(req: Request): Promise<Record<string, unknown> | null> {
-  const declaredLength = Number(req.headers.get("Content-Length") ?? "0");
-  if (declaredLength > MAX_BODY_BYTES) return null;
-  const raw = await req.text();
-  if (new TextEncoder().encode(raw).byteLength > MAX_BODY_BYTES) return null;
-  const parsed = JSON.parse(raw);
-  return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-    ? parsed as Record<string, unknown>
-    : null;
-}
-
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("Origin");
   if (!isOriginAllowed(origin, Deno.env.get("JAVAS_ALLOWED_ORIGINS"))) {
@@ -116,7 +106,7 @@ Deno.serve(async (req: Request) => {
 
   let body: Record<string, unknown> | null;
   try {
-    body = await readBody(req);
+    body = await readBoundedJsonObject(req, MAX_BODY_BYTES);
   } catch {
     return json({ error: "Invalid request body" }, 400, origin);
   }
