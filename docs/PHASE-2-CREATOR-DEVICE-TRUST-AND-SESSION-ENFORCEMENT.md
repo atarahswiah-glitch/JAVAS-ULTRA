@@ -133,3 +133,15 @@ A follow-on migration now adds a distinct `APPROVE_DEVICE` challenge purpose and
 The consume routine rechecks both states, binds Creator/approver/target/purpose/nonce/expiry, consumes the challenge once and changes the target to VERIFIED with an approval timestamp in the same transaction. Replay and mismatched approver/target requests return no approval. A new pgTAP file covers binding, self-approval denial, successful transition and replay denial. CI now runs the complete database test suite rather than only the enrolment test.
 
 **Verification status:** the enrolment migration and its eight pgTAP checks passed in isolated CI run #369; Android, Deno and APK checks passed too. The new approval migration and its additional pgTAP tests have been committed but are awaiting their first CI run. The approval Edge Function and Android Keystore signing flow are not implemented yet. No hosted migration, deployment or merge has occurred.
+
+
+## Branch implementation update — trusted-device approval Edge Function
+
+The device-enrollment Edge Function now includes two additional actions:
+
+- `approval-challenge`: requires a recent server-verified AAL2 Creator session, a distinct approver device ID and pending target device ID. The database routine verifies that the approver is VERIFIED and the target is PENDING_APPROVAL before issuing the challenge.
+- `approve`: loads the approver public key from the server-owned device registry, verifies a P-256 signature over a canonical challenge binding Creator, approver, target, purpose, expiry and nonce, then calls the atomic one-use database consume routine. The database rechecks both device states and changes the target to VERIFIED in the same transaction.
+
+The approval proof does not accept a client-supplied public key. A replay, changed target, changed approver, expired challenge, revoked approver or already-approved target is rejected. The endpoint also inherits the streaming request-body byte limit.
+
+Cryptographic unit tests now cover challenge binding, valid approval, substituted Creator/approver/target, expiry, self-approval and challenge lifetime. CI is configured to type-check the endpoint and run these tests. **These additions are committed on the PR #21 feature branch only. They have not yet been verified by a fresh CI run, deployed, or tested with Android Keystore on a physical device.** The Android signing/UI flow and server-owned session registration/revocation remain outstanding.

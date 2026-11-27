@@ -52,9 +52,9 @@ jobs:
       # Check the server proof helper before running Android build steps.
       # Keep server-side verification and Android signing formats aligned.
       - name: Type-check Creator device enrollment proof verifier
-        run: deno check supabase/functions/javas-device-enrollment/index.ts supabase/functions/javas-device-enrollment/auth.ts supabase/functions/javas-device-enrollment/auth_test.ts supabase/functions/javas-device-enrollment/crypto.ts supabase/functions/javas-device-enrollment/crypto_test.ts
+        run: deno check supabase/functions/javas-device-enrollment/index.ts supabase/functions/javas-device-enrollment/auth.ts supabase/functions/javas-device-enrollment/auth_test.ts supabase/functions/javas-device-enrollment/body.ts supabase/functions/javas-device-enrollment/body_test.ts supabase/functions/javas-device-enrollment/crypto.ts supabase/functions/javas-device-enrollment/crypto_test.ts
       - name: Test Creator device enrollment proof verifier
-        run: deno test supabase/functions/javas-device-enrollment/crypto_test.ts supabase/functions/javas-device-enrollment/auth_test.ts
+        run: deno test supabase/functions/javas-device-enrollment/crypto_test.ts supabase/functions/javas-device-enrollment/auth_test.ts supabase/functions/javas-device-enrollment/body_test.ts
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
