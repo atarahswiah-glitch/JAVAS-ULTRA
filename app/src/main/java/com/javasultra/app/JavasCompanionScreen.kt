@@ -73,6 +73,7 @@ internal fun JavasCompanionScreen(
     var expanded by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var showSecurityCentre by remember { mutableStateOf(false) }
+    var showDeviceTrustPanel by remember { mutableStateOf(false) }
     var voiceSample by remember { mutableStateOf(preferences.getString(VOICE_SAMPLE_URI, null)) }
     var personalImage by remember { mutableStateOf(preferences.getString(PERSONAL_IMAGE_URI, null)) }
     var voiceMode by remember { mutableStateOf(preferences.getString(VOICE_MODE, "JAVAS") ?: "JAVAS") }
@@ -358,6 +359,13 @@ internal fun JavasCompanionScreen(
                         SecurityReadinessRow("Creator alerts", "Not connected", false)
                         SecurityReadinessRow("Secure Shelter controls", "Not connected", false)
                         SecurityReadinessRow("Creator recovery verification", "Policy defined; workflow pending", false)
+                        TextButton(
+                            onClick = {
+                                showSecurityCentre = false
+                                showDeviceTrustPanel = true
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Manage trusted devices") }
                         Spacer(Modifier.height(2.dp))
                         Text("INCIDENT HISTORY", color = Color(0xFF79DFF2), fontSize = 10.sp, letterSpacing = 1.2.sp)
                         Text(
@@ -377,6 +385,22 @@ internal fun JavasCompanionScreen(
                         Button(onClick = { showSecurityCentre = false }, modifier = Modifier.fillMaxWidth()) {
                             Text("Return to JAVAS")
                         }
+                    }
+                }
+            }
+            if (showDeviceTrustPanel) {
+                Surface(
+                    modifier = Modifier.align(Alignment.Center).fillMaxSize().padding(vertical = 8.dp),
+                    color = Color(0xFF081725),
+                    shape = RoundedCornerShape(24.dp),
+                    shadowElevation = 24.dp
+                ) {
+                    Column(Modifier.fillMaxSize().padding(20.dp)) {
+                        CreatorDeviceTrustPanel(
+                            activity = activity,
+                            authClient = authClient,
+                            onClose = { showDeviceTrustPanel = false; showSecurityCentre = true }
+                        )
                     }
                 }
             }
