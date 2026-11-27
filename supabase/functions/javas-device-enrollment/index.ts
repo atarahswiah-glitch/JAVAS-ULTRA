@@ -3,8 +3,11 @@ import { isOriginAllowed } from "../javas-gateway/validation.ts";
 import { hasRecentStepUp, isUuid, readVerifiedJwtClaims } from "./auth.ts";
 import {
   issueEnrollmentChallenge,
+  issueDeviceApprovalChallenge,
   sha256Base64,
+  verifyDeviceApprovalProof,
   verifyDeviceProof,
+  type DeviceApprovalProof,
   type DeviceProof,
 } from "./crypto.ts";
 
@@ -205,6 +208,111 @@ Deno.serve(async (req: Request) => {
       return json({ deviceId: challenge.deviceId, state: "PENDING_APPROVAL" }, 201, origin);
     } catch {
       return json({ error: "Unable to complete device proof" }, 400, origin);
+    }
+  }
+
+
+  if (body.action === "approval-challenge") {
+    const approverDeviceId = body.approverDeviceId;
+    const targetDeviceId = body.targetDeviceId;
+    if (!isUuid(approverDeviceId) || !isUuid(targetDeviceId)) {
+      return json({ error: "Valid approver and target device IDs are required" }, 400, origin);
+    }
+    if (approverDeviceId === targetDeviceId) {
+      return json({ error: "A device cannot approve itself" }, 400, origin);
+    }
+
+    try {
+      const issued = await issueDeviceApprovalChallenge({
+        creatorId: identity.userId,
+        approverDeviceId,
+        targetDeviceId,
+      });
+      const { error } = await adminClient.rpc("issue_javas_device_approval_challenge", {
+        p_challenge_id: issued.challenge.challengeId,
+        p_creator_user_id: identity.userId,
+        p_approver_device_id: approverDeviceId,
+        p_target_device_id: targetDeviceId,
+        p_nonce_sha256_base64: issued.nonceDigestBase64,
+        p_expires_at: issued.challenge.expiresAt,
+      });
+      if (error) {
+        if (error.code === "P0001") {
+          return json({ error: "Approval challenge rate limit reached" }, 429, origin);
+        }
+        if (error.code === "42501") {
+          return json({ error: "Approver is not trusted or target is not pending" }, 409, origin);
+        }
+        return json({ error: "Unable to issue approval challenge" }, 503, origin);
+      }
+      return json({ challenge: issued.challenge }, 200, origin);
+    } catch {
+      return json({ error: "Unable to issue approval challenge" }, 400, origin);
+    }
+  }
+
+  if (body.action === "approve") {
+    const proof = body.proof as DeviceApprovalProof | undefined;
+    if (
+      !proof || typeof proof !== "object" ||
+      !proof.challenge || typeof proof.challenge !== "object" ||
+      typeof proof.signatureDerBase64 !== "string" ||
+      proof.signatureDerBase64.length > 200
+    ) {
+      return json({ error: "Invalid approval proof" }, 400, origin);
+    }
+
+    const challenge = proof.challenge;
+    if (
+      !isUuid(challenge.approverDeviceId) ||
+      !isUuid(challenge.targetDeviceId) ||
+      !isUuid(challenge.challengeId) ||
+      challenge.creatorId !== identity.userId
+    ) {
+      return json({ error: "Invalid approval proof" }, 400, origin);
+    }
+
+    // The signer key comes only from the server-owned VERIFIED device record.
+    // A caller cannot substitute a public key or claim another device's trust.
+    const { data: approver, error: approverError } = await adminClient
+      .from("javas_creator_devices")
+      .select("public_key_spki_base64")
+      .eq("creator_user_id", identity.userId)
+      .eq("device_id", challenge.approverDeviceId)
+      .eq("state", "VERIFIED")
+      .maybeSingle();
+    if (approverError || !approver?.public_key_spki_base64) {
+      return json({ error: "Trusted approver device was not found" }, 403, origin);
+    }
+
+    const valid = await verifyDeviceApprovalProof(proof, {
+      creatorId: identity.userId,
+      approverDeviceId: challenge.approverDeviceId,
+      targetDeviceId: challenge.targetDeviceId,
+      publicKeySpkiBase64: approver.public_key_spki_base64,
+    });
+    if (!valid) return json({ error: "Approval signature was not valid" }, 403, origin);
+
+    try {
+      const nonce = decodeBase64(challenge.nonceBase64);
+      const nonceDigestBase64 = await sha256Base64(nonce);
+      const { data, error } = await adminClient.rpc(
+        "consume_javas_device_approval_challenge",
+        {
+          p_challenge_id: challenge.challengeId,
+          p_creator_user_id: identity.userId,
+          p_approver_device_id: challenge.approverDeviceId,
+          p_target_device_id: challenge.targetDeviceId,
+          p_nonce_sha256_base64: nonceDigestBase64,
+        },
+      );
+      if (error) return json({ error: "Unable to complete device approval" }, 503, origin);
+      if (!Array.isArray(data) || data.length !== 1) {
+        return json({ error: "Approval challenge expired, used or not recognised" }, 409, origin);
+      }
+      return json({ deviceId: challenge.targetDeviceId, state: "VERIFIED" }, 200, origin);
+    } catch {
+      return json({ error: "Unable to complete device approval" }, 400, origin);
     }
   }
 
