@@ -1,6 +1,13 @@
 # Local Supabase project identifier used by the CLI and isolated CI stack.
 project_id = "javas-ultra"
 
+# Keep local email testing ports distinct from common runner/service defaults.
+[inbucket]
+enabled = true
+port = 54344
+smtp_port = 54345
+pop3_port = 54346
+
 # Keep the gateway protected by the platform JWT check.
 [functions.javas-gateway]
 verify_jwt = true
